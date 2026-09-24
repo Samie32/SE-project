@@ -2,14 +2,14 @@
 
 ## Thành viên nhóm
 
-| TV | Họ và tên | Vai trò |
+| TV | MSSV,Họ tên | Vai trò |
 | --- | --- | --- |
-| 1 | | Tech lead — kiến trúc & quản lý |
-| 2 | | Phân tích nghiệp vụ đặt lịch |
-| 3 | | UI/UX |
-| 4 | | Dữ liệu & bảo mật |
-| 5 | | Backend, API & thông báo |
-| 6 | | QA & truy vết |
+| 1 |52400243 - Vũ Trần Khắc Thuận| Kiến trúc & quản lý |
+| 2 |52400052 - Nguyễn Huỳnh Anh Kiệt| Phân tích nghiệp vụ đặt lịch |
+| 3 |52400220 - Nguyễn Hiếu Nhân| UI/UX |
+| 4 |52400238 - Vũ Đức Thắng| Dữ liệu & bảo mật |
+| 5 |52400225 - Vòng Kỷ Phong| Backend, API & thông báo |
+| 6 |52400244 - Nguyễn Thường| QA & truy vết |
 
 ## Cấu trúc thư mục
 
@@ -45,4 +45,4 @@ mã yêu cầu, tên file, quy trình review, quy tắc commit/branch.
 
 ## Bảng công việc
 
-Theo dõi tiến độ tại: `<dán link GitHub Project / Trello / Jira ở đây>`
+Theo dõi tiến độ tại: https://github.com/Samie32/SE-project
