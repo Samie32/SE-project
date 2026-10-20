@@ -1,0 +1,50 @@
+@startuml
+skinparam monochrome true
+skinparam shadowing false
+skinparam defaultFontName Arial
+skinparam defaultFontSize 15
+skinparam dpi 150
+skinparam backgroundColor white
+skinparam roundcorner 0
+skinparam ArrowColor black
+skinparam packageStyle rectangle
+title ERD video
+hide circle
+skinparam linetype polyline
+skinparam nodesep 45
+skinparam ranksep 55
+entity app_users {
+ * id : uuid <<PK>>
+ * status : varchar(16)
+ * version : integer
+}
+entity appointments {
+ * id : uuid <<PK>>
+ * slot_id : uuid <<FK>>
+ * patient_id : uuid <<FK>>
+ * doctor_id : uuid <<FK>>
+ * branch_id : uuid <<FK>>
+ * starts_at : timestamptz
+ * ends_at : timestamptz
+ * status : varchar(16)
+ * created_by : uuid <<FK>>
+ * version : integer
+}
+entity video_sessions {
+ * id : uuid <<PK>>
+ * appointment_id : uuid <<FK>>
+ * generation : integer
+ * status : varchar(16)
+ * version : integer
+}
+entity video_participants {
+ * id : uuid <<PK>>
+ * video_session_id : uuid <<FK>>
+ * user_id : uuid <<FK>>
+}
+app_users ||--o{ appointments : created_by
+appointments ||--o{ video_sessions : appointment_id
+video_sessions ||--o{ video_participants : video_session_id
+app_users ||--o{ video_participants : user_id
+
+@enduml

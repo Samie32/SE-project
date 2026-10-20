@@ -1,0 +1,12 @@
+{
+  "active_catalogue": 709,
+  "openapi_operations": 80,
+  "edges": 4298,
+  "remapped_legacy_and_case_endpoints": 39,
+  "legacy_auth_edges_remapped": 25,
+  "case_mismatch_edges_remapped": 14,
+  "dangling_edges_at_generation": 0,
+  "duplicate_edge_triplets": 0,
+  "edge_flags": "static snapshot, refresh after changes",
+  "all_original_TC_status": "NOT_RUN"
+}

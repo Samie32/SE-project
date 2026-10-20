@@ -1,0 +1,68 @@
+@startuml
+skinparam monochrome true
+skinparam shadowing false
+skinparam defaultFontName Arial
+skinparam defaultFontSize 15
+skinparam dpi 150
+skinparam backgroundColor white
+skinparam roundcorner 0
+skinparam ArrowColor black
+skinparam packageStyle rectangle
+title ERD scheduling
+hide circle
+skinparam linetype polyline
+skinparam nodesep 45
+skinparam ranksep 55
+entity app_users {
+ * id : uuid <<PK>>
+ * status : varchar(16)
+ * version : integer
+}
+entity branches {
+ * id : uuid <<PK>>
+ * version : integer
+}
+entity user_branches {
+ * user_id : uuid <<FK>>
+ * branch_id : uuid <<FK>>
+}
+entity specialties {
+ * id : uuid <<PK>>
+ * version : integer
+}
+entity doctors {
+ * id : uuid <<PK>>
+ * user_id : uuid <<FK>>
+ * specialty_id : uuid <<FK>>
+ * version : integer
+}
+entity doctor_branches {
+ * doctor_id : uuid <<FK>>
+ * branch_id : uuid <<FK>>
+}
+entity work_shifts {
+ * id : uuid <<PK>>
+ * doctor_id : uuid <<FK>>
+ * branch_id : uuid <<FK>>
+ * starts_at : timestamptz
+ * ends_at : timestamptz
+ * status : varchar(16)
+ * version : integer
+}
+entity slots {
+ * id : uuid <<PK>>
+ * shift_id : uuid <<FK>>
+ * starts_at : timestamptz
+ * ends_at : timestamptz
+}
+app_users ||--o{ user_branches : user_id
+branches ||--o{ user_branches : branch_id
+app_users ||--o| doctors : user_id
+specialties ||--o{ doctors : specialty_id
+doctors ||--o{ doctor_branches : doctor_id
+branches ||--o{ doctor_branches : branch_id
+doctors ||--o{ work_shifts : doctor_id
+branches ||--o{ work_shifts : branch_id
+work_shifts ||--o{ slots : shift_id
+
+@enduml

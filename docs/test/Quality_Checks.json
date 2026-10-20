@@ -1,0 +1,75 @@
+{
+  "version": "2.4",
+  "evidence_date": "2026-10-13",
+  "scope": "static pre-run consistency audit, not runtime acceptance",
+  "static_checks": {
+    "passed": 34,
+    "total": 34,
+    "details": "PRE_RUN_AUDIT_RESULTS.json"
+  },
+  "specification": {
+    "openapi_version": "3.1.1",
+    "info_version": "2.3.0 (contract unchanged in release v2.4)",
+    "operations": 80,
+    "sdd_vs_openapi_exact": true
+  },
+  "traceability": {
+    "active_ids": 709,
+    "edges": 4298,
+    "dangling_edges": 0,
+    "duplicate_edges": 0,
+    "api_operation_ids_match": true,
+    "formal_test_cases": 259,
+    "formal_test_status": "NOT_RUN",
+    "artifact_unchanged_since_v2.3": true
+  },
+  "database": {
+    "domain_tables": 36,
+    "startup_init_order": [
+      "000_runtime_role.sh",
+      "001_domain_schema.sql",
+      "002_runtime_permissions.sql"
+    ],
+    "runtime_role": "topic2_app",
+    "db_admin_role": "postgres",
+    "runtime_sql_execution": "NOT_RUN",
+    "existing_volume_auto_init": false
+  },
+  "solution": {
+    "project_count": 8,
+    "compile": "NOT_RUN",
+    "nuget_restore": "NOT_RUN",
+    "docker_compose": "NOT_RUN",
+    "CI": "NOT_RUN",
+    "windows_wpf": "NOT_RUN",
+    "worker": "inert optional profile",
+    "api_business_operations_implemented": 0,
+    "readiness": "static code reviewed; DB-backed endpoint not exercised"
+  },
+  "testing": {
+    "api_smoke_sources": 3,
+    "unit_test_sources": 8,
+    "execution": "NOT_RUN",
+    "coverage_gate": "static script synthetic pass/fail cases verified; Clinic.Domain only",
+    "full_coverage_60pct": "NOT_VERIFIED"
+  },
+  "documents": {
+    "srs_pages": 82,
+    "sdd_pages": 49,
+    "test_plan_pages": 53,
+    "change_log_pages": 5,
+    "pdf_reexported": true
+  },
+  "uml": {
+    "plantuml_source_count": 39,
+    "png_count": 39,
+    "compiled_pdf_pages": 39,
+    "official_plantuml_renderer": "NOT_RUN",
+    "two_labels_synchronized": true
+  },
+  "limits": [
+    "No dotnet SDK, Docker daemon, PostgreSQL server, interactive Windows WPF runtime or PlantUML renderer available here.",
+    "Static checks cannot prove compile, SQL trigger integrity, end-to-end login/booking or 60% whole-product coverage.",
+    "Keep all 259 formal TCs NOT_RUN until execution logs exist."
+  ]
+}

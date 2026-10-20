@@ -1,0 +1,73 @@
+@startuml
+skinparam monochrome true
+skinparam shadowing false
+skinparam defaultFontName Arial
+skinparam defaultFontSize 15
+skinparam dpi 150
+skinparam backgroundColor white
+skinparam roundcorner 0
+skinparam ArrowColor black
+skinparam packageStyle rectangle
+title ERD prescription
+hide circle
+skinparam linetype polyline
+skinparam nodesep 45
+skinparam ranksep 55
+entity doctors {
+ * id : uuid <<PK>>
+ * user_id : uuid <<FK>>
+ * specialty_id : uuid <<FK>>
+ * version : integer
+}
+entity encounters {
+ * id : uuid <<PK>>
+ * appointment_id : uuid <<FK>>
+ * doctor_id : uuid <<FK>>
+ * status : varchar(20)
+ key_id : varchar(32)
+ * version : integer
+}
+entity clinical_records {
+ * id : uuid <<PK>>
+ * encounter_id : uuid <<FK>>
+ * author_doctor_id : uuid <<FK>>
+ * status : varchar(8)
+ * payload_ciphertext : text
+ * key_id : varchar(32)
+ * version : integer
+}
+entity medications {
+ * id : uuid <<PK>>
+}
+entity prescriptions {
+ * id : uuid <<PK>>
+ * encounter_id : uuid <<FK>>
+ previous_id : uuid <<FK>>
+ * author_doctor_id : uuid <<FK>>
+ * status : varchar(16)
+ * key_id : varchar(32)
+ * version : integer
+}
+entity prescription_items {
+ * id : uuid <<PK>>
+ * prescription_id : uuid <<FK>>
+ * payload_ciphertext : text
+ * key_id : varchar(32)
+}
+entity private_artifacts {
+ * id : uuid <<PK>>
+ record_id : uuid <<FK>>
+ prescription_id : uuid <<FK>>
+ * key_id : varchar(32)
+}
+doctors ||--o{ encounters : doctor_id
+encounters ||--o| clinical_records : encounter_id
+doctors ||--o{ clinical_records : author_doctor_id
+encounters ||--o{ prescriptions : encounter_id
+prescriptions |o--o| prescriptions : previous_id
+doctors ||--o{ prescriptions : author_doctor_id
+prescriptions ||--o{ prescription_items : prescription_id
+clinical_records |o--o{ private_artifacts : record_id
+prescriptions |o--o{ private_artifacts : prescription_id
+
+@enduml
