@@ -1,0 +1,2830 @@
+openapi: 3.1.0
+info:
+  title: Clinic Telehealth API
+  version: 0.1.0
+  description: Course project API design. OAuth2/OIDC Authorization Code with PKCE;
+    bearer access token stored in client memory. Resource authorization is required.
+    External services are represented by provider adapters.
+servers:
+- url: https://clinic.example.invalid/api/v1
+  description: Nonfunctional documentation placeholder
+security:
+- bearerAuth: []
+paths:
+  /me:
+    get:
+      operationId: getMe
+      summary: Current authenticated identity
+      x-requirements:
+      - FR-01
+      - FR-02
+      description: Enforce role and object permissions from docs/design/architecture/security.md.
+        Business rules and transitions are described in the SRS.
+      responses:
+        '200':
+          description: Successful authorized result
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Identity'
+        '400':
+          description: Invalid request format
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Unauthenticated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Not found or not visible
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '409':
+          description: Conflict or stale version
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '422':
+          description: Business validation failed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '503':
+          description: Dependency or audit unavailable
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  /users/{userId}/roles:
+    put:
+      operationId: setRoles
+      summary: Admin changes internal roles with audit
+      x-requirements:
+      - FR-02
+      - FR-17
+      description: Enforce role and object permissions from docs/design/architecture/security.md.
+        Business rules and transitions are described in the SRS.
+      responses:
+        '200':
+          description: Successful authorized result
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Identity'
+        '400':
+          description: Invalid request format
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Unauthenticated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Not found or not visible
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '409':
+          description: Conflict or stale version
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '422':
+          description: Business validation failed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '503':
+          description: Dependency or audit unavailable
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      parameters:
+      - name: userId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required:
+              - roles
+              properties:
+                roles:
+                  type: array
+                  minItems: 1
+                  uniqueItems: true
+                  items:
+                    type: string
+                    enum:
+                    - PATIENT
+                    - DOCTOR
+                    - RECEPTIONIST
+                    - ADMIN
+                    - AUDITOR
+  /specialties:
+    get:
+      operationId: listSpecialties
+      summary: List specialties
+      x-requirements:
+      - FR-03
+      description: Enforce role and object permissions from docs/design/architecture/security.md.
+        Business rules and transitions are described in the SRS.
+      responses:
+        '200':
+          description: Successful authorized result
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Specialty'
+        '400':
+          description: Invalid request format
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Unauthenticated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Not found or not visible
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '409':
+          description: Conflict or stale version
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '422':
+          description: Business validation failed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '503':
+          description: Dependency or audit unavailable
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      parameters:
+      - name: limit
+        in: query
+        schema:
+          type: integer
+          minimum: 1
+          maximum: 100
+          default: 20
+      - name: offset
+        in: query
+        schema:
+          type: integer
+          minimum: 0
+          default: 0
+    post:
+      operationId: createSpecialty
+      summary: Admin creates specialty
+      x-requirements:
+      - FR-03
+      description: Enforce role and object permissions from docs/design/architecture/security.md.
+        Business rules and transitions are described in the SRS.
+      responses:
+        '201':
+          description: Successful authorized result
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Specialty'
+        '400':
+          description: Invalid request format
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Unauthenticated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Not found or not visible
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '409':
+          description: Conflict or stale version
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '422':
+          description: Business validation failed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '503':
+          description: Dependency or audit unavailable
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required:
+              - name
+              properties:
+                name:
+                  type: string
+                  minLength: 1
+  /doctors:
+    get:
+      operationId: listDoctors
+      summary: List doctors
+      x-requirements:
+      - FR-03
+      description: Enforce role and object permissions from docs/design/architecture/security.md.
+        Business rules and transitions are described in the SRS.
+      responses:
+        '200':
+          description: Successful authorized result
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Doctor'
+        '400':
+          description: Invalid request format
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Unauthenticated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Not found or not visible
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '409':
+          description: Conflict or stale version
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '422':
+          description: Business validation failed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '503':
+          description: Dependency or audit unavailable
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      parameters:
+      - name: limit
+        in: query
+        schema:
+          type: integer
+          minimum: 1
+          maximum: 100
+          default: 20
+      - name: offset
+        in: query
+        schema:
+          type: integer
+          minimum: 0
+          default: 0
+    post:
+      operationId: createDoctor
+      summary: Admin creates doctor
+      x-requirements:
+      - FR-03
+      description: Enforce role and object permissions from docs/design/architecture/security.md.
+        Business rules and transitions are described in the SRS.
+      responses:
+        '201':
+          description: Successful authorized result
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Doctor'
+        '400':
+          description: Invalid request format
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Unauthenticated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Not found or not visible
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '409':
+          description: Conflict or stale version
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '422':
+          description: Business validation failed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '503':
+          description: Dependency or audit unavailable
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DoctorInput'
+  /doctors/{doctorId}:
+    put:
+      operationId: updateDoctor
+      summary: Admin updates doctor; reject deactivation with active future appointments
+      x-requirements:
+      - FR-03
+      - FR-04
+      description: Enforce role and object permissions from docs/design/architecture/security.md.
+        Business rules and transitions are described in the SRS.
+      responses:
+        '200':
+          description: Successful authorized result
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Doctor'
+        '400':
+          description: Invalid request format
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Unauthenticated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Not found or not visible
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '409':
+          description: Conflict or stale version
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '422':
+          description: Business validation failed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '503':
+          description: Dependency or audit unavailable
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      parameters:
+      - name: doctorId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DoctorInput'
+  /doctors/{doctorId}/availability:
+    post:
+      operationId: createAvailability
+      summary: Doctor/admin creates work interval
+      x-requirements:
+      - FR-05
+      description: Enforce role and object permissions from docs/design/architecture/security.md.
+        Business rules and transitions are described in the SRS.
+      responses:
+        '201':
+          description: Successful authorized result
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Availability'
+        '400':
+          description: Invalid request format
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Unauthenticated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Not found or not visible
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '409':
+          description: Conflict or stale version
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '422':
+          description: Business validation failed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '503':
+          description: Dependency or audit unavailable
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      parameters:
+      - name: doctorId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AvailabilityInput'
+  /doctors/{doctorId}/time-off:
+    post:
+      operationId: createTimeOff
+      summary: Doctor/admin adds time off; reject conflicts
+      x-requirements:
+      - FR-06
+      description: Enforce role and object permissions from docs/design/architecture/security.md.
+        Business rules and transitions are described in the SRS.
+      responses:
+        '201':
+          description: Successful authorized result
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TimeOff'
+        '400':
+          description: Invalid request format
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Unauthenticated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Not found or not visible
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '409':
+          description: Conflict or stale version
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '422':
+          description: Business validation failed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '503':
+          description: Dependency or audit unavailable
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      parameters:
+      - name: doctorId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required:
+              - startAt
+              - endAt
+              properties:
+                startAt:
+                  type: string
+                  format: date-time
+                endAt:
+                  type: string
+                  format: date-time
+  /slots:
+    get:
+      operationId: listSlots
+      summary: Find available slots
+      x-requirements:
+      - FR-07
+      description: Enforce role and object permissions from docs/design/architecture/security.md.
+        Business rules and transitions are described in the SRS.
+      responses:
+        '200':
+          description: Successful authorized result
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Slot'
+        '400':
+          description: Invalid request format
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Unauthenticated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Not found or not visible
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '409':
+          description: Conflict or stale version
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '422':
+          description: Business validation failed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '503':
+          description: Dependency or audit unavailable
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      parameters:
+      - name: limit
+        in: query
+        schema:
+          type: integer
+          minimum: 1
+          maximum: 100
+          default: 20
+      - name: offset
+        in: query
+        schema:
+          type: integer
+          minimum: 0
+          default: 0
+      - name: doctorId
+        in: query
+        schema:
+          type: string
+          format: uuid
+      - name: specialtyId
+        in: query
+        schema:
+          type: string
+          format: uuid
+      - name: date
+        in: query
+        required: true
+        schema:
+          type: string
+          format: date
+      - name: mode
+        in: query
+        schema:
+          type: string
+          enum:
+          - IN_PERSON
+          - TELEHEALTH
+  /appointments:
+    get:
+      operationId: listAppointments
+      summary: List only authorized appointments
+      x-requirements:
+      - FR-02
+      - FR-11
+      description: Enforce role and object permissions from docs/design/architecture/security.md.
+        Business rules and transitions are described in the SRS.
+      responses:
+        '200':
+          description: Successful authorized result
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Appointment'
+        '400':
+          description: Invalid request format
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Unauthenticated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Not found or not visible
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '409':
+          description: Conflict or stale version
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '422':
+          description: Business validation failed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '503':
+          description: Dependency or audit unavailable
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      parameters:
+      - name: limit
+        in: query
+        schema:
+          type: integer
+          minimum: 1
+          maximum: 100
+          default: 20
+      - name: offset
+        in: query
+        schema:
+          type: integer
+          minimum: 0
+          default: 0
+    post:
+      operationId: bookAppointment
+      summary: Book for current patient; derive patient ID from identity
+      x-requirements:
+      - FR-08
+      description: Enforce role and object permissions from docs/design/architecture/security.md.
+        Business rules and transitions are described in the SRS.
+      responses:
+        '201':
+          description: Successful authorized result
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Appointment'
+        '400':
+          description: Invalid request format
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Unauthenticated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Not found or not visible
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '409':
+          description: Conflict or stale version
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '422':
+          description: Business validation failed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '503':
+          description: Dependency or audit unavailable
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      parameters:
+      - name: Idempotency-Key
+        in: header
+        required: true
+        schema:
+          type: string
+          minLength: 1
+          maxLength: 128
+        description: Retained for 24 hours per actor and operation. Same key with
+          different payload returns 409.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BookingInput'
+  /appointments/{appointmentId}/reschedule:
+    post:
+      operationId: rescheduleAppointment
+      summary: Atomically change slot while preserving history
+      x-requirements:
+      - FR-09
+      description: Only CONFIRMED appointments at least 2 hours before start. Enforce
+        ownership, version and atomic update; conflict returns 409.
+      responses:
+        '200':
+          description: Successful authorized result
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Appointment'
+        '400':
+          description: Invalid request format
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Unauthenticated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Not found or not visible
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '409':
+          description: Conflict or stale version
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '422':
+          description: Business validation failed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '503':
+          description: Dependency or audit unavailable
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      parameters:
+      - name: appointmentId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: Idempotency-Key
+        in: header
+        required: true
+        schema:
+          type: string
+          minLength: 1
+          maxLength: 128
+        description: Retained for 24 hours per actor and operation. Same key with
+          different payload returns 409.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RescheduleInput'
+  /appointments/{appointmentId}/cancel:
+    post:
+      operationId: cancelAppointment
+      summary: Cancel confirmed appointment
+      x-requirements:
+      - FR-10
+      description: Only CONFIRMED appointments at least 2 hours before start. Enforce
+        ownership, version and atomic update; conflict returns 409.
+      responses:
+        '200':
+          description: Successful authorized result
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Appointment'
+        '400':
+          description: Invalid request format
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Unauthenticated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Not found or not visible
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '409':
+          description: Conflict or stale version
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '422':
+          description: Business validation failed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '503':
+          description: Dependency or audit unavailable
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      parameters:
+      - name: appointmentId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: Idempotency-Key
+        in: header
+        required: true
+        schema:
+          type: string
+          minLength: 1
+          maxLength: 128
+        description: Retained for 24 hours per actor and operation. Same key with
+          different payload returns 409.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CancelInput'
+  /appointments/{appointmentId}/progress:
+    post:
+      operationId: progressAppointment
+      summary: Authorized doctor/reception changes allowed state
+      x-requirements:
+      - FR-11
+      description: >-
+        Only assigned doctors start IN_PERSON consultations from CHECKED_IN with a CALLED ticket. Remote start uses startSession. Completion requires a FINAL record and an ENDED remote session if applicable. NO_SHOW requires CONFIRMED and now >= start + 15 minutes; receptionist for IN_PERSON or assigned doctor for REMOTE. Update related states and audit atomically.
+      responses:
+        '200':
+          description: Successful authorized result
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Appointment'
+        '400':
+          description: Invalid request format
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Unauthenticated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Not found or not visible
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '409':
+          description: Conflict or stale version
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '422':
+          description: Business validation failed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '503':
+          description: Dependency or audit unavailable
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      parameters:
+      - name: appointmentId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ProgressInput'
+  /patients/{patientId}/records:
+    get:
+      operationId: listPatientRecords
+      summary: Return only records permitted by relationship and publication state
+      x-requirements:
+      - FR-12
+      description: Enforce role and object permissions from docs/design/architecture/security.md.
+        Business rules and transitions are described in the SRS.
+      responses:
+        '200':
+          description: Successful authorized result
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Record'
+        '400':
+          description: Invalid request format
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Unauthenticated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Not found or not visible
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '409':
+          description: Conflict or stale version
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '422':
+          description: Business validation failed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '503':
+          description: Dependency or audit unavailable
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      parameters:
+      - name: patientId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: limit
+        in: query
+        schema:
+          type: integer
+          minimum: 1
+          maximum: 100
+          default: 20
+      - name: offset
+        in: query
+        schema:
+          type: integer
+          minimum: 0
+          default: 0
+  /encounters/{encounterId}/record:
+    put:
+      operationId: saveRecord
+      summary: Save/finalize record with version check
+      x-requirements:
+      - FR-13
+      description: >-
+        Assigned doctor saves or finalizes the current DRAFT with version validation. FINAL is immutable. Record finalization does not complete the encounter; use progressAppointment separately.
+      responses:
+        '200':
+          description: Successful authorized result
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Record'
+        '400':
+          description: Invalid request format
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Unauthenticated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Not found or not visible
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '409':
+          description: Conflict or stale version
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '422':
+          description: Business validation failed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '503':
+          description: Dependency or audit unavailable
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      parameters:
+      - name: encounterId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RecordInput'
+  /records/{recordId}/amendments:
+    post:
+      operationId: amendRecord
+      summary: Create new version of final record; preserve original
+      x-requirements:
+      - FR-13
+      description: >-
+        Assigned doctor creates a new FINAL record with a reason and supersedes reference to the latest FINAL record in the same encounter. Preserve the original; serialize versions and reject concurrent branching.
+      responses:
+        '201':
+          description: Successful authorized result
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Record'
+        '400':
+          description: Invalid request format
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Unauthenticated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Not found or not visible
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '409':
+          description: Conflict or stale version
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '422':
+          description: Business validation failed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '503':
+          description: Dependency or audit unavailable
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      parameters:
+      - name: recordId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required:
+              - content
+              - reason
+              - version
+              properties:
+                content:
+                  type: string
+                  minLength: 1
+                reason:
+                  type: string
+                  minLength: 1
+                version:
+                  type: integer
+                  minimum: 0
+  /encounters/{encounterId}/prescriptions:
+    post:
+      operationId: createPrescription
+      summary: Create draft prescription
+      x-requirements:
+      - FR-14
+      description: Enforce role and object permissions from docs/design/architecture/security.md.
+        Business rules and transitions are described in the SRS.
+      responses:
+        '201':
+          description: Successful authorized result
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Prescription'
+        '400':
+          description: Invalid request format
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Unauthenticated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Not found or not visible
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '409':
+          description: Conflict or stale version
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '422':
+          description: Business validation failed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '503':
+          description: Dependency or audit unavailable
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      parameters:
+      - name: encounterId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PrescriptionInput'
+  /prescriptions/{prescriptionId}/issue:
+    post:
+      operationId: issuePrescription
+      summary: Issue nonempty valid prescription
+      x-requirements:
+      - FR-14
+      description: Enforce role and object permissions from docs/design/architecture/security.md.
+        Business rules and transitions are described in the SRS.
+      responses:
+        '200':
+          description: Successful authorized result
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Prescription'
+        '400':
+          description: Invalid request format
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Unauthenticated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Not found or not visible
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '409':
+          description: Conflict or stale version
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '422':
+          description: Business validation failed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '503':
+          description: Dependency or audit unavailable
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      parameters:
+      - name: prescriptionId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: Idempotency-Key
+        in: header
+        required: true
+        schema:
+          type: string
+          minLength: 1
+          maxLength: 128
+        description: Retained for 24 hours per actor and operation. Same key with
+          different payload returns 409.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required:
+              - version
+              properties:
+                version:
+                  type: integer
+                  minimum: 0
+  /patients/{patientId}/prescriptions:
+    get:
+      operationId: listPatientPrescriptions
+      summary: Patient sees own issued prescriptions; assigned doctor sees authorized
+        drafts
+      x-requirements:
+      - FR-14
+      description: Enforce role and object permissions from docs/design/architecture/security.md.
+        Business rules and transitions are described in the SRS.
+      responses:
+        '200':
+          description: Successful authorized result
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Prescription'
+        '400':
+          description: Invalid request format
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Unauthenticated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Not found or not visible
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '409':
+          description: Conflict or stale version
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '422':
+          description: Business validation failed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '503':
+          description: Dependency or audit unavailable
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      parameters:
+      - name: patientId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: limit
+        in: query
+        schema:
+          type: integer
+          minimum: 1
+          maximum: 100
+          default: 20
+      - name: offset
+        in: query
+        schema:
+          type: integer
+          minimum: 0
+          default: 0
+  /notification-jobs:
+    get:
+      operationId: listNotificationJobs
+      summary: Authorized coordinator views delivery metadata
+      x-requirements:
+      - FR-15
+      - FR-16
+      description: Enforce role and object permissions from docs/design/architecture/security.md.
+        Business rules and transitions are described in the SRS.
+      responses:
+        '200':
+          description: Successful authorized result
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Notification'
+        '400':
+          description: Invalid request format
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Unauthenticated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Not found or not visible
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '409':
+          description: Conflict or stale version
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '422':
+          description: Business validation failed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '503':
+          description: Dependency or audit unavailable
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      parameters:
+      - name: limit
+        in: query
+        schema:
+          type: integer
+          minimum: 1
+          maximum: 100
+          default: 20
+      - name: offset
+        in: query
+        schema:
+          type: integer
+          minimum: 0
+          default: 0
+  /audit-events:
+    get:
+      operationId: listAuditEvents
+      summary: Auditor filters immutable audit records
+      x-requirements:
+      - FR-17
+      - FR-18
+      description: Enforce role and object permissions from docs/design/architecture/security.md.
+        Business rules and transitions are described in the SRS.
+      responses:
+        '200':
+          description: Successful authorized result
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Audit'
+        '400':
+          description: Invalid request format
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Unauthenticated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Not found or not visible
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '409':
+          description: Conflict or stale version
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '422':
+          description: Business validation failed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '503':
+          description: Dependency or audit unavailable
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      parameters:
+      - name: limit
+        in: query
+        schema:
+          type: integer
+          minimum: 1
+          maximum: 100
+          default: 20
+      - name: offset
+        in: query
+        schema:
+          type: integer
+          minimum: 0
+          default: 0
+      - name: actorId
+        in: query
+        schema:
+          type: string
+          format: uuid
+      - name: resourceId
+        in: query
+        schema:
+          type: string
+      - name: from
+        in: query
+        schema:
+          type: string
+          format: date-time
+      - name: to
+        in: query
+        schema:
+          type: string
+          format: date-time
+  /appointments/{appointmentId}/check-in:
+    post:
+      operationId: checkIn
+      summary: Reception checks in; repeat returns same ticket
+      x-requirements:
+      - FR-19
+      description: >-
+        Receptionist checks IN_PERSON CONFIRMED appointments during [start - 15 minutes, start + 15 minutes). Lock Doctor then Patient then appointment; allocate queue position under the Doctor lock. Repeated check-in returns the existing ticket.
+      responses:
+        '200':
+          description: Successful authorized result
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/QueueTicket'
+        '400':
+          description: Invalid request format
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Unauthenticated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Not found or not visible
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '409':
+          description: Conflict or stale version
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '422':
+          description: Business validation failed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '503':
+          description: Dependency or audit unavailable
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      parameters:
+      - name: appointmentId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: Idempotency-Key
+        in: header
+        required: true
+        schema:
+          type: string
+          minLength: 1
+          maxLength: 128
+        description: Retained for 24 hours per actor and operation. Same key with
+          different payload returns 409.
+  /doctors/{doctorId}/queue/next:
+    post:
+      operationId: callNext
+      summary: Assigned doctor atomically claims next waiting ticket
+      x-requirements:
+      - FR-20
+      description: >-
+        Assigned doctor claims the lowest WAITING position in their local-day queue under the Doctor lock. Persist the idempotency result with the claim; retries do not claim another ticket.
+      responses:
+        '200':
+          description: Successful authorized result
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/QueueTicket'
+        '204':
+          description: No waiting ticket
+        '400':
+          description: Invalid request format
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Unauthenticated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Not found or not visible
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '409':
+          description: Conflict or stale version
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '422':
+          description: Business validation failed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '503':
+          description: Dependency or audit unavailable
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      parameters:
+      - name: doctorId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: Idempotency-Key
+        in: header
+        required: true
+        schema:
+          type: string
+          minLength: 1
+          maxLength: 128
+        description: Retained for 24 hours per actor and operation. Same key with
+          different payload returns 409.
+  /queue-tickets/{ticketId}/skip:
+    post:
+      operationId: skipTicket
+      summary: Reception returns CALLED ticket to end of queue
+      x-requirements:
+      - FR-21
+      description: >-
+        Receptionist returns a CALLED ticket to WAITING with a nonempty reason. Under the Doctor lock allocate MAX(position)+1 for the same doctor/day; preserve ticket identity.
+      responses:
+        '200':
+          description: Successful authorized result
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/QueueTicket'
+        '400':
+          description: Invalid request format
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Unauthenticated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Not found or not visible
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '409':
+          description: Conflict or stale version
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '422':
+          description: Business validation failed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '503':
+          description: Dependency or audit unavailable
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      parameters:
+      - name: ticketId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required:
+              - reason
+              properties:
+                reason:
+                  type: string
+                  minLength: 1
+  /appointments/{appointmentId}/telehealth-session:
+    post:
+      operationId: prepareSession
+      summary: Create or get unique telehealth waiting room
+      x-requirements:
+      - FR-22
+      description: >-
+        Owner prepares a unique session for a REMOTE CONFIRMED appointment during [start - 10 minutes, start + 15 minutes). Returns Session, not a token. Provider creation is idempotent and outside the DB transaction; recheck state before admission. NO_SHOW cancels an unused session.
+      responses:
+        '200':
+          description: Successful authorized result
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Session'
+        '400':
+          description: Invalid request format
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Unauthenticated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Not found or not visible
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '409':
+          description: Conflict or stale version
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '422':
+          description: Business validation failed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '503':
+          description: Dependency or audit unavailable
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      parameters:
+      - name: appointmentId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: Idempotency-Key
+        in: header
+        required: true
+        schema:
+          type: string
+          minLength: 1
+          maxLength: 128
+        description: Retained for 24 hours per actor and operation. Same key with
+          different payload returns 409.
+  /telehealth-sessions/{sessionId}/join:
+    post:
+      operationId: joinSession
+      summary: Admit authorized participant with short-lived token
+      x-requirements:
+      - FR-23
+      description: >-
+        Return a 5-minute user/session-bound token after authorization and patient consent. Initial patient admission requires the join window and a ready room, and moves CREATED to WAITING. Assigned doctor joins after startSession. ACTIVE or RECONNECTING participants may rejoin after the initial window; ENDED/CANCELLED always reject admission.
+      responses:
+        '200':
+          description: Successful authorized result
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/JoinToken'
+        '400':
+          description: Invalid request format
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Unauthenticated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Not found or not visible
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '409':
+          description: Conflict or stale version
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '422':
+          description: Business validation failed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '503':
+          description: Dependency or audit unavailable
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      parameters:
+      - name: sessionId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required:
+              - participationConfirmed
+              properties:
+                participationConfirmed:
+                  type: boolean
+                  const: true
+                  description: Participant explicitly confirms joining this consultation.
+  /telehealth-sessions/{sessionId}/start:
+    post:
+      operationId: startSession
+      summary: Assigned doctor activates consultation
+      x-requirements:
+      - FR-23
+      description: >-
+        Assigned doctor starts a WAITING session with an admitted patient during [start, start + 15 minutes). Validate version; atomically set ACTIVE, appointment IN_PROGRESS, create Encounter and audit. Returns Session; call joinSession separately for a token.
+      responses:
+        '200':
+          description: Successful authorized result
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Session'
+        '400':
+          description: Invalid request format
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Unauthenticated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Not found or not visible
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '409':
+          description: Conflict or stale version
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '422':
+          description: Business validation failed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '503':
+          description: Dependency or audit unavailable
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      parameters:
+      - name: sessionId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required:
+              - version
+              properties:
+                version:
+                  type: integer
+                  minimum: 0
+  /telehealth-sessions/{sessionId}/end:
+    post:
+      operationId: endSession
+      summary: End media and revoke admission; clinical finalization is separate
+      x-requirements:
+      - FR-24
+      description: >-
+        Assigned doctor ends ACTIVE or RECONNECTING with version validation. Atomically persist ENDED, audit and a durable room-closure task. Deny new tokens immediately; retry provider closure until acknowledged. Clinical finalization and encounter completion remain separate.
+      responses:
+        '200':
+          description: Successful authorized result
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Session'
+        '400':
+          description: Invalid request format
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Unauthenticated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Not found or not visible
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '409':
+          description: Conflict or stale version
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '422':
+          description: Business validation failed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '503':
+          description: Dependency or audit unavailable
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      parameters:
+      - name: sessionId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required:
+              - version
+              properties:
+                version:
+                  type: integer
+                  minimum: 0
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      description: Access token from OAuth2/OIDC. Re-authenticate after expiration.
+  schemas:
+    Error:
+      type: object
+      additionalProperties: false
+      required:
+      - code
+      - message
+      - correlationId
+      properties:
+        code:
+          type: string
+        message:
+          type: string
+        correlationId:
+          type: string
+    Identity:
+      type: object
+      additionalProperties: false
+      required:
+      - id
+      - roles
+      properties:
+        id:
+          type: string
+          format: uuid
+        roles:
+          type: array
+          items:
+            type: string
+            enum:
+            - PATIENT
+            - DOCTOR
+            - RECEPTIONIST
+            - ADMIN
+            - AUDITOR
+    Doctor:
+      type: object
+      additionalProperties: false
+      required:
+      - id
+      - displayName
+      - specialtyIds
+      - active
+      properties:
+        id:
+          type: string
+          format: uuid
+        displayName:
+          type: string
+        specialtyIds:
+          type: array
+          items:
+            type: string
+            format: uuid
+        active:
+          type: boolean
+    DoctorInput:
+      type: object
+      additionalProperties: false
+      required:
+      - displayName
+      - specialtyIds
+      - active
+      properties:
+        displayName:
+          type: string
+          minLength: 1
+        specialtyIds:
+          type: array
+          minItems: 1
+          items:
+            type: string
+            format: uuid
+        active:
+          type: boolean
+    Specialty:
+      type: object
+      additionalProperties: false
+      required:
+      - id
+      - name
+      - active
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        active:
+          type: boolean
+    Availability:
+      type: object
+      additionalProperties: false
+      required:
+      - id
+      - doctorId
+      - startAt
+      - endAt
+      - slotMinutes
+      - mode
+      properties:
+        id:
+          type: string
+          format: uuid
+        doctorId:
+          type: string
+          format: uuid
+        startAt:
+          type: string
+          format: date-time
+        endAt:
+          type: string
+          format: date-time
+        slotMinutes:
+          type: integer
+          minimum: 1
+        mode:
+          type: string
+          enum:
+          - IN_PERSON
+          - TELEHEALTH
+    AvailabilityInput:
+      type: object
+      additionalProperties: false
+      required:
+      - startAt
+      - endAt
+      - slotMinutes
+      - mode
+      properties:
+        startAt:
+          type: string
+          format: date-time
+        endAt:
+          type: string
+          format: date-time
+        slotMinutes:
+          type: integer
+          minimum: 1
+        mode:
+          type: string
+          enum:
+          - IN_PERSON
+          - TELEHEALTH
+    TimeOff:
+      type: object
+      additionalProperties: false
+      required:
+      - id
+      - doctorId
+      - startAt
+      - endAt
+      properties:
+        id:
+          type: string
+          format: uuid
+        doctorId:
+          type: string
+          format: uuid
+        startAt:
+          type: string
+          format: date-time
+        endAt:
+          type: string
+          format: date-time
+    Slot:
+      type: object
+      additionalProperties: false
+      required:
+      - id
+      - doctorId
+      - startAt
+      - endAt
+      - mode
+      properties:
+        id:
+          type: string
+          format: uuid
+        doctorId:
+          type: string
+          format: uuid
+        startAt:
+          type: string
+          format: date-time
+        endAt:
+          type: string
+          format: date-time
+        mode:
+          type: string
+          enum:
+          - IN_PERSON
+          - TELEHEALTH
+    Appointment:
+      type: object
+      additionalProperties: false
+      required:
+      - id
+      - patientId
+      - doctorId
+      - slotId
+      - status
+      - mode
+      - version
+      - encounterId
+      properties:
+        id:
+          type: string
+          format: uuid
+        patientId:
+          type: string
+          format: uuid
+        doctorId:
+          type: string
+          format: uuid
+        slotId:
+          type: string
+          format: uuid
+        status:
+          type: string
+          enum:
+          - CONFIRMED
+          - CHECKED_IN
+          - IN_PROGRESS
+          - COMPLETED
+          - CANCELLED
+          - NO_SHOW
+        mode:
+          type: string
+          enum:
+          - IN_PERSON
+          - TELEHEALTH
+        version:
+          type: integer
+          minimum: 0
+        encounterId:
+          type:
+          - string
+          - 'null'
+          format: uuid
+          description: Set when consultation starts; null before encounter creation.
+    BookingInput:
+      type: object
+      additionalProperties: false
+      required:
+      - slotId
+      properties:
+        slotId:
+          type: string
+          format: uuid
+    RescheduleInput:
+      type: object
+      additionalProperties: false
+      required:
+      - slotId
+      - version
+      properties:
+        slotId:
+          type: string
+          format: uuid
+        version:
+          type: integer
+          minimum: 0
+    CancelInput:
+      type: object
+      additionalProperties: false
+      required:
+      - reason
+      - version
+      properties:
+        reason:
+          type: string
+          minLength: 1
+        version:
+          type: integer
+          minimum: 0
+    ProgressInput:
+      type: object
+      additionalProperties: false
+      required:
+      - targetStatus
+      - version
+      properties:
+        targetStatus:
+          type: string
+          enum:
+          - IN_PROGRESS
+          - COMPLETED
+          - NO_SHOW
+        version:
+          type: integer
+          minimum: 0
+    Record:
+      type: object
+      additionalProperties: false
+      required:
+      - id
+      - encounterId
+      - version
+      - status
+      - content
+      properties:
+        id:
+          type: string
+          format: uuid
+        encounterId:
+          type: string
+          format: uuid
+        version:
+          type: integer
+          minimum: 0
+        status:
+          type: string
+          enum:
+          - DRAFT
+          - FINAL
+        content:
+          type: string
+    RecordInput:
+      type: object
+      additionalProperties: false
+      required:
+      - version
+      - content
+      - status
+      properties:
+        version:
+          type: integer
+          minimum: 0
+        content:
+          type: string
+          minLength: 1
+        status:
+          type: string
+          enum:
+          - DRAFT
+          - FINAL
+    PrescriptionItem:
+      type: object
+      additionalProperties: false
+      required:
+      - medicineName
+      - doseText
+      - route
+      - frequency
+      - durationText
+      properties:
+        medicineName:
+          type: string
+          minLength: 1
+        doseText:
+          type: string
+          minLength: 1
+        route:
+          type: string
+          minLength: 1
+        frequency:
+          type: string
+          minLength: 1
+        durationText:
+          type: string
+          minLength: 1
+    Prescription:
+      type: object
+      additionalProperties: false
+      required:
+      - id
+      - encounterId
+      - status
+      - version
+      - items
+      properties:
+        id:
+          type: string
+          format: uuid
+        encounterId:
+          type: string
+          format: uuid
+        status:
+          type: string
+          enum:
+          - DRAFT
+          - ISSUED
+        version:
+          type: integer
+          minimum: 0
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/PrescriptionItem'
+    PrescriptionInput:
+      type: object
+      additionalProperties: false
+      required:
+      - items
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/PrescriptionItem'
+    QueueTicket:
+      type: object
+      additionalProperties: false
+      required:
+      - id
+      - appointmentId
+      - position
+      - status
+      properties:
+        id:
+          type: string
+          format: uuid
+        appointmentId:
+          type: string
+          format: uuid
+        position:
+          type: integer
+          minimum: 1
+        status:
+          type: string
+          enum:
+          - WAITING
+          - CALLED
+          - IN_SERVICE
+          - DONE
+    Session:
+      type: object
+      additionalProperties: false
+      required:
+      - id
+      - appointmentId
+      - status
+      - version
+      properties:
+        id:
+          type: string
+          format: uuid
+        appointmentId:
+          type: string
+          format: uuid
+        status:
+          type: string
+          enum:
+          - CREATED
+          - WAITING
+          - ACTIVE
+          - RECONNECTING
+          - ENDED
+          - CANCELLED
+        version:
+          type: integer
+          minimum: 0
+    JoinToken:
+      type: object
+      additionalProperties: false
+      required:
+      - sessionId
+      - token
+      - expiresAt
+      properties:
+        sessionId:
+          type: string
+          format: uuid
+        token:
+          type: string
+        expiresAt:
+          type: string
+          format: date-time
+    Notification:
+      type: object
+      additionalProperties: false
+      required:
+      - id
+      - appointmentId
+      - channel
+      - status
+      - attempts
+      properties:
+        id:
+          type: string
+          format: uuid
+        appointmentId:
+          type: string
+          format: uuid
+        channel:
+          type: string
+          enum:
+          - EMAIL
+          - SMS
+        status:
+          type: string
+          enum:
+          - PENDING
+          - SENT
+          - DELIVERED
+          - FAILED
+          - SKIPPED
+        attempts:
+          type: integer
+          minimum: 0
+    Audit:
+      type: object
+      additionalProperties: false
+      required:
+      - id
+      - actorId
+      - action
+      - resourceId
+      - timestamp
+      - result
+      - correlationId
+      properties:
+        id:
+          type: string
+          format: uuid
+        actorId:
+          type:
+          - string
+          - 'null'
+          format: uuid
+        action:
+          type: string
+        resourceId:
+          type: string
+        timestamp:
+          type: string
+          format: date-time
+        result:
+          type: string
+        correlationId:
+          type: string
