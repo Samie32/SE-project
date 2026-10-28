@@ -1,0 +1,25 @@
+﻿Test case,Module,Fixtures involved,Scenario A/B,Execution type,Fixture status
+TC-01,M01,users,IdP hợp lệ / bị khóa,runtime-IdP,Chưa thực thi
+TC-02,M01/M07,"users,medical-records",Patient A truy cập hồ sơ B / token hết hạn,runtime-auth,Chưa thực thi
+TC-03,M02,"doctors,specialties,doctor-specialties",Admin tạo bác sĩ / chuyên khoa không tồn tại,runtime-API,Chưa thực thi
+TC-04,M02,"doctors,appointments",Vô hiệu bác sĩ có lịch / không có lịch tương lai,runtime-API,Chưa thực thi
+TC-05,M03,"availabilities,slots",09:00–10:00 tạo 3 slot / end <= start,fixture+API,Fixture đã dựng
+TC-06,M03,"availabilities,appointments",Lịch nghỉ trùng lịch hiệu lực,runtime-API,Chưa thực thi
+TC-07,M03,"slots,appointments",Slot còn trống / không có slot,fixture+API,Fixture đã dựng
+TC-08,M04,"patients,appointments,slots",2 bệnh nhân đặt cùng slot đồng thời,runtime-concurrency,Chưa thực thi
+TC-09,M04,"appointments,slots",Đổi thành công / slot bị chiếm,runtime-API,Chưa thực thi
+TC-10,M04,"appointments,notification-jobs",Hủy trước hạn / IN_PROGRESS bị từ chối,runtime-API,Chưa thực thi
+TC-11,M04/M08,"encounters,queue-tickets,appointments",Bắt đầu khám từ phiếu CALLED / chuyển ngược,runtime-API,Chưa thực thi
+TC-12,M05/M07,"medical-records,audit-events","Bác sĩ có quyền đọc / sai bác sĩ; audit READ fixture minh họa, runtime chưa chạy",runtime-auth,Fixture READ đã dựng; runtime chưa thực thi
+TC-13,M05,"encounters,medical-records",DRAFT→FINAL / version stale,runtime-API,Chưa thực thi
+TC-14,M05,"prescriptions,prescription-items",Phát hành hợp lệ / trống hoặc thiếu trường,fixture+API,Fixture đã dựng
+TC-15,M06,"appointments,notification-jobs",Nhắc trước 30 phút / lịch thay version,runtime-worker,Chưa thực thi
+TC-16,M06,notification-jobs,Provider timeout / retry tối đa,runtime-mock,Chưa thực thi
+TC-17,M07,"audit-events,medical-records","Audit READ thành công / lỗi audit; audit READ fixture minh họa, runtime chưa chạy",runtime-fault,Fixture READ đã dựng; runtime chưa thực thi
+TC-18,M07,"audit-events,users",Auditor lọc / cấm UPDATE DELETE,runtime-db,Chưa thực thi
+TC-19,M08,"queue-tickets,appointments",Check-in idempotent / REMOTE bị từ chối,runtime-concurrency,Chưa thực thi
+TC-20,M08,queue-tickets,Hai request gọi tiếp không trùng phiếu,runtime-concurrency,Chưa thực thi
+TC-21,M08,queue-tickets,CALLED→WAITING cuối hàng / IN_SERVICE bị từ chối,runtime-API,Chưa thực thi
+TC-22,M09,"telehealth-sessions,appointments",Phòng chờ hợp lệ / lịch trực tiếp bị từ chối,runtime-video,Chưa thực thi
+TC-23,M09,"telehealth-sessions,users",Bác sĩ bắt đầu / ngoài quyền từ chối token,runtime-video,Chưa thực thi
+TC-24,M09,"telehealth-sessions,medical-records",Mất mạng nối lại / callback trễ,runtime-provider,Chưa thực thi

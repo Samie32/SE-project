@@ -1,0 +1,14 @@
+[
+  {
+    "key": "SP_NOI",
+    "id": "93f7cdc2-9b0e-5cd5-ad1a-acc7e104ec47",
+    "name": "Nội tổng quát",
+    "active": true
+  },
+  {
+    "key": "SP_NHI",
+    "id": "cfd0776a-03b6-5b76-a91c-650928e6835b",
+    "name": "Nhi khoa",
+    "active": true
+  }
+]
