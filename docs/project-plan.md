@@ -31,8 +31,8 @@ Kế hoạch phân biệt công việc đã thực hiện với nhiệm vụ đ�
 | Thiết kế giao diện và API | Vòng Kỷ Phong | Đặc tả màn hình, wireframe và hợp đồng OpenAPI |
 | Lập kế hoạch kiểm thử | Vòng Kỷ Phong | Test plan, test cases và ma trận truy vết |
 | Lập kế hoạch dự án | Vòng Kỷ Phong | Phân công và kế hoạch tám tuần |
-
-làm tiếp những cái gì thì bổ sung ở đây
+| Backend tuần 3–4 | Vòng Kỷ Phong | M01–M04, migration MySQL, audit nền tảng và thông báo xác nhận |
+| Môi trường và kiểm thử backend tuần 3–4 | Vòng Kỷ Phong | Docker Compose, dữ liệu demo, Maven Wrapper, kiểm thử MySQL/JWT và cấu hình CI |
 
 ## 4. Phân công giai đoạn triển khai
 
@@ -86,14 +86,13 @@ Tuần 1–2 tương ứng với khối lượng phân tích và thiết kế hi
 | Cấu trúc dự án, yêu cầu và quy tắc nghiệp vụ | Vòng Kỷ Phong | Tuần 1 | Đã có |
 | Mô hình, kiến trúc, dữ liệu và hợp đồng API | Vòng Kỷ Phong | Tuần 2 | Đã có tài liệu |
 | Đặc tả màn hình, kế hoạch kiểm thử và phân công | Vòng Kỷ Phong | Tuần 2 | Đã có tài liệu |
-| Backend của chín phân hệ | Vòng Kỷ Phong | Tuần 3–6 | Chưa triển khai |
+| Backend của chín phân hệ | Vòng Kỷ Phong | Tuần 3–6 | Đã triển khai M01–M04 và nền tảng audit/thông báo; chức năng tuần 5–6 chưa triển khai |
 | Frontend bệnh nhân | Vũ Trần Khắc Thuận | Tuần 3–6 | Chưa triển khai |
 | Frontend bác sĩ | Nguyễn Huỳnh Anh Kiệt | Tuần 3–6 | Chưa triển khai |
 | Frontend lễ tân, quản trị và kiểm toán | Nguyễn Hiếu Nhân | Tuần 3–6 | Chưa triển khai |
 | Bộ kiểm thử tự động và kiểm thử hệ thống | Vũ Đức Thắng | Tuần 3–8 | Chưa thực thi |
-| MySQL, các môi trường, nạp dữ liệu, sao lưu/phục hồi, đóng gói và CI/CD | Vòng Kỷ Phong | Tuần 3–8 | Chưa triển khai |
+| MySQL, các môi trường, nạp dữ liệu, sao lưu/phục hồi, đóng gói và CI/CD | Vòng Kỷ Phong | Tuần 3–8 | Đã có MySQL, môi trường local/test, dữ liệu demo, đóng gói và cấu hình CI; CI trên GitHub và sao lưu/phục hồi chưa nghiệm thu |
 | Nội dung dữ liệu mô phỏng và tài liệu sử dụng | Nguyễn Thường | Tuần 3–8 | Chưa hoàn thành |
 | Báo cáo tổng hợp, slide và bàn giao | Nguyễn Thường tổng hợp; cả nhóm cung cấp nội dung | Tuần 7–8 | Chưa hoàn thành |
 
 Tiến độ thực tế được ghi nhận theo sản phẩm bàn giao và kết quả kiểm tra. Việc có kế hoạch hoặc tài liệu không đồng nghĩa với hoàn thành triển khai. Các thay đổi tiếp theo được ghi nhận cùng người thực hiện, kết quả và thời hạn điều chỉnh.
-

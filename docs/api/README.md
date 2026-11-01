@@ -36,3 +36,7 @@ Tài liệu phản ánh giao diện hệ thống ở giai đoạn thiết kế; 
 prepareSession và startSession trả Session; joinSession nhận participationConfirmed=true và trả JoinToken. Kết thúc media, hoàn tất hồ sơ và hoàn tất lần khám là ba thao tác riêng. Tiến trình khám được mô tả trong [sequence tiến trình](../design/sequence-diagrams/consultation-progress.png) và [sequence telehealth](../design/sequence-diagrams/telehealth.png).
 
 Các yêu cầu ghi có Idempotency-Key giữ khóa trong 24 giờ; khóa và kết quả được lưu cùng giao dịch. Hoàn tất bản ghi không tự hoàn tất lịch hẹn. Lịch NO_SHOW đóng phiên chờ, còn người đã check-in đúng giờ được tiếp tục chờ khám.
+
+## API đã triển khai
+
+Phạm vi tuần 3–4 được trình bày trong [hướng dẫn tích hợp](implementation.md), với [OpenAPI sinh từ backend](openapi.json). Hợp đồng YAML ở trên là thiết kế toàn hệ thống; các khác biệt hiện tại được nêu trong hướng dẫn tích hợp.

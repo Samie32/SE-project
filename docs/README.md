@@ -22,3 +22,7 @@ Bộ tài liệu trình bày phạm vi, yêu cầu, mô hình nghiệp vụ và 
 | BR | Quy tắc nghiệp vụ |
 | US / AC | User story / tiêu chí chấp nhận |
 | UC / TC | Ca sử dụng / ca kiểm thử |
+
+## Triển khai và kiểm chứng
+
+[Hướng dẫn chạy](running.md), [thiết kế backend triển khai](backend-design.md), [API tuần 3–4](api/implementation.md) và [kết quả thực hiện](week-03-04.md). Các tài liệu thiết kế chín phân hệ vẫn mô tả phạm vi toàn hệ thống.

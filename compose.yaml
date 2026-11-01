@@ -1,0 +1,50 @@
+name: clinic-telehealth
+services:
+  mysql:
+    image: mysql:8.4
+    environment:
+      MYSQL_DATABASE: clinic
+      MYSQL_USER: clinic
+      MYSQL_PASSWORD: ${DB_PASSWORD:?Run setup-local.ps1}
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:?Run setup-local.ps1}
+    ports: ["127.0.0.1:3307:3306"]
+    volumes: ["mysql-data:/var/lib/mysql"]
+    healthcheck:
+      test: ["CMD-SHELL", "mysqladmin ping -h localhost -p$$MYSQL_ROOT_PASSWORD --silent"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+  keycloak:
+    image: quay.io/keycloak/keycloak:26.4.0
+    command: ["start-dev", "--import-realm"]
+    environment:
+      KC_BOOTSTRAP_ADMIN_USERNAME: admin
+      KC_BOOTSTRAP_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD:?Run setup-local.ps1}
+      KC_HOSTNAME: http://localhost:8180
+    ports: ["127.0.0.1:8180:8080"]
+    volumes: ["./infra/runtime/clinic-realm.json:/opt/keycloak/data/import/clinic-realm.json:ro"]
+  mailpit:
+    image: axllent/mailpit:v1.27.0
+    ports: ["127.0.0.1:1025:1025", "127.0.0.1:8025:8025"]
+  backend:
+    build: ./backend
+    environment:
+      SPRING_PROFILES_ACTIVE: demo
+      DB_URL: jdbc:mysql://mysql:3306/clinic?connectionTimeZone=UTC&forceConnectionTimeZoneToSession=true
+      DB_USER: clinic
+      DB_PASSWORD: ${DB_PASSWORD}
+      MIGRATION_USER: root
+      MIGRATION_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+      DATA_ENCRYPTION_KEY: ${DATA_ENCRYPTION_KEY}
+      OIDC_ISSUER: http://localhost:8180/realms/clinic
+      OIDC_JWKS: http://keycloak:8080/realms/clinic/protocol/openid-connect/certs
+      SMTP_HOST: mailpit
+      SMTP_PORT: 1025
+      FRONTEND_ORIGIN: http://localhost:5173
+    ports: ["127.0.0.1:8080:8080"]
+    depends_on:
+      mysql: {condition: service_healthy}
+      keycloak: {condition: service_started}
+      mailpit: {condition: service_started}
+volumes:
+  mysql-data:
