@@ -1,0 +1,26 @@
+[
+  {
+    "key": "MR_A_FINAL",
+    "id": "a451f496-f8f1-5276-9ea6-7bf6cb62a198",
+    "encounter_id": "4e6b93b4-7453-51ea-b305-4516b6011969",
+    "version": 1,
+    "status": "FINAL",
+    "author_id": "fef1d1ad-ef97-5e90-9b8b-beee213327a4",
+    "supersedes_id": null,
+    "amendment_reason": null,
+    "content_encrypted": null,
+    "encryption_instruction": "BACKEND_GENERATED_FROM_NONCLINICAL_TEST_PLACEHOLDER"
+  },
+  {
+    "key": "MR_B_FINAL",
+    "id": "7af2d033-dacd-5303-a07a-a6f1e369fb36",
+    "encounter_id": "8fa1c1c1-8542-5eeb-a90c-983bfe117ab3",
+    "version": 1,
+    "status": "FINAL",
+    "author_id": "91dcb1f5-5efd-5c52-bc06-c8bab8d2063b",
+    "supersedes_id": null,
+    "amendment_reason": null,
+    "content_encrypted": null,
+    "encryption_instruction": "BACKEND_GENERATED_FROM_NONCLINICAL_TEST_PLACEHOLDER"
+  }
+]

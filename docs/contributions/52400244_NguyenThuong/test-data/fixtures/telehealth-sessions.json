@@ -1,0 +1,11 @@
+[
+  {
+    "key": "TEL_B_ENDED",
+    "id": "8b96aab7-d014-553e-b81a-9f4f95888a62",
+    "appointment_id": "4dfc6c89-23b3-5af2-8a59-8b23e7465b95",
+    "provider_room_id": "demo-room-fictional-21",
+    "status": "ENDED",
+    "version": 3,
+    "ended_at": "2026-10-21T03:50:00Z"
+  }
+]

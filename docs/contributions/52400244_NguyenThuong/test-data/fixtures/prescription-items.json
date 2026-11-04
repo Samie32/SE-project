@@ -1,0 +1,12 @@
+[
+  {
+    "key": "RXI_A",
+    "id": "a28a50bf-91ec-590d-aef9-adf6a59fc4eb",
+    "prescription_id": "7f40f0e3-228f-512b-8e37-310542642e18",
+    "medicine_name": "THUOC_GIA_LAP_KHONG_CO_THAT_A",
+    "dose_text": "DU_LIEU_TEST_KHONG_PHAI_LIEU_DUNG",
+    "route": "GIA_LAP",
+    "frequency": "GIA_LAP",
+    "duration_text": "GIA_LAP"
+  }
+]
