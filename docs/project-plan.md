@@ -33,6 +33,7 @@ Kế hoạch phân biệt công việc đã thực hiện với nhiệm vụ đ�
 | Lập kế hoạch dự án | Vòng Kỷ Phong | Phân công và kế hoạch tám tuần |
 | Backend tuần 3–4 | Vòng Kỷ Phong | M01–M04, migration MySQL, audit nền tảng và thông báo xác nhận |
 | Môi trường và kiểm thử backend tuần 3–4 | Vòng Kỷ Phong | Docker Compose, dữ liệu demo, Maven Wrapper, kiểm thử MySQL/JWT và cấu hình CI |
+| Frontend bệnh nhân và cổng dịch vụ | Vũ Trần Khắc Thuận | Khởi tạo dự án React 18, TypeScript, Vite; giao diện đăng nhập OIDC/PKCE; trang chủ bệnh nhân; tra cứu bác sĩ và lịch trống, đặt, đổi và hủy lịch khám (xử lý Idempotency-Key và kiểm tra thời hạn 2 giờ); xem hồ sơ bệnh án và đơn thuốc điện tử; phòng khám từ xa Telehealth (kiểm tra thiết bị camera/micro, xác nhận tham gia phòng chờ và điều khiển cuộc gọi) |
 
 ## 4. Phân công giai đoạn triển khai
 
