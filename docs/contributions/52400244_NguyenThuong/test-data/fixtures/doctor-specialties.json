@@ -1,0 +1,12 @@
+[
+  {
+    "doctor_id": "def08225-35f3-511c-af7d-11f9ebe4c0e7",
+    "specialty_id": "93f7cdc2-9b0e-5cd5-ad1a-acc7e104ec47",
+    "key": "DOC_SPEC_1"
+  },
+  {
+    "doctor_id": "33e92afe-0c78-53d5-adf1-9ad9b81266f5",
+    "specialty_id": "cfd0776a-03b6-5b76-a91c-650928e6835b",
+    "key": "DOC_SPEC_2"
+  }
+]

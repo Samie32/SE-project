@@ -1,0 +1,14 @@
+[
+  {
+    "key": "P_A",
+    "id": "7ae03048-9a5f-5b65-9520-bd31ec345c93",
+    "user_id": "98587c38-36be-51db-84a0-1741bdd280ac",
+    "display_name": "Bệnh nhân giả lập A"
+  },
+  {
+    "key": "P_B",
+    "id": "1f7f404a-5496-5403-b4a2-2bf4f8b772ce",
+    "user_id": "2ff0dd6f-72a9-5cc4-93fe-e501db57d6dc",
+    "display_name": "Bệnh nhân giả lập B"
+  }
+]
