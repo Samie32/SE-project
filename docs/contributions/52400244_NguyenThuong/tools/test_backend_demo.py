@@ -1,8 +1,13 @@
 """Regression cho bộ request backend; không gọi API thật."""
+import copy
+import io
+import json
 import tempfile
 import unittest
+from contextlib import redirect_stdout
 from datetime import date, datetime, timezone
 from pathlib import Path
+from unittest.mock import patch
 
 import backend_demo as demo
 
@@ -42,6 +47,54 @@ class BackendDemoTests(unittest.TestCase):
 
     def test_contract_covers_every_implemented_operation(self):
         self.assertEqual(demo.validate_bundle(self.bundle()), [])
+
+    def run_check(self, bundle, spec=None):
+        args = ['backend_demo.py', '--check']
+        if spec is not None:
+            args.extend(['--spec', str(spec)])
+        output = io.StringIO()
+        with patch('sys.argv', args), patch.object(demo, 'build_bundle', return_value=bundle), redirect_stdout(output):
+            result = demo.main()
+        return result, output.getvalue()
+
+    def test_check_reports_contract_coverage_and_example_counts(self):
+        result, output = self.run_check(self.bundle())
+        self.assertEqual(result, 0)
+        self.assertIn('18/18 operations covered; 19 request examples', output)
+        self.assertIn('NOT a live API/MySQL test', output)
+
+    def test_removing_duplicate_example_preserves_operation_coverage(self):
+        bundle = self.bundle()
+        bundle['operations'] = [r for r in bundle['operations'] if r['name'] != 'remoteAvailability']
+        self.assertEqual(demo.validate_bundle(bundle), [])
+        result, output = self.run_check(bundle)
+        self.assertEqual(result, 0)
+        self.assertIn('18/18 operations covered; 18 request examples', output)
+
+    def test_missing_operation_never_reports_pass(self):
+        bundle = self.bundle()
+        bundle['operations'] = [r for r in bundle['operations'] if r['name'] != 'contact']
+        result, output = self.run_check(bundle)
+        self.assertEqual(result, 1)
+        self.assertIn('PUT /api/me/contact', output)
+        self.assertNotIn('PASS:', output)
+
+    def test_selected_contract_addition_requires_example_and_updates_count(self):
+        spec = json.loads((demo.PROFILE / 'openapi.snapshot.json').read_text(encoding='utf-8'))
+        spec['paths']['/api/review-placeholder'] = {'get': {'responses': {'200': {'description': 'test'}}}}
+        with tempfile.TemporaryDirectory() as folder:
+            spec_path = Path(folder) / 'openapi.json'
+            spec_path.write_text(json.dumps(spec), encoding='utf-8')
+            result, output = self.run_check(self.bundle(), spec_path)
+            self.assertEqual(result, 1)
+            self.assertIn('GET /api/review-placeholder', output)
+            self.assertNotIn('PASS:', output)
+            bundle = copy.deepcopy(self.bundle())
+            bundle['operations'].append({'name': 'newOperation', 'method': 'GET',
+                'path': '/api/review-placeholder', 'params': {}, 'headers': {}})
+            result, output = self.run_check(bundle, spec_path)
+            self.assertEqual(result, 0)
+            self.assertIn('19/19 operations covered; 20 request examples', output)
 
     def test_contract_detects_old_field_enum_role_and_missing_header(self):
         for name, mutate in (

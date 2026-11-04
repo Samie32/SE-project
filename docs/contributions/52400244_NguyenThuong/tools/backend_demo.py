@@ -85,12 +85,17 @@ def build_bundle(day, now):
             'note': 'Schema examples only; sample slot/appointment/new-user UUIDs are NOT seeded IDs.'}
 
 
-def validate_bundle(bundle, spec_path=None):
-    from jsonschema import Draft202012Validator, FormatChecker
-
+def load_contract(spec_path=None):
     spec = json.loads(Path(spec_path or PROFILE / 'openapi.snapshot.json').read_text(encoding='utf-8'))
     ops = {(m.upper(), p): op for p, methods in spec['paths'].items()
            for m, op in methods.items() if m in ('get', 'post', 'put', 'patch', 'delete')}
+    return spec, ops
+
+
+def validate_bundle(bundle, spec_path=None):
+    from jsonschema import Draft202012Validator, FormatChecker
+
+    spec, ops = load_contract(spec_path)
     errors, seen = [], set()
     for row in bundle['operations']:
         key = (row['method'], row['path'])
@@ -190,7 +195,11 @@ def main():
     if errors:
         print('\n'.join(errors))
         return 1
-    print('PASS: backend request schemas/parameters, 19 operations. NOT a live API/MySQL test.')
+    _, contract_ops = load_contract(args.spec)
+    example_ops = {(row['method'], row['path']) for row in bundle['operations']}
+    covered = len(set(contract_ops) & example_ops)
+    print(f'PASS: backend request schemas/parameters; {covered}/{len(contract_ops)} operations covered; '
+          f'{len(bundle["operations"])} request examples. NOT a live API/MySQL test.')
     if not args.check:
         output = BASE / 'test-data' / 'generated' / ('backend-' + bundle['date'])
         output.mkdir(parents=True, exist_ok=True)
