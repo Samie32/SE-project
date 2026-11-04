@@ -5,7 +5,7 @@
 | Phần báo cáo | Người cung cấp | Minh chứng bắt buộc | Vị trí/URL minh chứng | Trạng thái |
 | --- | --- | --- | --- | --- |
 | SRS, quy trình, BR, UML | Vòng Kỷ Phong / Nguyễn Thường (xác minh Git) | Tài liệu cùng nguồn commit | `docs/requirements`, `docs/design` | Có tài liệu, chưa kiểm công cá nhân |
-| Bộ dữ liệu giả lập | Nguyễn Thường | fixtures + log validate | `test-data/fixtures` và `tools/` | Có bản nháp; chưa import |
+| Bộ dữ liệu giả lập | Nguyễn Thường | fixtures + log validate | `test-data/fixtures` và `tools/` | Đã push bộ dữ liệu; kiểm tra tĩnh đạt, chưa import/xác minh API thật |
 | Frontend bệnh nhân | Vũ Trần Khắc Thuận | PR + ảnh chạy thật + route | Chưa nhận | Chờ triển khai |
 | Frontend bác sĩ | Nguyễn Huỳnh Anh Kiệt | PR + ảnh chạy thật + route | Chưa nhận | Chờ triển khai |
 | Frontend lễ tân/admin | Nguyễn Hiếu Nhân | PR + ảnh chạy thật + route | Chưa nhận | Chờ triển khai |
@@ -13,7 +13,7 @@
 | Kiểm thử | Vũ Đức Thắng | Kết quả TC, lỗi, CI, coverage | Chưa nhận | Chờ triển khai |
 | Demo | Nguyễn Thường + cả nhóm | Video/ảnh/kết quả thật, phiên bản build | Chưa thực hiện | Chờ triển khai |
 | Nội dung báo cáo/slide | Nguyễn Thường tự soạn và tổng hợp | Bản báo cáo/slide cùng nguồn minh chứng; lịch sử PR khi có | Chưa có bản bàn giao | Đã xóa bản thảo/đề cương Markdown theo yêu cầu; Nguyễn Thường tự thực hiện |
-| Thiết kế file DOCX/PPTX | Nguyễn Thường | File DOCX/PPTX và kết quả rà soát sau xuất/render | Chưa có file | Chưa bắt đầu; dự kiến bắt đầu 29/10/2026 |
+| Thiết kế file DOCX/PPTX | Nguyễn Thường | File DOCX/PPTX và kết quả rà soát sau xuất/render | Chưa có file | Chưa có bản bàn giao trong repo; chưa xác nhận tiến độ ngoài repo |
 
 ## Mẫu ghi nhận sau khi có kết quả thật
 
