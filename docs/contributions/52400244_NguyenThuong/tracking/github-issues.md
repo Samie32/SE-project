@@ -1,6 +1,6 @@
 # Issues đề xuất để ghi nhận đóng góp 52400244
 
-Chưa tạo GitHub Issues/PR. Cần tạo bằng tài khoản GitHub cá nhân và liên kết commit.
+Đã push phần đóng góp tại f9193d9. Chưa có Issue/PR được liên kết làm bằng chứng trong gói; không suy ra đã merge hoặc nghiệm thu. Các mục bên dưới là đề xuất, chưa tạo trên GitHub.
 
 1. **[SE][DATA] Mock patient/doctor/specialty and schedule fixtures**. Acceptance: có UUID, 2 BN/2 BS/2 CK/5 role; lịch không chồng; UTC hợp lệ; validator PASS.
 2. **[SE][DATA] Clinical, prescriptions, queue, telehealth and notification fixtures**. Acceptance: `PrescriptionItem` có đủ 5 trường theo FR-14; không đưa thuốc/liều thật; FK hợp lệ; các bảng nhạy cảm không chứa plaintext.
@@ -10,6 +10,6 @@ Chưa tạo GitHub Issues/PR. Cần tạo bằng tài khoản GitHub cá nhân v
 
 ## Quy trình
 
-`git checkout -b docs/52400244-demo-data` → add đúng thư mục này → commit → push → mở PR có người review → merge theo workflow nhóm.
+`git switch docs/52400244-demo-data` → add đúng file trong thư mục này → commit tiếng Việt → chủ nhánh xác nhận → push thông thường → mở PR có người review → merge theo workflow nhóm. Xem [hướng dẫn cập nhật nhánh](how-to-merge.md); không tạo lại nhánh đang có hoặc tự force-push.
 
 Không tự nhận các Issue là `Done` cho tới khi có PR được review và nội dung kiểm tra phù hợp.

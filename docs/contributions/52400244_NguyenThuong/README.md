@@ -1,12 +1,12 @@
 # 52400244 – Nguyễn Thường | Bộ đóng góp giai đoạn triển khai
 
-**Workspace đã cập nhật:** đã clone `main@b10e096`, khôi phục phần đóng góp từ nhánh 52400244 và áp dụng bản sửa. Dùng lại tên nhánh `docs/52400244-demo-data`, với lịch sử mới dựa trên main theo yêu cầu của chủ nhánh. Commit local dùng tiếng Việt; chỉ push sau khi chủ nhánh xác nhận. Các mô tả workspace rỗng bên dưới nói về trạng thái ban đầu.
+**Trạng thái hiện tại:** phần đóng góp đã được push lên `docs/52400244-demo-data` tại mốc `f9193d9`, trên nền `main@b10e096`. Chưa xác nhận merge hoặc nghiệm thu. Các sửa đính chính tiếp theo dùng commit mới bằng tiếng Việt và chỉ push sau khi chủ nhánh xác nhận. Mô tả workspace rỗng bên dưới thuộc lịch sử chuẩn bị.
 
 ## Kết nối backend — 04/11/2026
 
 Đã đối chiếu `main@b10e096` với nhánh `docs/52400244-demo-data@1104fdb`. Workspace ban đầu là bản giải nén cũ, không có `.git` hoặc code backend. **Bộ dành cho backend hiện tại: [test-data/backend](test-data/backend/README.md)**. Bộ 16 nhóm fixtures và 30 API bên dưới vẫn phục vụ thiết kế toàn hệ thống, chưa phải dữ liệu nhập trực tiếp.
 
-- Backend tuần 3–4 có **19 operations**: auth, catalog, lịch làm việc/nghỉ, slot, đặt/đổi/hủy, thông báo xác nhận.
+- Backend tuần 3–4 có **18 thao tác API riêng biệt, 19 ví dụ request**: auth, catalog, lịch làm việc/nghỉ, slot, đặt/đổi/hủy, thông báo xác nhận.
 - Dùng `ADMINISTRATOR`, `IN_PERSON/REMOTE`, `/api`, camelCase, version mới `0`.
 - Seed có **6 account, 2 bệnh nhân, 1 bác sĩ, 1 chuyên khoa**. Slot/appointment lấy ID từ API.
 - Hồ sơ, đơn thuốc, queue, video, nhắc định kỳ: **chưa có API** trong backend đã đọc.
@@ -21,7 +21,7 @@ python docs/contributions/52400244_NguyenThuong/tools/backend_demo.py
 
 Lệnh cuối sinh `test-data/generated/backend-YYYY-MM-DD/{requests.json,demo.http}` cho ngày làm việc tương lai theo UTC+7. HTTP demo lấy ID/version từ response; không tự gửi request. Đọc [hướng dẫn backend](test-data/backend/README.md) trước khi chạy. Ví dụ tạo bác sĩ/cấp quyền trong JSON cần setup riêng.
 
-Xem [đối chiếu và tác vụ](tracking/backend-alignment.md), [xác minh](report/backend-validation.md), [bàn giao backend](tracking/handover-backend.md). Kiểm tra tĩnh đã chạy; API/MySQL thật chưa chạy do Docker daemon chưa hoạt động.
+Xem [đối chiếu và tác vụ](tracking/backend-alignment.md), [xác minh](report/backend-validation.md) và [bàn giao backend](tracking/handover-backend.md). Kiểm tra tĩnh đã chạy; chưa kiểm thử API/MySQL thật trong phiên này. Docker chưa hoạt động là ghi nhận của lần kiểm tra môi trường trước, không xác nhận trạng thái hiện tại.
 
 **Đề tài:** Outpatient Clinic Telehealth & Appointment Scheduling System (SE-project).
 **Vai trò theo** `docs/project-plan.md`**:** dữ liệu mô phỏng, tổng hợp báo cáo, hướng dẫn sử dụng, slide, kịch bản demo và phối hợp thiết kế kỹ thuật.
@@ -33,7 +33,7 @@ Xem [đối chiếu và tác vụ](tracking/backend-alignment.md), [xác minh](r
 - 2 notification jobs PENDING, 3 audit events; không lưu mật khẩu, token, liên hệ thật, bệnh án rõ chữ hay thông tin điều trị thật.
 - bộ ví dụ API bao phủ mọi operationId trong OpenAPI 3.1 (và JSON body mẫu), đối chiếu kiểu dữ liệu với `docs/api/openapi.yaml`; có 1 request thiếu trường cố ý không hợp lệ.
 - 24 test case được truy vết; validator và bộ unittest **kiểm tra tĩnh**. Backend có code tuần 3–4 trên main; chưa có kết quả API/MySQL thực thi tại workspace này hoặc chứng cứ coverage nghiệp vụ 60%.
-- Tài liệu sử dụng, kịch bản demo, checklist bàn giao dữ liệu, ma trận/phiếu thu thập minh chứng và nội dung đề xuất Issues/PR. Báo cáo và slide do Nguyễn Thường tự soạn; chưa có file DOCX/PPTX.
+- Tài liệu sử dụng, kịch bản demo, checklist bàn giao dữ liệu, ma trận/phiếu thu thập minh chứng và nội dung đề xuất Issues/PR. Báo cáo và slide do Nguyễn Thường tự soạn; chưa có bản bàn giao trong repo, chưa xác nhận tiến độ soạn ngoài repo.
 
 ## Khởi chạy trên Windows / VS Code
 
@@ -87,11 +87,11 @@ Nếu PowerShell chặn script, chạy các lệnh Python riêng, gồm `backend
 
 **Nguồn chuẩn:** `docs/requirements/{SRS.md,business-rules.md}`, `docs/design/database/data-dictionary.md`, `docs/api/openapi.yaml`, `docs/testing/{test-cases.md,test-plan.md}`.
 
-## Cập nhật v3 – các mục đã sửa
+## Lịch sử cập nhật v3 ngày 28/10/2026
 
 - Bổ sung audit `READ_MEDICAL_RECORD` và unit test phát hiện thiếu bản ghi.
 - Thêm catalog đầy đủ tất cả OpenAPI operationId, request bodies hợp lệ và ví dụ endpoint không có JSON body.
 - `run-checks.ps1` chạy **cả** kiểm tra fixture, unittest và OpenAPI; thiếu dependency contract thì **báo FAIL**, không bỏ qua.
 - Bổ sung `.gitignore` ở root cho `__pycache__/`, `*.pyc` và dữ liệu sinh ra.
-- Có link tại `docs/README.md`; `docs/project-plan.md` được **giữ nguyên theo yêu cầu**.
+- Nhánh đóng góp cũ có link tại `docs/README.md`; `docs/project-plan.md` được **giữ nguyên theo yêu cầu**.
 - Hướng dẫn tự cập nhật lịch demo; ma trận và phiếu thu thập minh chứng ở `report/`.

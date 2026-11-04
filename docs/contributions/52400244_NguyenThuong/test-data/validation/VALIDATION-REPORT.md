@@ -1,5 +1,7 @@
 # Báo cáo kiểm tra tĩnh v3 – 28/10/2026
 
+**Tài liệu lịch sử:** giữ nguyên các kết quả và kế hoạch ghi nhận tại ngày 28/10, không đại diện trạng thái hiện tại. Kết quả đính chính và kiểm tra hiện hành ở [backend-validation.md](../../report/backend-validation.md). Các dòng dự kiến 29/10 dưới đây không xác nhận tiến độ thực tế của báo cáo/slide.
+
 **Phạm vi:** bộ fixtures, API catalog và công cụ Python của đóng góp 52400244; không kiểm thử ứng dụng đang chạy.
 
 | Hạng mục | Kết quả | Ý nghĩa |

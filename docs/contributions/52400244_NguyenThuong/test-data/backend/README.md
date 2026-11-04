@@ -4,7 +4,7 @@ Nguồn được ghim tại [source.json](source.json): `main@b10e096`. [openapi
 
 ## 1. Chuẩn bị clone có backend
 
-Workspace này đã được thay bằng clone thật của `main@b10e096`, trên nhánh local `docs/52400244-demo-data`, kèm phần đóng góp và bản sửa. Có thể chạy từ root workspace hiện tại; không cần clone lại. Đoạn lệnh dưới đây chỉ dành cho việc chuẩn bị một clone khác trên máy mới, sau khi bản cập nhật nhánh được push.
+Workspace này đã được thay bằng clone thật của `main@b10e096`, trên nhánh local `docs/52400244-demo-data`, kèm phần đóng góp và bản sửa. Có thể chạy từ root workspace hiện tại; không cần clone lại. Phần đóng góp đã được push tại mốc `f9193d9`; chưa xác nhận merge hoặc nghiệm thu. Đoạn lệnh dưới đây dành cho clone khác trên máy mới.
 
 ```powershell
 git clone https://github.com/Samie32/SE-project.git SE-project-integration
@@ -52,7 +52,7 @@ python docs/contributions/52400244_NguyenThuong/tools/backend_demo.py
 
 Mặc định chọn ngày mai theo UTC+7, bỏ Chủ nhật. Có thể dùng `--date YYYY-MM-DD` với ngày tương lai thứ Hai–thứ Bảy. Tạo availability trực tiếp 13:00–14:00 và REMOTE 14:00–15:00, bước 20 phút, tránh seed mặc định 08:00–12:00. Nếu DB đã có availability chồng nhau, GET lịch hiện tại trước; 409 không đồng nghĩa môi trường sạch hoặc có thể tự ghi đè.
 
-- `test-data/generated/backend-YYYY-MM-DD/requests.json`: **19 operations riêng biệt, 20 ví dụ** (hai mode availability). UUID slot/appointment và user mới trong catalog là **mẫu schema**, không phải ID đã seed. Không chạy nguyên catalog như một batch.
+- `test-data/generated/backend-YYYY-MM-DD/requests.json`: **18 thao tác API riêng biệt, 19 ví dụ** (hai mode availability). UUID slot/appointment và user mới trong catalog là **mẫu schema**, không phải ID đã seed. Không chạy nguyên catalog như một batch.
 - `demo.http`: luồng nhỏ chạy bằng VS Code REST Client: kiểm danh tính/danh mục → availability → slot trống → đặt → replay → đổi → hủy → xem lịch/thông báo. ID slot, ID lịch và version lấy từ phản hồi trước. File dùng `CLINIC_ADMIN_TOKEN`, `CLINIC_PATIENT_TOKEN` từ môi trường của **tiến trình VS Code**.
 
 Để lấy token local mà không lưu mật khẩu trong file (chạy PowerShell riêng; đọc mật khẩu DEMO_PASSWORD local và nhập vào prompt):

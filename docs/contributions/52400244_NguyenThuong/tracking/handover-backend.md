@@ -15,7 +15,7 @@
 
 ## Tiêu chí nhận bàn giao
 
-- [x] Đối chiếu enum/role/DTO và 19 operations; kiểm tra tĩnh bằng snapshot và code.
+- [x] Đối chiếu enum/role/DTO và 18 operations; kiểm tra tĩnh bằng snapshot và code.
 - [x] Có request sinh ngày tương lai, dùng ID và version thực tế trong HTTP demo.
 - [ ] Phong/QA chạy Compose và scripts/smoke.py, lưu SHA/log thực tế.
 - [ ] Chạy demo.http, ghi HTTP status/body đã bỏ token và kết quả thực tế.

@@ -13,7 +13,7 @@ Ngày đối chiếu: **04/11/2026**. Phạm vi: dữ liệu, ví dụ API, hư�
 
 | Nội dung | Gói thiết kế | Backend đang triển khai |
 | --- | --- | --- |
-| Contract | `docs/api/openapi.yaml`, 30 operations | `docs/api/openapi.json`, 19 operations, prefix `/api` |
+| Contract | `docs/api/openapi.yaml`, 30 operations | `docs/api/openapi.json`, 18 operations, prefix `/api` |
 | Vai trò quản trị | `ADMIN` | `ADMINISTRATOR`; quyền từ MySQL, không từ claim JWT |
 | Chế độ từ xa | `TELEHEALTH` (bản local cũ dùng `mode_label`) | `REMOTE`; trực tiếp `IN_PERSON` |
 | Tên thời gian | fixture logic `start_at`, `end_at` | request/response `startAt`, `endAt` |
@@ -29,7 +29,7 @@ Giữ nguyên bộ thiết kế để không biến các phần chưa triển kh
 
 ## Yêu cầu và tiêu chí kiểm chứng
 
-- **FR-BE-01:** đủ ví dụ cho 19 operations của backend; body camelCase, tham số bắt buộc và schema khớp snapshot được ghim SHA. Kiểm: validator contract backend.
+- **FR-BE-01:** đủ ví dụ cho 18 operations của backend; body camelCase, tham số bắt buộc và schema khớp snapshot được ghim SHA. Kiểm: validator contract backend.
 - **FR-BE-02:** dữ liệu demo có ngày tương lai theo UTC+7, thứ Hai–thứ Bảy, giờ phòng khám; dùng enum/role thực thi. Kiểm: unit test ngày Chủ nhật, ngày quá khứ, version=0 và enum sai.
 - **FR-BE-03:** demo lấy ID slot/appointment/version từ response, dùng Idempotency-Key riêng theo thao tác; không nhúng token/mật khẩu. Kiểm: template HTTP và schema mẫu.
 - **FR-BE-04:** hướng dẫn nêu rõ phần đã triển khai, phần chờ và cách chạy trong clone có backend. Kiểm: review tài liệu và ma trận 24 TC.
@@ -38,9 +38,9 @@ Giữ nguyên bộ thiết kế để không biến các phần chưa triển kh
 
 - [x] T001: đối chiếu hai nhánh, cập nhật gói từ nhánh 52400244, lưu bản local ban đầu ngoài workspace.
 - [x] T002: thêm manifest seed, snapshot có nguồn, công cụ sinh bundle/request HTTP lấy ID từ response; regression cho ngày UTC+7 và hash LF/CRLF.
-- [x] T003: kiểm schema body, required parameters và phủ 19 operations; kiểm bộ thiết kế riêng. Bằng chứng tại report/backend-validation.md.
+- [x] T003: kiểm schema body, required parameters và phủ 18 operations; kiểm bộ thiết kế riêng. Bằng chứng tại report/backend-validation.md.
 - [x] T004: sửa README, bàn giao, hướng dẫn, demo, truy vết 24 TC và báo cáo xác minh.
 
 Giả định: môi trường demo dùng profile `demo` và realm local chuẩn của main. Nếu `/api/me` hoặc danh mục khác manifest, phải lấy ID thực tế trước khi gửi lệnh. Không giả định 2 bác sĩ/2 chuyên khoa đã có trong seed.
 
-Chưa kiểm chứng: HTTP trên Spring Boot/MySQL/Keycloak thật. Docker daemon hiện chưa hoạt động; không coi unit test/contract validation là kết quả tích hợp.
+Chưa kiểm chứng: HTTP trên Spring Boot/MySQL/Keycloak thật. Lần kiểm tra môi trường trước ghi nhận Docker daemon chưa hoạt động; không coi unit test/contract validation là kết quả tích hợp.
