@@ -1,0 +1,336 @@
+{
+  "about": "MINH HOA TINH - KHONG PHAI KET QUA GOI API, KHONG CHUA TOKEN",
+  "source": "docs/api/openapi.yaml",
+  "operations": [
+    {
+      "operation_id": "getMe",
+      "method": "GET",
+      "path": "/me",
+      "params": {},
+      "body_file": null
+    },
+    {
+      "operation_id": "setRoles",
+      "method": "PUT",
+      "path": "/users/{userId}/roles",
+      "params": {
+        "path": {
+          "userId": "fef1d1ad-ef97-5e90-9b8b-beee213327a4"
+        }
+      },
+      "body_file": "set_roles.json"
+    },
+    {
+      "operation_id": "listSpecialties",
+      "method": "GET",
+      "path": "/specialties",
+      "params": {},
+      "body_file": null
+    },
+    {
+      "operation_id": "createSpecialty",
+      "method": "POST",
+      "path": "/specialties",
+      "params": {},
+      "body_file": "create_specialty.json"
+    },
+    {
+      "operation_id": "listDoctors",
+      "method": "GET",
+      "path": "/doctors",
+      "params": {},
+      "body_file": null
+    },
+    {
+      "operation_id": "createDoctor",
+      "method": "POST",
+      "path": "/doctors",
+      "params": {},
+      "body_file": "create_doctor.json"
+    },
+    {
+      "operation_id": "updateDoctor",
+      "method": "PUT",
+      "path": "/doctors/{doctorId}",
+      "params": {
+        "path": {
+          "doctorId": "def08225-35f3-511c-af7d-11f9ebe4c0e7"
+        }
+      },
+      "body_file": "update_doctor.json"
+    },
+    {
+      "operation_id": "createAvailability",
+      "method": "POST",
+      "path": "/doctors/{doctorId}/availability",
+      "params": {
+        "path": {
+          "doctorId": "def08225-35f3-511c-af7d-11f9ebe4c0e7"
+        }
+      },
+      "body_file": "create_availability.json"
+    },
+    {
+      "operation_id": "createTimeOff",
+      "method": "POST",
+      "path": "/doctors/{doctorId}/time-off",
+      "params": {
+        "path": {
+          "doctorId": "def08225-35f3-511c-af7d-11f9ebe4c0e7"
+        }
+      },
+      "body_file": "create_time_off.json"
+    },
+    {
+      "operation_id": "listSlots",
+      "method": "GET",
+      "path": "/slots",
+      "params": {
+        "query": {
+          "date": "2026-11-10"
+        }
+      },
+      "body_file": null
+    },
+    {
+      "operation_id": "listAppointments",
+      "method": "GET",
+      "path": "/appointments",
+      "params": {},
+      "body_file": null
+    },
+    {
+      "operation_id": "bookAppointment",
+      "method": "POST",
+      "path": "/appointments",
+      "params": {
+        "header": {
+          "Idempotency-Key": "demo-52400244"
+        }
+      },
+      "body_file": "create_booking.json"
+    },
+    {
+      "operation_id": "rescheduleAppointment",
+      "method": "POST",
+      "path": "/appointments/{appointmentId}/reschedule",
+      "params": {
+        "path": {
+          "appointmentId": "416557ab-61da-5730-a4f2-1cab4785cb2f"
+        },
+        "header": {
+          "Idempotency-Key": "demo-52400244"
+        }
+      },
+      "body_file": "change_booking.json"
+    },
+    {
+      "operation_id": "cancelAppointment",
+      "method": "POST",
+      "path": "/appointments/{appointmentId}/cancel",
+      "params": {
+        "path": {
+          "appointmentId": "416557ab-61da-5730-a4f2-1cab4785cb2f"
+        },
+        "header": {
+          "Idempotency-Key": "demo-52400244"
+        }
+      },
+      "body_file": "cancel_booking.json"
+    },
+    {
+      "operation_id": "progressAppointment",
+      "method": "POST",
+      "path": "/appointments/{appointmentId}/progress",
+      "params": {
+        "path": {
+          "appointmentId": "416557ab-61da-5730-a4f2-1cab4785cb2f"
+        }
+      },
+      "body_file": "progress_appointment.json"
+    },
+    {
+      "operation_id": "listPatientRecords",
+      "method": "GET",
+      "path": "/patients/{patientId}/records",
+      "params": {
+        "path": {
+          "patientId": "7ae03048-9a5f-5b65-9520-bd31ec345c93"
+        }
+      },
+      "body_file": null
+    },
+    {
+      "operation_id": "saveRecord",
+      "method": "PUT",
+      "path": "/encounters/{encounterId}/record",
+      "params": {
+        "path": {
+          "encounterId": "4e6b93b4-7453-51ea-b305-4516b6011969"
+        }
+      },
+      "body_file": "save_record.json"
+    },
+    {
+      "operation_id": "amendRecord",
+      "method": "POST",
+      "path": "/records/{recordId}/amendments",
+      "params": {
+        "path": {
+          "recordId": "a451f496-f8f1-5276-9ea6-7bf6cb62a198"
+        }
+      },
+      "body_file": "amend_record.json"
+    },
+    {
+      "operation_id": "createPrescription",
+      "method": "POST",
+      "path": "/encounters/{encounterId}/prescriptions",
+      "params": {
+        "path": {
+          "encounterId": "4e6b93b4-7453-51ea-b305-4516b6011969"
+        }
+      },
+      "body_file": "create_prescription.json"
+    },
+    {
+      "operation_id": "issuePrescription",
+      "method": "POST",
+      "path": "/prescriptions/{prescriptionId}/issue",
+      "params": {
+        "path": {
+          "prescriptionId": "7f40f0e3-228f-512b-8e37-310542642e18"
+        },
+        "header": {
+          "Idempotency-Key": "demo-52400244"
+        }
+      },
+      "body_file": "issue_prescription.json"
+    },
+    {
+      "operation_id": "listPatientPrescriptions",
+      "method": "GET",
+      "path": "/patients/{patientId}/prescriptions",
+      "params": {
+        "path": {
+          "patientId": "7ae03048-9a5f-5b65-9520-bd31ec345c93"
+        }
+      },
+      "body_file": null
+    },
+    {
+      "operation_id": "listNotificationJobs",
+      "method": "GET",
+      "path": "/notification-jobs",
+      "params": {},
+      "body_file": null
+    },
+    {
+      "operation_id": "listAuditEvents",
+      "method": "GET",
+      "path": "/audit-events",
+      "params": {},
+      "body_file": null
+    },
+    {
+      "operation_id": "checkIn",
+      "method": "POST",
+      "path": "/appointments/{appointmentId}/check-in",
+      "params": {
+        "path": {
+          "appointmentId": "416557ab-61da-5730-a4f2-1cab4785cb2f"
+        },
+        "header": {
+          "Idempotency-Key": "demo-52400244"
+        }
+      },
+      "body_file": null
+    },
+    {
+      "operation_id": "callNext",
+      "method": "POST",
+      "path": "/doctors/{doctorId}/queue/next",
+      "params": {
+        "path": {
+          "doctorId": "def08225-35f3-511c-af7d-11f9ebe4c0e7"
+        },
+        "header": {
+          "Idempotency-Key": "demo-52400244"
+        }
+      },
+      "body_file": null
+    },
+    {
+      "operation_id": "skipTicket",
+      "method": "POST",
+      "path": "/queue-tickets/{ticketId}/skip",
+      "params": {
+        "path": {
+          "ticketId": "bbe68a1f-99e0-5c13-b7d8-b222bedbe377"
+        }
+      },
+      "body_file": "skip_ticket.json"
+    },
+    {
+      "operation_id": "prepareSession",
+      "method": "POST",
+      "path": "/appointments/{appointmentId}/telehealth-session",
+      "params": {
+        "path": {
+          "appointmentId": "416557ab-61da-5730-a4f2-1cab4785cb2f"
+        },
+        "header": {
+          "Idempotency-Key": "demo-52400244"
+        }
+      },
+      "body_file": null
+    },
+    {
+      "operation_id": "joinSession",
+      "method": "POST",
+      "path": "/telehealth-sessions/{sessionId}/join",
+      "params": {
+        "path": {
+          "sessionId": "8b96aab7-d014-553e-b81a-9f4f95888a62"
+        }
+      },
+      "body_file": "join_telehealth.json"
+    },
+    {
+      "operation_id": "startSession",
+      "method": "POST",
+      "path": "/telehealth-sessions/{sessionId}/start",
+      "params": {
+        "path": {
+          "sessionId": "8b96aab7-d014-553e-b81a-9f4f95888a62"
+        }
+      },
+      "body_file": "start_telehealth.json"
+    },
+    {
+      "operation_id": "endSession",
+      "method": "POST",
+      "path": "/telehealth-sessions/{sessionId}/end",
+      "params": {
+        "path": {
+          "sessionId": "8b96aab7-d014-553e-b81a-9f4f95888a62"
+        }
+      },
+      "body_file": "end_telehealth.json"
+    }
+  ],
+  "negative_request_bodies": [
+    {
+      "body_file": "create_prescription_missing_field.json",
+      "operation_id": "createPrescription",
+      "schema_valid": false
+    },
+    {
+      "body_file": "create_prescription_empty.json",
+      "operation_id": "createPrescription",
+      "schema_valid": true,
+      "business_valid": false,
+      "note": "Schema cho phép items rỗng; BR-10 cấm phát hành đơn rỗng."
+    }
+  ]
+}

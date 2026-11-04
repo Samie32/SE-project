@@ -1,0 +1,51 @@
+# No real calls made; fill in BASE_URL and Authorization outside the repo.
+# All requests below are sketches; do not paste real bearer tokens.
+@baseUrl = https://api.example.invalid
+
+### getMe — BODYLESS / READ
+GET {{baseUrl}}/me
+# requires authorized user; Idempotency-Key as per catalog: False
+
+### listSpecialties — BODYLESS / READ
+GET {{baseUrl}}/specialties
+# requires authorized user; Idempotency-Key as per catalog: False
+
+### listDoctors — BODYLESS / READ
+GET {{baseUrl}}/doctors
+# requires authorized user; Idempotency-Key as per catalog: False
+
+### listSlots — BODYLESS / READ
+GET {{baseUrl}}/slots?date=2026-11-10
+# requires authorized user; Idempotency-Key as per catalog: False
+
+### listAppointments — BODYLESS / READ
+GET {{baseUrl}}/appointments
+# requires authorized user; Idempotency-Key as per catalog: False
+
+### listPatientRecords — BODYLESS / READ
+GET {{baseUrl}}/patients/7ae03048-9a5f-5b65-9520-bd31ec345c93/records
+# requires authorized user; Idempotency-Key as per catalog: False
+
+### listPatientPrescriptions — BODYLESS / READ
+GET {{baseUrl}}/patients/7ae03048-9a5f-5b65-9520-bd31ec345c93/prescriptions
+# requires authorized user; Idempotency-Key as per catalog: False
+
+### listNotificationJobs — BODYLESS / READ
+GET {{baseUrl}}/notification-jobs
+# requires authorized user; Idempotency-Key as per catalog: False
+
+### listAuditEvents — BODYLESS / READ
+GET {{baseUrl}}/audit-events
+# requires authorized user; Idempotency-Key as per catalog: False
+
+### checkIn — BODYLESS / READ
+POST {{baseUrl}}/appointments/416557ab-61da-5730-a4f2-1cab4785cb2f/check-in
+# requires authorized user; Idempotency-Key as per catalog: True
+
+### callNext — BODYLESS / READ
+POST {{baseUrl}}/doctors/def08225-35f3-511c-af7d-11f9ebe4c0e7/queue/next
+# requires authorized user; Idempotency-Key as per catalog: True
+
+### prepareSession — BODYLESS / READ
+POST {{baseUrl}}/appointments/416557ab-61da-5730-a4f2-1cab4785cb2f/telehealth-session
+# requires authorized user; Idempotency-Key as per catalog: True
