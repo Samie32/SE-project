@@ -1,0 +1,25 @@
+test_case,module,backend_scope,execution_status,action_or_blocker
+TC-01,M01,IMPLEMENTED,NOT_RUN,OIDC login and disabled account; use real Keycloak
+TC-02,M01/M07,PARTIAL,NOT_RUN,JWT rejection implemented; medical record ownership endpoint absent
+TC-03,M02,IMPLEMENTED,NOT_RUN,POST specialties/doctors; use new userId from /me; seed has only one doctor
+TC-04,M02,IMPLEMENTED,NOT_RUN,PUT doctor active=false while a future confirmed appointment exists expects 409
+TC-05,M03,IMPLEMENTED,NOT_RUN,POST availability; 13:00-14:00 UTC+7 and slotMinutes=20 produces three slots
+TC-06,M03,IMPLEMENTED,NOT_RUN,POST time-off; reject overlap with active appointment; valid leave hides slots
+TC-07,M03,IMPLEMENTED,NOT_RUN,GET slots by local date/doctor/mode; booked slots excluded
+TC-08,M04,IMPLEMENTED,NOT_RUN,Two simultaneous patient requests for one slot; separate keys; one success and one 409
+TC-09,M04,IMPLEMENTED,NOT_RUN,POST reschedule; slotId/version from responses; at least two hours notice
+TC-10,M04,IMPLEMENTED,NOT_RUN,POST cancel; reason/version and Idempotency-Key; CONFIRMED and at least two hours notice
+TC-11,M04/M08,NOT_IMPLEMENTED,BLOCKED,No check-in/queue/start-examination controller
+TC-12,M05/M07,NOT_IMPLEMENTED,BLOCKED,No medical record read controller
+TC-13,M05,NOT_IMPLEMENTED,BLOCKED,No encounter/medical record migration or controller
+TC-14,M05,NOT_IMPLEMENTED,BLOCKED,No prescription migration or controller
+TC-15,M06,NOT_IMPLEMENTED,BLOCKED,No periodic reminder worker; current jobs are booking/reschedule/cancel confirmations
+TC-16,M06,PARTIAL,NOT_RUN,Notification retry/outbox exists; run worker fault-injection tests; no SMS integration
+TC-17,M07,PARTIAL,NOT_RUN,Transactional audit and fail-closed booking exist; clinical read auditing unavailable
+TC-18,M07,PARTIAL,NOT_RUN,Audit append-only DB triggers exist; no audit query API for auditor
+TC-19,M08,NOT_IMPLEMENTED,BLOCKED,No check-in/queue migration or controller
+TC-20,M08,NOT_IMPLEMENTED,BLOCKED,No queue next operation
+TC-21,M08,NOT_IMPLEMENTED,BLOCKED,No queue skip operation
+TC-22,M09,NOT_IMPLEMENTED,BLOCKED,REMOTE scheduling supported; no session/join/video API
+TC-23,M09,NOT_IMPLEMENTED,BLOCKED,No telehealth start/participation API
+TC-24,M09,NOT_IMPLEMENTED,BLOCKED,No telehealth reconnect/end lifecycle

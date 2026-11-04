@@ -1,0 +1,10 @@
+{
+  "repository": "https://github.com/Samie32/SE-project",
+  "backend_commit": "b10e0960a6a48225b5c26af60c737dbd1c37968f",
+  "contribution_commit": "1104fdb970233a396df1ee76af37e155496ffc55",
+  "snapshot_source": "docs/api/openapi.json",
+  "snapshot_sha256": "cbf8cd10149ca161f305b1d7991d46e17e0ae97a1e89d47828f2c75257b91305",
+  "hash_encoding": "UTF-8 with LF newlines (normalized across Git autocrlf checkouts)",
+  "reviewed_on": "2026-11-04",
+  "scope": "Implemented week 3-4 API; controllers/services/migration are authoritative for business rules. Snapshot is not a runtime result from this workspace."
+}
