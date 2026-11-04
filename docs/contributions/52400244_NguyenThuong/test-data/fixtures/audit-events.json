@@ -1,0 +1,41 @@
+[
+  {
+    "key": "AUD_FINAL_A",
+    "id": "a96c7c15-27ea-5931-8c4b-8312fc8b3466",
+    "actor_id": "fef1d1ad-ef97-5e90-9b8b-beee213327a4",
+    "actor_type": "USER",
+    "actor_label": null,
+    "action": "FINALIZE_MEDICAL_RECORD",
+    "resource_type": "MedicalRecord",
+    "resource_id": "a451f496-f8f1-5276-9ea6-7bf6cb62a198",
+    "timestamp": "2026-10-20T02:32:00Z",
+    "result": "SUCCESS",
+    "correlation_id": "6408bb8e-5784-53f2-b2f4-1483ac26a133"
+  },
+  {
+    "key": "AUD_READ_A",
+    "id": "865531c1-b265-55d2-b4cc-d1f9e3eb0139",
+    "actor_id": "fef1d1ad-ef97-5e90-9b8b-beee213327a4",
+    "actor_type": "USER",
+    "actor_label": null,
+    "action": "READ_MEDICAL_RECORD",
+    "resource_type": "MedicalRecord",
+    "resource_id": "a451f496-f8f1-5276-9ea6-7bf6cb62a198",
+    "timestamp": "2026-10-20T02:34:00Z",
+    "result": "SUCCESS",
+    "correlation_id": "f61a3d13-3935-568c-ae5a-75a8232851d2"
+  },
+  {
+    "key": "AUD_ISSUE_A",
+    "id": "20513114-2ff5-5970-8059-e4f271a0e759",
+    "actor_id": "fef1d1ad-ef97-5e90-9b8b-beee213327a4",
+    "actor_type": "USER",
+    "actor_label": null,
+    "action": "ISSUE_PRESCRIPTION",
+    "resource_type": "Prescription",
+    "resource_id": "7f40f0e3-228f-512b-8e37-310542642e18",
+    "timestamp": "2026-10-20T02:35:00Z",
+    "result": "SUCCESS",
+    "correlation_id": "70fa472f-9734-50be-a1ee-4d92426eb9a3"
+  }
+]
