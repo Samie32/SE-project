@@ -33,6 +33,7 @@ Kế hoạch phân biệt công việc đã thực hiện với nhiệm vụ đ�
 | Lập kế hoạch dự án | Vòng Kỷ Phong | Phân công và kế hoạch tám tuần |
 | Backend tuần 3–4 | Vòng Kỷ Phong | M01–M04, migration MySQL, audit nền tảng và thông báo xác nhận |
 | Môi trường và kiểm thử backend tuần 3–4 | Vòng Kỷ Phong | Docker Compose, dữ liệu demo, Maven Wrapper, kiểm thử MySQL/JWT và cấu hình CI |
+| Frontend bác sĩ tuần 3–4 | Nguyễn Huỳnh Anh Kiệt | Giao diện lịch làm việc/lịch nghỉ (M03), danh sách lịch hẹn (M04), phòng gọi CallingRoom dùng chung; cấu hình proxy và API service sẵn sàng tích hợp |
 | Frontend bệnh nhân và cổng dịch vụ | Vũ Trần Khắc Thuận | Khởi tạo dự án React 18, TypeScript, Vite; giao diện đăng nhập OIDC/PKCE; trang chủ bệnh nhân; tra cứu bác sĩ và lịch trống, đặt, đổi và hủy lịch khám (xử lý Idempotency-Key và kiểm tra thời hạn 2 giờ); xem hồ sơ bệnh án và đơn thuốc điện tử; phòng khám từ xa Telehealth (kiểm tra thiết bị camera/micro, xác nhận tham gia phòng chờ và điều khiển cuộc gọi) |
 | Giao diện khu nhân viên/quản trị: dashboard, danh mục bác sĩ/chuyên khoa, quản lý phân quyền, quyền hiển thị theo vai trò, tiếp đón/check-in, hàng đợi, thông báo, audit | Nguyễn Hiếu Nhân | clinic-telehealth-full-prototype.html: bản giao diện mô phỏng, chưa tích hợp backend |
 
@@ -90,7 +91,7 @@ Tuần 1–2 tương ứng với khối lượng phân tích và thiết kế hi
 | Đặc tả màn hình, kế hoạch kiểm thử và phân công | Vòng Kỷ Phong | Tuần 2 | Đã có tài liệu |
 | Backend của chín phân hệ | Vòng Kỷ Phong | Tuần 3–6 | Đã triển khai M01–M04 và nền tảng audit/thông báo; chức năng tuần 5–6 chưa triển khai |
 | Frontend bệnh nhân | Vũ Trần Khắc Thuận | Tuần 3–6 | Chưa triển khai |
-| Frontend bác sĩ | Nguyễn Huỳnh Anh Kiệt | Tuần 3–6 | Chưa triển khai |
+| Frontend bác sĩ | Nguyễn Huỳnh Anh Kiệt | Tuần 3–6 | Đã hoàn thành giao diện tuần 3–4 (lịch làm việc, lịch hẹn) và sẵn sàng tích hợp API; đã chuẩn bị trước tuần 5–6 |
 | Frontend lễ tân, quản trị và kiểm toán | Nguyễn Hiếu Nhân | Tuần 3–6 | Chưa triển khai |
 | Bộ kiểm thử tự động và kiểm thử hệ thống | Vũ Đức Thắng | Tuần 3–8 | Chưa thực thi |
 | MySQL, các môi trường, nạp dữ liệu, sao lưu/phục hồi, đóng gói và CI/CD | Vòng Kỷ Phong | Tuần 3–8 | Đã có MySQL, môi trường local/test, dữ liệu demo, đóng gói và cấu hình CI; CI trên GitHub và sao lưu/phục hồi chưa nghiệm thu |

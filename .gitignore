@@ -8,3 +8,5 @@
 .vscode/
 *.log
 infra/runtime/
+
+*.zip
