@@ -2,6 +2,8 @@
   "realm": "clinic",
   "enabled": true,
   "registrationAllowed": false,
+  "loginTheme": "cliniccare",
+  "rememberMe": true,
   "sslRequired": "none",
   "clients": [
     {

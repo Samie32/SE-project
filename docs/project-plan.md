@@ -34,7 +34,7 @@ Kế hoạch phân biệt công việc đã thực hiện với nhiệm vụ đ�
 | Backend tuần 3–4 | Vòng Kỷ Phong | M01–M04, migration MySQL, audit nền tảng và thông báo xác nhận |
 | Môi trường và kiểm thử backend tuần 3–4 | Vòng Kỷ Phong | Docker Compose, dữ liệu demo, Maven Wrapper, kiểm thử MySQL/JWT và cấu hình CI |
 | Frontend bác sĩ tuần 3–4 | Nguyễn Huỳnh Anh Kiệt | Giao diện lịch làm việc/lịch nghỉ (M03), danh sách lịch hẹn (M04), phòng gọi CallingRoom dùng chung; cấu hình proxy và API service sẵn sàng tích hợp |
-| Frontend bệnh nhân và cổng dịch vụ | Vũ Trần Khắc Thuận | Khởi tạo dự án React 18, TypeScript, Vite; giao diện đăng nhập OIDC/PKCE; trang chủ bệnh nhân; tra cứu bác sĩ và lịch trống, đặt, đổi và hủy lịch khám (xử lý Idempotency-Key và kiểm tra thời hạn 2 giờ); xem hồ sơ bệnh án và đơn thuốc điện tử; phòng khám từ xa Telehealth (kiểm tra thiết bị camera/micro, xác nhận tham gia phòng chờ và điều khiển cuộc gọi) |
+| Frontend bệnh nhân và cổng dịch vụ | Vũ Trần Khắc Thuận | Giao diện ClinicCare; đăng nhập Keycloak; tổng quan, tra cứu và tích hợp API đặt/đổi/hủy lịch; đóng gói Docker và cấu hình CI. 18 test frontend, build và đăng nhập thật đạt. Hồ sơ/đơn thuốc và cuộc gọi từ xa chờ backend. [Chi tiết](frontend-patient.md) |
 | Giao diện khu nhân viên/quản trị: dashboard, danh mục bác sĩ/chuyên khoa, quản lý phân quyền, quyền hiển thị theo vai trò, tiếp đón/check-in, hàng đợi, thông báo, audit | Nguyễn Hiếu Nhân | clinic-telehealth-full-prototype.html: bản giao diện mô phỏng, chưa tích hợp backend |
 
 ## 4. Phân công giai đoạn triển khai
@@ -90,7 +90,7 @@ Tuần 1–2 tương ứng với khối lượng phân tích và thiết kế hi
 | Mô hình, kiến trúc, dữ liệu và hợp đồng API | Vòng Kỷ Phong | Tuần 2 | Đã có tài liệu |
 | Đặc tả màn hình, kế hoạch kiểm thử và phân công | Vòng Kỷ Phong | Tuần 2 | Đã có tài liệu |
 | Backend của chín phân hệ | Vòng Kỷ Phong | Tuần 3–6 | Đã triển khai M01–M04 và nền tảng audit/thông báo; chức năng tuần 5–6 chưa triển khai |
-| Frontend bệnh nhân | Vũ Trần Khắc Thuận | Tuần 3–6 | Chưa triển khai |
+| Frontend bệnh nhân | Vũ Trần Khắc Thuận | Tuần 3–6 | Đã xây lại giao diện bệnh nhân ClinicCare, nối API bệnh nhân thuộc M01–M04 và cấu hình theme đăng nhập/đóng gói frontend. 18 test đạt; build production và image Docker đạt; form đăng nhập → PKCE → /api/me thật đạt. Hồ sơ/đơn thuốc/video chờ backend; chưa nghiệm thu toàn trình đặt/đổi/hủy qua UI với MySQL. Báo cáo cập nhật 08/11/2026, tổng hợp kiểm chứng 06/11/2026 |
 | Frontend bác sĩ | Nguyễn Huỳnh Anh Kiệt | Tuần 3–6 | Đã hoàn thành giao diện tuần 3–4 (lịch làm việc, lịch hẹn) và sẵn sàng tích hợp API; đã chuẩn bị trước tuần 5–6 |
 | Frontend lễ tân, quản trị và kiểm toán | Nguyễn Hiếu Nhân | Tuần 3–6 | Chưa triển khai |
 | Bộ kiểm thử tự động và kiểm thử hệ thống | Vũ Đức Thắng | Tuần 3–8 | Chưa thực thi |
@@ -99,3 +99,4 @@ Tuần 1–2 tương ứng với khối lượng phân tích và thiết kế hi
 | Báo cáo tổng hợp, slide và bàn giao | Nguyễn Thường tổng hợp; cả nhóm cung cấp nội dung | Tuần 7–8 | Chưa hoàn thành |
 
 Tiến độ thực tế được ghi nhận theo sản phẩm bàn giao và kết quả kiểm tra. Việc có kế hoạch hoặc tài liệu không đồng nghĩa với hoàn thành triển khai. Các thay đổi tiếp theo được ghi nhận cùng người thực hiện, kết quả và thời hạn điều chỉnh.
+
