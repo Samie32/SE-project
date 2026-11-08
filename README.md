@@ -15,6 +15,8 @@ Quy mô nhóm: **6 thành viên**, thời gian thực hiện: **8 tuần**. [Ph�
 - [Hướng dẫn chạy backend và môi trường local](docs/running.md).
 - [API đã triển khai và tích hợp frontend](docs/api/implementation.md).
 - [Kết quả thực hiện và kiểm chứng](docs/week-03-04.md).
+- [Frontend bệnh nhân, Docker và tích hợp API](docs/frontend-patient.md).
+- [Hồ sơ, đơn thuốc và video chờ backend bổ sung](docs/frontend-patient.md#11-các-chức-năng-chờ-tích-hợp-và-nghiệm-thu).
 
 Chạy từ thư mục gốc SE-project:
 
@@ -22,3 +24,5 @@ Chạy từ thư mục gốc SE-project:
 ./scripts/setup-local.ps1
 docker compose up -d --build
 ~~~
+
+Cổng bệnh nhân: http://localhost:5173. Đăng nhập qua Keycloak bằng tài khoản patient hoặc patient2, mật khẩu DEMO_PASSWORD trong .env do script setup sinh. Frontend gọi API qua proxy; backend quản lý kết nối MySQL.
