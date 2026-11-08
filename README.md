@@ -23,6 +23,7 @@ Chạy từ thư mục gốc SE-project:
 ~~~powershell
 ./scripts/setup-local.ps1
 docker compose up -d --build
+.\scripts\apply-login-theme.ps1
 ~~~
 
 Cổng bệnh nhân: http://localhost:5173. Đăng nhập qua Keycloak bằng tài khoản patient hoặc patient2, mật khẩu DEMO_PASSWORD trong .env do script setup sinh. Frontend gọi API qua proxy; backend quản lý kết nối MySQL.
