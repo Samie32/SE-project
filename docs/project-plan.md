@@ -35,7 +35,7 @@ Kế hoạch phân biệt công việc đã thực hiện với nhiệm vụ đ�
 | Môi trường và kiểm thử backend tuần 3–4 | Vòng Kỷ Phong | Docker Compose, dữ liệu demo, Maven Wrapper, kiểm thử MySQL/JWT và cấu hình CI |
 | Frontend bác sĩ tuần 3–4 | Nguyễn Huỳnh Anh Kiệt | Giao diện lịch làm việc/lịch nghỉ (M03), danh sách lịch hẹn (M04), phòng gọi CallingRoom dùng chung; cấu hình proxy và API service sẵn sàng tích hợp |
 | Frontend bệnh nhân và cổng dịch vụ | Vũ Trần Khắc Thuận | Giao diện ClinicCare; đăng nhập Keycloak; tổng quan, tra cứu và tích hợp API đặt/đổi/hủy lịch; đóng gói Docker và cấu hình CI. 18 test frontend, build và đăng nhập thật đạt. Hồ sơ/đơn thuốc và cuộc gọi từ xa chờ backend. [Chi tiết](frontend-patient.md) |
-| Giao diện khu nhân viên/quản trị: dashboard, danh mục bác sĩ/chuyên khoa, quản lý phân quyền, quyền hiển thị theo vai trò, tiếp đón/check-in, hàng đợi, thông báo, audit | Nguyễn Hiếu Nhân | clinic-telehealth-full-prototype.html: bản giao diện mô phỏng, chưa tích hợp backend |
+| Giao diện Frontend Staff cho hệ thống Clinic Telehealth. Thiết lập môi trường và cấu hình đăng nhập Keycloak. Các chức năng giao diện dành cho quản trị viên, lễ tân và kiểm toán. | Nguyễn Hiếu Nhân | frontend/frontend_staff. Giao diện quản trị, lễ tân và kiểm toán|
 
 ## 4. Phân công giai đoạn triển khai
 
