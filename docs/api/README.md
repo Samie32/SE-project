@@ -1,44 +1,32 @@
-# Đặc tả giao diện lập trình ứng dụng
+# API: hợp đồng tích hợp BE–FE
 
-> Triển khai hiện tại: [hướng dẫn backend](../backend-completion.md) và [OpenAPI JSON](openapi.json). YAML bên dưới là bản thiết kế, không phải hợp đồng sinh từ controller. Backend dùng ProblemDetail và header X-Request-Id cho lỗi/mã liên kết.
+**Nguồn chuẩn từ 16/11/2026:** [hợp đồng tích hợp 1.0.0](integration-contract.md) và [OpenAPI YAML](openapi.yaml), gồm 46 thao tác trên 38 đường dẫn, với kiểu request/response, header, quyền và truy vết 24 FR.
 
-[Hợp đồng OpenAPI](openapi.yaml) xác định 30 thao tác API của chín phân hệ. Tên miền example.invalid được sử dụng làm địa chỉ minh họa trong tài liệu.
+| Tài liệu | Mục đích |
+|---|---|
+| [integration-contract.md](integration-contract.md) | Các quyết định đã chốt: tên trường, danh tính, retry, version, queue, clinical, audit, signaling và cách FE nối |
+| [openapi.yaml](openapi.yaml) | Hợp đồng máy đọc 1.0.0; nguồn chuẩn cho adapter mới |
+| [integration-backlog.md](integration-backlog.md) | BE-01…04 và phần FE/E2E còn phải thực hiện; không phải kết quả đã sửa |
+| [contract-verification.md](contract-verification.md) | Kết quả kiểm tra local sau merge, phạm vi và giới hạn bằng chứng |
+| [openapi.json](openapi.json) | Snapshot sinh từ backend; nhiều response Object/Map chưa có kiểu chi tiết; không dùng ghi đè hợp đồng YAML |
+| [Hướng dẫn backend](../backend-completion.md) | Khởi động và hành vi baseline, giới hạn media/SMTP |
+| [archive/openapi-design-0.1.yaml](archive/openapi-design-0.1.yaml) | Thiết kế cũ 30 thao tác dùng đối chiếu fixture lịch sử |
+| [archive/implementation-week-03-04.md](archive/implementation-week-03-04.md) | Tài liệu tuần 3–4 giữ làm lịch sử; không hướng dẫn adapter mới |
 
-## Quy ước giao tiếp
+API local `http://localhost:8080/api`; FE gọi `/api/...` qua proxy trên cổng 5173. OIDC client `clinic-web`, realm `clinic`, audience `clinic-api`. Danh tính nghiệp vụ lấy `/me/profile`; giờ trả UTC, UI hiển thị Asia/Ho_Chi_Minh.
 
-- Dữ liệu trao đổi có định dạng JSON; mã định danh sử dụng UUID.
-- Thời điểm bao gồm độ lệch múi giờ; giao diện hiển thị theo Asia/Ho_Chi_Minh.
-- Các API danh sách sử dụng limit/offset, giới hạn tối đa 100 phần tử trong mỗi phản hồi.
-- Phản hồi lỗi gồm code, message và correlationId; không chứa nội dung hồ sơ bệnh án hoặc thông tin truy vết lỗi nội bộ.
+Tên trường chốt: `consent`, `createdAt`, `targetStatus`, `version`, `doseText`, `durationText`. Queue list ở `/doctors/{id}/queue?date=...`; bản nháp lấy qua endpoint encounter. Lỗi ứng dụng là ProblemDetail; mã liên kết ở `X-Request-Id`, không phải `correlationId` trong body lỗi.
 
-## Xác thực và kiểm soát truy cập
+**Phạm vi main 17/11/2026:** chỉ đưa bộ hợp đồng và phần dữ liệu/tài liệu 52400244; không thay FE/BE. FE gộp/media trên nhánh tích hợp chưa chuyển vào main trong đợt này.
 
-Dịch vụ danh tính thực hiện đăng nhập bằng OAuth2/OIDC. Backend kiểm tra mã truy cập và quyền trên tài nguyên. Mã truy cập được lưu trong bộ nhớ phía client; người dùng đăng nhập lại sau khi mã hết hạn.
+**Tài liệu chốt không đồng nghĩa backend đã đạt toàn bộ:** audit từ chối, ma trận quyền đọc và queue rỗng 204 còn trong backlog. Chưa nối ZIP vào các frontend hiện có và chưa nghiệm thu video/audio hai phía.
 
-Đối với chức năng tự đặt lịch, danh tính bệnh nhân được xác định từ phiên đăng nhập. Hệ thống không hỗ trợ đặt lịch thay cho người khác.
+## Kiểm tra hợp đồng
 
-## Tính nhất quán của thao tác
+```powershell
+python -m pip install -r scripts/requirements-api-contract.txt
+python scripts/check-api-contract.py
+python -m unittest discover -s scripts/tests -p 'test_api_contract.py' -v
+```
 
-Các yêu cầu cập nhật sử dụng số phiên bản để phát hiện xung đột. Khi xảy ra xung đột, hệ thống trả mã 409 và bảo toàn dữ liệu hiện tại.
-
-Khóa Idempotency-Key được lưu trong 24 giờ theo tổ hợp tác nhân, thao tác và khóa yêu cầu. Yêu cầu sử dụng lại cùng khóa nhưng có nội dung khác bị từ chối với mã 409.
-
-Thao tác bắt đầu khám tạo hoặc truy xuất lần khám duy nhất của lịch hẹn. Phản hồi lịch hẹn cung cấp encounterId để liên kết với các chức năng hồ sơ và đơn thuốc.
-
-## Quy tắc nghiệp vụ và tích hợp
-
-Điều kiện phân quyền, chuyển trạng thái, thời gian nhắc lịch, chính sách gửi lại và khoảng thời gian tham gia phiên khám tuân theo [quy tắc nghiệp vụ](../requirements/business-rules.md).
-
-Các dịch vụ ngoài được tích hợp qua lớp kết nối độc lập. Hợp đồng API tập trung vào các luồng nghiệp vụ của hệ thống, không bao gồm giao diện quản trị của nhà cung cấp.
-
-Tài liệu phản ánh giao diện hệ thống ở giai đoạn thiết kế; kết quả kiểm thử hợp đồng được xác lập khi triển khai.
-
-## Quy ước vòng đời
-
-prepareSession và startSession trả Session; joinSession nhận participationConfirmed=true và trả JoinToken. Kết thúc media, hoàn tất hồ sơ và hoàn tất lần khám là ba thao tác riêng. Tiến trình khám được mô tả trong [sequence tiến trình](../design/sequence-diagrams/consultation-progress.png) và [sequence telehealth](../design/sequence-diagrams/telehealth.png).
-
-Các yêu cầu ghi có Idempotency-Key giữ khóa trong 24 giờ; khóa và kết quả được lưu cùng giao dịch. Hoàn tất bản ghi không tự hoàn tất lịch hẹn. Lịch NO_SHOW đóng phiên chờ, còn người đã check-in đúng giờ được tiếp tục chờ khám.
-
-## API đã triển khai
-
-Phạm vi tuần 3–4 được trình bày trong [hướng dẫn tích hợp](implementation.md), với [OpenAPI sinh từ backend](openapi.json). Hợp đồng YAML ở trên là thiết kế toàn hệ thống; các khác biệt hiện tại được nêu trong hướng dẫn tích hợp.
+Workflow [API contract](../../.github/workflows/api-contract.yml) chạy các kiểm tra này khi hợp đồng thay đổi. Kiểm tra tĩnh không thay thế test API, phân quyền, giao dịch MySQL và E2E.

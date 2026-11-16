@@ -1,740 +1,831 @@
 openapi: 3.1.0
 info:
-  title: Clinic Telehealth API
-  version: 0.1.0
-  description: Course project API design. OAuth2/OIDC Authorization Code with PKCE;
-    bearer access token stored in client memory. Resource authorization is required.
-    External services are represented by provider adapters.
+  title: ClinicCare BE–FE Integration Contract
+  version: 1.0.0
+  description: Hợp đồng tích hợp chốt ngày 16/11/2026. Đây là chuẩn BE/FE phải tuân thủ, không phải tuyên bố backend
+    đã đạt mọi điều kiện. Xem integration-contract.md và integration-backlog.md. openapi.json là snapshot sinh từ
+    backend, không phải nguồn chuẩn thay thế YAML này.
 servers:
-- url: https://clinic.example.invalid/api/v1
-  description: Nonfunctional documentation placeholder
+- url: http://localhost:8080/api
+  description: Local API; FE proxy /api tại cổng 5173
 security:
 - bearerAuth: []
 paths:
-  /me:
+  /appointments:
     get:
-      operationId: getMe
-      summary: Current authenticated identity
-      x-requirements:
-      - FR-01
-      - FR-02
-      description: Enforce role and object permissions from docs/design/architecture/security.md.
-        Business rules and transitions are described in the SRS.
-      responses:
-        '200':
-          description: Successful authorized result
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Identity'
-        '400':
-          description: Invalid request format
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-        '401':
-          description: Unauthenticated
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-        '403':
-          description: Forbidden
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-        '404':
-          description: Not found or not visible
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-        '409':
-          description: Conflict or stale version
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-        '422':
-          description: Business validation failed
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-        '503':
-          description: Dependency or audit unavailable
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-  /users/{userId}/roles:
-    put:
-      operationId: setRoles
-      summary: Admin changes internal roles with audit
-      x-requirements:
-      - FR-02
-      - FR-17
-      description: Enforce role and object permissions from docs/design/architecture/security.md.
-        Business rules and transitions are described in the SRS.
-      responses:
-        '200':
-          description: Successful authorized result
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Identity'
-        '400':
-          description: Invalid request format
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-        '401':
-          description: Unauthenticated
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-        '403':
-          description: Forbidden
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-        '404':
-          description: Not found or not visible
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-        '409':
-          description: Conflict or stale version
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-        '422':
-          description: Business validation failed
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-        '503':
-          description: Dependency or audit unavailable
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
+      tags:
+      - M04
+      operationId: listAppointments
       parameters:
-      - name: userId
+      - name: limit
+        in: query
+        required: false
+        schema:
+          type: integer
+          minimum: 1
+          maximum: 100
+          default: 20
+      - name: offset
+        in: query
+        required: false
+        schema:
+          type: integer
+          minimum: 0
+          default: 0
+      responses:
+        '200':
+          description: Thành công
+          headers:
+            X-Request-Id:
+              description: Mã liên kết request/audit; baseline có thể thiếu trên lỗi security filter.
+              schema:
+                type: string
+                format: uuid
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/AppointmentView'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '422':
+          $ref: '#/components/responses/Unprocessable'
+        '503':
+          $ref: '#/components/responses/Unavailable'
+      summary: listAppointments
+      description: 'Quyền mục tiêu: PATIENT của mình/DOCTOR được gán/RECEPTIONIST/ADMINISTRATOR. Xem integration-contract.md
+        cho cửa sổ thời gian, giao dịch và phân quyền tài nguyên.'
+      x-requirements:
+      - FR-02
+      - FR-08
+      x-access: PATIENT của mình/DOCTOR được gán/RECEPTIONIST/ADMINISTRATOR
+    post:
+      tags:
+      - M04
+      operationId: bookAppointment
+      parameters:
+      - name: Idempotency-Key
+        in: header
+        required: true
+        schema:
+          type: string
+          minLength: 1
+          maxLength: 128
+          pattern: ^[A-Za-z0-9._:-]+$
+        description: Bắt buộc; giữ nguyên khi retry cùng thao tác/payload trong 24 giờ.
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Booking'
+        required: true
+      responses:
+        '200':
+          description: Thành công
+          headers:
+            X-Request-Id:
+              description: Mã liên kết request/audit; baseline có thể thiếu trên lỗi security filter.
+              schema:
+                type: string
+                format: uuid
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AppointmentView'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '422':
+          $ref: '#/components/responses/Unprocessable'
+        '503':
+          $ref: '#/components/responses/Unavailable'
+      summary: bookAppointment
+      description: 'Quyền mục tiêu: PATIENT tự đặt. Xem integration-contract.md cho cửa sổ thời gian, giao dịch
+        và phân quyền tài nguyên.'
+      x-requirements:
+      - FR-08
+      x-access: PATIENT tự đặt
+  /appointments/{id}:
+    get:
+      tags:
+      - M04
+      operationId: getAppointment
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        '200':
+          description: Thành công
+          headers:
+            X-Request-Id:
+              description: Mã liên kết request/audit; baseline có thể thiếu trên lỗi security filter.
+              schema:
+                type: string
+                format: uuid
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AppointmentDetail'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '422':
+          $ref: '#/components/responses/Unprocessable'
+        '503':
+          $ref: '#/components/responses/Unavailable'
+      summary: getAppointment
+      description: 'Quyền mục tiêu: Chủ lịch/DOCTOR được gán/RECEPTIONIST/ADMINISTRATOR. Xem integration-contract.md
+        cho cửa sổ thời gian, giao dịch và phân quyền tài nguyên.'
+      x-requirements:
+      - FR-02
+      - FR-11
+      x-access: Chủ lịch/DOCTOR được gán/RECEPTIONIST/ADMINISTRATOR
+  /appointments/{id}/cancel:
+    post:
+      tags:
+      - M04
+      operationId: cancelAppointment
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: Idempotency-Key
+        in: header
+        required: true
+        schema:
+          type: string
+          minLength: 1
+          maxLength: 128
+          pattern: ^[A-Za-z0-9._:-]+$
+        description: Bắt buộc; giữ nguyên khi retry cùng thao tác/payload trong 24 giờ.
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Cancel'
+        required: true
+      responses:
+        '200':
+          description: Thành công
+          headers:
+            X-Request-Id:
+              description: Mã liên kết request/audit; baseline có thể thiếu trên lỗi security filter.
+              schema:
+                type: string
+                format: uuid
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AppointmentView'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '422':
+          $ref: '#/components/responses/Unprocessable'
+        '503':
+          $ref: '#/components/responses/Unavailable'
+      summary: cancelAppointment
+      description: 'Quyền mục tiêu: PATIENT chủ lịch. Xem integration-contract.md cho cửa sổ thời gian, giao dịch
+        và phân quyền tài nguyên.'
+      x-requirements:
+      - FR-10
+      x-access: PATIENT chủ lịch
+  /appointments/{id}/check-in:
+    post:
+      tags:
+      - M08
+      operationId: checkIn
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: Idempotency-Key
+        in: header
+        required: true
+        schema:
+          type: string
+          minLength: 1
+          maxLength: 128
+          pattern: ^[A-Za-z0-9._:-]+$
+        description: Bắt buộc; giữ nguyên khi retry cùng thao tác/payload trong 24 giờ.
+      responses:
+        '200':
+          description: Thành công
+          headers:
+            X-Request-Id:
+              description: Mã liên kết request/audit; baseline có thể thiếu trên lỗi security filter.
+              schema:
+                type: string
+                format: uuid
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/QueueTicket'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '422':
+          $ref: '#/components/responses/Unprocessable'
+        '503':
+          $ref: '#/components/responses/Unavailable'
+      summary: checkIn
+      description: 'Quyền mục tiêu: RECEPTIONIST. Xem integration-contract.md cho cửa sổ thời gian, giao dịch và
+        phân quyền tài nguyên.'
+      x-requirements:
+      - FR-19
+      x-access: RECEPTIONIST
+  /appointments/{id}/progress:
+    post:
+      tags:
+      - M04
+      operationId: progressAppointment
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: Idempotency-Key
+        in: header
+        required: true
+        schema:
+          type: string
+          minLength: 1
+          maxLength: 128
+          pattern: ^[A-Za-z0-9._:-]+$
+        description: Bắt buộc; giữ nguyên khi retry cùng thao tác/payload trong 24 giờ.
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Progress'
+        required: true
+      responses:
+        '200':
+          description: Thành công
+          headers:
+            X-Request-Id:
+              description: Mã liên kết request/audit; baseline có thể thiếu trên lỗi security filter.
+              schema:
+                type: string
+                format: uuid
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AppointmentDetail'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '422':
+          $ref: '#/components/responses/Unprocessable'
+        '503':
+          $ref: '#/components/responses/Unavailable'
+      summary: progressAppointment
+      description: 'Quyền mục tiêu: DOCTOR được gán; NO_SHOW trực tiếp: RECEPTIONIST. Xem integration-contract.md
+        cho cửa sổ thời gian, giao dịch và phân quyền tài nguyên.'
+      x-requirements:
+      - FR-11
+      x-access: 'DOCTOR được gán; NO_SHOW trực tiếp: RECEPTIONIST'
+  /appointments/{id}/reschedule:
+    post:
+      tags:
+      - M04
+      operationId: rescheduleAppointment
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: Idempotency-Key
+        in: header
+        required: true
+        schema:
+          type: string
+          minLength: 1
+          maxLength: 128
+          pattern: ^[A-Za-z0-9._:-]+$
+        description: Bắt buộc; giữ nguyên khi retry cùng thao tác/payload trong 24 giờ.
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Reschedule'
+        required: true
+      responses:
+        '200':
+          description: Thành công
+          headers:
+            X-Request-Id:
+              description: Mã liên kết request/audit; baseline có thể thiếu trên lỗi security filter.
+              schema:
+                type: string
+                format: uuid
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AppointmentView'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '422':
+          $ref: '#/components/responses/Unprocessable'
+        '503':
+          $ref: '#/components/responses/Unavailable'
+      summary: rescheduleAppointment
+      description: 'Quyền mục tiêu: PATIENT chủ lịch. Xem integration-contract.md cho cửa sổ thời gian, giao dịch
+        và phân quyền tài nguyên.'
+      x-requirements:
+      - FR-09
+      x-access: PATIENT chủ lịch
+  /appointments/{id}/telehealth-session:
+    post:
+      tags:
+      - M09
+      operationId: prepareSession
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: Idempotency-Key
+        in: header
+        required: true
+        schema:
+          type: string
+          minLength: 1
+          maxLength: 128
+          pattern: ^[A-Za-z0-9._:-]+$
+        description: Bắt buộc; giữ nguyên khi retry cùng thao tác/payload trong 24 giờ.
+      responses:
+        '200':
+          description: Thành công
+          headers:
+            X-Request-Id:
+              description: Mã liên kết request/audit; baseline có thể thiếu trên lỗi security filter.
+              schema:
+                type: string
+                format: uuid
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TelehealthSession'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '422':
+          $ref: '#/components/responses/Unprocessable'
+        '503':
+          $ref: '#/components/responses/Unavailable'
+      summary: prepareSession
+      description: 'Quyền mục tiêu: PATIENT chủ lịch/DOCTOR phụ trách. Xem integration-contract.md cho cửa sổ thời
+        gian, giao dịch và phân quyền tài nguyên. Prepare một lần khi vào phòng; không dùng để poll. ENDED/CANCELLED
+        trả 409.'
+      x-requirements:
+      - FR-22
+      x-access: PATIENT chủ lịch/DOCTOR phụ trách
+  /audit-events:
+    get:
+      tags:
+      - M07
+      operationId: listAuditEvents
+      parameters:
+      - name: from
+        in: query
+        required: false
+        schema:
+          type: string
+          format: date-time
+      - name: to
+        in: query
+        required: false
+        schema:
+          type: string
+          format: date-time
+      - name: actorId
+        in: query
+        required: false
+        schema:
+          type: string
+          format: uuid
+      - name: resourceId
+        in: query
+        required: false
+        schema:
+          type: string
+      - name: limit
+        in: query
+        required: false
+        schema:
+          type: integer
+          minimum: 1
+          maximum: 100
+          default: 20
+      - name: offset
+        in: query
+        required: false
+        schema:
+          type: integer
+          minimum: 0
+          default: 0
+      responses:
+        '200':
+          description: Thành công
+          headers:
+            X-Request-Id:
+              description: Mã liên kết request/audit; baseline có thể thiếu trên lỗi security filter.
+              schema:
+                type: string
+                format: uuid
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/AuditEvent'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '422':
+          $ref: '#/components/responses/Unprocessable'
+        '503':
+          $ref: '#/components/responses/Unavailable'
+      summary: listAuditEvents
+      description: 'Quyền mục tiêu: AUDITOR. Xem integration-contract.md cho cửa sổ thời gian, giao dịch và phân
+        quyền tài nguyên.'
+      x-requirements:
+      - FR-17
+      - FR-18
+      x-access: AUDITOR
+      x-implementation-gaps:
+      - BE-01
+  /availability/{id}:
+    delete:
+      tags:
+      - M03
+      operationId: deleteAvailability
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        '204':
+          description: Xóa thành công; không có body
+          headers:
+            X-Request-Id:
+              description: Mã liên kết request/audit; baseline có thể thiếu trên lỗi security filter.
+              schema:
+                type: string
+                format: uuid
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '422':
+          $ref: '#/components/responses/Unprocessable'
+        '503':
+          $ref: '#/components/responses/Unavailable'
+      summary: deleteAvailability
+      description: 'Quyền mục tiêu: DOCTOR sở hữu/ADMINISTRATOR; tương lai, chưa có lịch sử hẹn. Xem integration-contract.md
+        cho cửa sổ thời gian, giao dịch và phân quyền tài nguyên.'
+      x-requirements:
+      - FR-05
+      x-access: DOCTOR sở hữu/ADMINISTRATOR; tương lai, chưa có lịch sử hẹn
+  /doctors:
+    get:
+      tags:
+      - M02
+      operationId: listDoctors
+      responses:
+        '200':
+          description: Thành công
+          headers:
+            X-Request-Id:
+              description: Mã liên kết request/audit; baseline có thể thiếu trên lỗi security filter.
+              schema:
+                type: string
+                format: uuid
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/DoctorRow'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '422':
+          $ref: '#/components/responses/Unprocessable'
+        '503':
+          $ref: '#/components/responses/Unavailable'
+      summary: listDoctors
+      description: 'Quyền mục tiêu: PATIENT/DOCTOR/RECEPTIONIST/ADMINISTRATOR. Xem integration-contract.md cho cửa
+        sổ thời gian, giao dịch và phân quyền tài nguyên.'
+      x-requirements:
+      - FR-02
+      - FR-03
+      x-access: PATIENT/DOCTOR/RECEPTIONIST/ADMINISTRATOR
+      x-implementation-gaps:
+      - BE-03
+    post:
+      tags:
+      - M02
+      operationId: createDoctor
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Doctor'
+        required: true
+      responses:
+        '200':
+          description: Thành công
+          headers:
+            X-Request-Id:
+              description: Mã liên kết request/audit; baseline có thể thiếu trên lỗi security filter.
+              schema:
+                type: string
+                format: uuid
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DoctorView'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '422':
+          $ref: '#/components/responses/Unprocessable'
+        '503':
+          $ref: '#/components/responses/Unavailable'
+      summary: createDoctor
+      description: 'Quyền mục tiêu: ADMINISTRATOR. Xem integration-contract.md cho cửa sổ thời gian, giao dịch và
+        phân quyền tài nguyên.'
+      x-requirements:
+      - FR-03
+      x-access: ADMINISTRATOR
+  /doctors/{id}:
+    put:
+      tags:
+      - M02
+      operationId: updateDoctor
+      parameters:
+      - name: id
         in: path
         required: true
         schema:
           type: string
           format: uuid
       requestBody:
-        required: true
         content:
           application/json:
             schema:
-              type: object
-              additionalProperties: false
-              required:
-              - roles
-              properties:
-                roles:
-                  type: array
-                  minItems: 1
-                  uniqueItems: true
-                  items:
-                    type: string
-                    enum:
-                    - PATIENT
-                    - DOCTOR
-                    - RECEPTIONIST
-                    - ADMIN
-                    - AUDITOR
-  /specialties:
-    get:
-      operationId: listSpecialties
-      summary: List specialties
-      x-requirements:
-      - FR-03
-      description: Enforce role and object permissions from docs/design/architecture/security.md.
-        Business rules and transitions are described in the SRS.
+              $ref: '#/components/schemas/UpdateDoctor'
+        required: true
       responses:
         '200':
-          description: Successful authorized result
+          description: Thành công
+          headers:
+            X-Request-Id:
+              description: Mã liên kết request/audit; baseline có thể thiếu trên lỗi security filter.
+              schema:
+                type: string
+                format: uuid
           content:
             application/json:
               schema:
-                type: array
-                items:
-                  $ref: '#/components/schemas/Specialty'
+                $ref: '#/components/schemas/DoctorView'
         '400':
-          description: Invalid request format
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
+          $ref: '#/components/responses/BadRequest'
         '401':
-          description: Unauthenticated
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
+          $ref: '#/components/responses/Unauthorized'
         '403':
-          description: Forbidden
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
+          $ref: '#/components/responses/Forbidden'
         '404':
-          description: Not found or not visible
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
+          $ref: '#/components/responses/NotFound'
         '409':
-          description: Conflict or stale version
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
+          $ref: '#/components/responses/Conflict'
         '422':
-          description: Business validation failed
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
+          $ref: '#/components/responses/Unprocessable'
         '503':
-          description: Dependency or audit unavailable
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-      parameters:
-      - name: limit
-        in: query
-        schema:
-          type: integer
-          minimum: 1
-          maximum: 100
-          default: 20
-      - name: offset
-        in: query
-        schema:
-          type: integer
-          minimum: 0
-          default: 0
-    post:
-      operationId: createSpecialty
-      summary: Admin creates specialty
-      x-requirements:
-      - FR-03
-      description: Enforce role and object permissions from docs/design/architecture/security.md.
-        Business rules and transitions are described in the SRS.
-      responses:
-        '201':
-          description: Successful authorized result
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Specialty'
-        '400':
-          description: Invalid request format
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-        '401':
-          description: Unauthenticated
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-        '403':
-          description: Forbidden
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-        '404':
-          description: Not found or not visible
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-        '409':
-          description: Conflict or stale version
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-        '422':
-          description: Business validation failed
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-        '503':
-          description: Dependency or audit unavailable
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              additionalProperties: false
-              required:
-              - name
-              properties:
-                name:
-                  type: string
-                  minLength: 1
-  /doctors:
-    get:
-      operationId: listDoctors
-      summary: List doctors
-      x-requirements:
-      - FR-03
-      description: Enforce role and object permissions from docs/design/architecture/security.md.
-        Business rules and transitions are described in the SRS.
-      responses:
-        '200':
-          description: Successful authorized result
-          content:
-            application/json:
-              schema:
-                type: array
-                items:
-                  $ref: '#/components/schemas/Doctor'
-        '400':
-          description: Invalid request format
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-        '401':
-          description: Unauthenticated
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-        '403':
-          description: Forbidden
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-        '404':
-          description: Not found or not visible
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-        '409':
-          description: Conflict or stale version
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-        '422':
-          description: Business validation failed
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-        '503':
-          description: Dependency or audit unavailable
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-      parameters:
-      - name: limit
-        in: query
-        schema:
-          type: integer
-          minimum: 1
-          maximum: 100
-          default: 20
-      - name: offset
-        in: query
-        schema:
-          type: integer
-          minimum: 0
-          default: 0
-    post:
-      operationId: createDoctor
-      summary: Admin creates doctor
-      x-requirements:
-      - FR-03
-      description: Enforce role and object permissions from docs/design/architecture/security.md.
-        Business rules and transitions are described in the SRS.
-      responses:
-        '201':
-          description: Successful authorized result
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Doctor'
-        '400':
-          description: Invalid request format
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-        '401':
-          description: Unauthenticated
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-        '403':
-          description: Forbidden
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-        '404':
-          description: Not found or not visible
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-        '409':
-          description: Conflict or stale version
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-        '422':
-          description: Business validation failed
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-        '503':
-          description: Dependency or audit unavailable
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/DoctorInput'
-  /doctors/{doctorId}:
-    put:
-      operationId: updateDoctor
-      summary: Admin updates doctor; reject deactivation with active future appointments
+          $ref: '#/components/responses/Unavailable'
+      summary: updateDoctor
+      description: 'Quyền mục tiêu: ADMINISTRATOR. Xem integration-contract.md cho cửa sổ thời gian, giao dịch và
+        phân quyền tài nguyên.'
       x-requirements:
       - FR-03
       - FR-04
-      description: Enforce role and object permissions from docs/design/architecture/security.md.
-        Business rules and transitions are described in the SRS.
-      responses:
-        '200':
-          description: Successful authorized result
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Doctor'
-        '400':
-          description: Invalid request format
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-        '401':
-          description: Unauthenticated
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-        '403':
-          description: Forbidden
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-        '404':
-          description: Not found or not visible
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-        '409':
-          description: Conflict or stale version
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-        '422':
-          description: Business validation failed
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-        '503':
-          description: Dependency or audit unavailable
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-      parameters:
-      - name: doctorId
-        in: path
-        required: true
-        schema:
-          type: string
-          format: uuid
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/DoctorInput'
-  /doctors/{doctorId}/availability:
-    post:
-      operationId: createAvailability
-      summary: Doctor/admin creates work interval
-      x-requirements:
-      - FR-05
-      description: Enforce role and object permissions from docs/design/architecture/security.md.
-        Business rules and transitions are described in the SRS.
-      responses:
-        '201':
-          description: Successful authorized result
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Availability'
-        '400':
-          description: Invalid request format
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-        '401':
-          description: Unauthenticated
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-        '403':
-          description: Forbidden
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-        '404':
-          description: Not found or not visible
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-        '409':
-          description: Conflict or stale version
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-        '422':
-          description: Business validation failed
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-        '503':
-          description: Dependency or audit unavailable
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-      parameters:
-      - name: doctorId
-        in: path
-        required: true
-        schema:
-          type: string
-          format: uuid
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/AvailabilityInput'
-  /doctors/{doctorId}/time-off:
-    post:
-      operationId: createTimeOff
-      summary: Doctor/admin adds time off; reject conflicts
-      x-requirements:
-      - FR-06
-      description: Enforce role and object permissions from docs/design/architecture/security.md.
-        Business rules and transitions are described in the SRS.
-      responses:
-        '201':
-          description: Successful authorized result
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/TimeOff'
-        '400':
-          description: Invalid request format
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-        '401':
-          description: Unauthenticated
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-        '403':
-          description: Forbidden
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-        '404':
-          description: Not found or not visible
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-        '409':
-          description: Conflict or stale version
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-        '422':
-          description: Business validation failed
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-        '503':
-          description: Dependency or audit unavailable
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-      parameters:
-      - name: doctorId
-        in: path
-        required: true
-        schema:
-          type: string
-          format: uuid
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              additionalProperties: false
-              required:
-              - startAt
-              - endAt
-              properties:
-                startAt:
-                  type: string
-                  format: date-time
-                endAt:
-                  type: string
-                  format: date-time
-  /slots:
+      x-access: ADMINISTRATOR
+  /doctors/{id}/availability:
     get:
-      operationId: listSlots
-      summary: Find available slots
-      x-requirements:
-      - FR-07
-      description: Enforce role and object permissions from docs/design/architecture/security.md.
-        Business rules and transitions are described in the SRS.
+      tags:
+      - M03
+      operationId: listAvailability
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
       responses:
         '200':
-          description: Successful authorized result
+          description: Thành công
+          headers:
+            X-Request-Id:
+              description: Mã liên kết request/audit; baseline có thể thiếu trên lỗi security filter.
+              schema:
+                type: string
+                format: uuid
           content:
             application/json:
               schema:
                 type: array
                 items:
-                  $ref: '#/components/schemas/Slot'
+                  $ref: '#/components/schemas/AvailabilityView'
         '400':
-          description: Invalid request format
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
+          $ref: '#/components/responses/BadRequest'
         '401':
-          description: Unauthenticated
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
+          $ref: '#/components/responses/Unauthorized'
         '403':
-          description: Forbidden
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
+          $ref: '#/components/responses/Forbidden'
         '404':
-          description: Not found or not visible
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
+          $ref: '#/components/responses/NotFound'
         '409':
-          description: Conflict or stale version
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
+          $ref: '#/components/responses/Conflict'
         '422':
-          description: Business validation failed
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
+          $ref: '#/components/responses/Unprocessable'
         '503':
-          description: Dependency or audit unavailable
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
+          $ref: '#/components/responses/Unavailable'
+      summary: listAvailability
+      description: 'Quyền mục tiêu: DOCTOR sở hữu/RECEPTIONIST/ADMINISTRATOR. Xem integration-contract.md cho cửa
+        sổ thời gian, giao dịch và phân quyền tài nguyên.'
+      x-requirements:
+      - FR-02
+      - FR-05
+      x-access: DOCTOR sở hữu/RECEPTIONIST/ADMINISTRATOR
+      x-implementation-gaps:
+      - BE-02
+    post:
+      tags:
+      - M03
+      operationId: createAvailability
       parameters:
-      - name: limit
-        in: query
-        schema:
-          type: integer
-          minimum: 1
-          maximum: 100
-          default: 20
-      - name: offset
-        in: query
-        schema:
-          type: integer
-          minimum: 0
-          default: 0
-      - name: doctorId
-        in: query
+      - name: id
+        in: path
+        required: true
         schema:
           type: string
           format: uuid
-      - name: specialtyId
-        in: query
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Availability'
+        required: true
+      responses:
+        '200':
+          description: Thành công
+          headers:
+            X-Request-Id:
+              description: Mã liên kết request/audit; baseline có thể thiếu trên lỗi security filter.
+              schema:
+                type: string
+                format: uuid
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AvailabilityView'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '422':
+          $ref: '#/components/responses/Unprocessable'
+        '503':
+          $ref: '#/components/responses/Unavailable'
+      summary: createAvailability
+      description: 'Quyền mục tiêu: DOCTOR sở hữu/ADMINISTRATOR. Xem integration-contract.md cho cửa sổ thời gian,
+        giao dịch và phân quyền tài nguyên.'
+      x-requirements:
+      - FR-05
+      x-access: DOCTOR sở hữu/ADMINISTRATOR
+  /doctors/{id}/queue:
+    get:
+      tags:
+      - M08
+      operationId: getDoctorQueue
+      parameters:
+      - name: id
+        in: path
+        required: true
         schema:
           type: string
           format: uuid
@@ -744,789 +835,235 @@ paths:
         schema:
           type: string
           format: date
-      - name: mode
-        in: query
-        schema:
-          type: string
-          enum:
-          - IN_PERSON
-          - TELEHEALTH
-  /appointments:
-    get:
-      operationId: listAppointments
-      summary: List only authorized appointments
+      responses:
+        '200':
+          description: Thành công
+          headers:
+            X-Request-Id:
+              description: Mã liên kết request/audit; baseline có thể thiếu trên lỗi security filter.
+              schema:
+                type: string
+                format: uuid
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/QueueTicket'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '422':
+          $ref: '#/components/responses/Unprocessable'
+        '503':
+          $ref: '#/components/responses/Unavailable'
+      summary: getDoctorQueue
+      description: 'Quyền mục tiêu: DOCTOR sở hữu/RECEPTIONIST. Xem integration-contract.md cho cửa sổ thời gian,
+        giao dịch và phân quyền tài nguyên. date bắt buộc, ngày Asia/Ho_Chi_Minh; trả mọi trạng thái, FE tự lọc.
+        Không có GET /queue-tickets.'
       x-requirements:
       - FR-02
-      - FR-11
-      description: Enforce role and object permissions from docs/design/architecture/security.md.
-        Business rules and transitions are described in the SRS.
+      - FR-20
+      x-access: DOCTOR sở hữu/RECEPTIONIST
+  /doctors/{id}/queue/next:
+    post:
+      tags:
+      - M08
+      operationId: callNext
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: date
+        in: query
+        required: true
+        schema:
+          type: string
+          format: date
+      - name: Idempotency-Key
+        in: header
+        required: true
+        schema:
+          type: string
+          minLength: 1
+          maxLength: 128
+          pattern: ^[A-Za-z0-9._:-]+$
+        description: Bắt buộc; giữ nguyên khi retry cùng thao tác/payload trong 24 giờ.
       responses:
         '200':
-          description: Successful authorized result
+          description: Thành công
+          headers:
+            X-Request-Id:
+              description: Mã liên kết request/audit; baseline có thể thiếu trên lỗi security filter.
+              schema:
+                type: string
+                format: uuid
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/QueueTicket'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '422':
+          $ref: '#/components/responses/Unprocessable'
+        '503':
+          $ref: '#/components/responses/Unavailable'
+        '204':
+          description: Hàng hợp lệ không còn WAITING; không có body. Mục tiêu BE-04, baseline hiện trả 404.
+          headers:
+            X-Request-Id:
+              description: Mã liên kết request/audit; baseline có thể thiếu trên lỗi security filter.
+              schema:
+                type: string
+                format: uuid
+      summary: callNext
+      description: 'Quyền mục tiêu: DOCTOR sở hữu/RECEPTIONIST. Xem integration-contract.md cho cửa sổ thời gian,
+        giao dịch và phân quyền tài nguyên. Không tạo phiếu mới. Nếu còn CALLED/IN_SERVICE trả 409; nếu không có
+        WAITING trả 204 (BE-04 cần triển khai).'
+      x-requirements:
+      - FR-20
+      x-access: DOCTOR sở hữu/RECEPTIONIST
+      x-implementation-gaps:
+      - BE-04
+  /doctors/{id}/time-off:
+    get:
+      tags:
+      - M03
+      operationId: listTimeOff
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        '200':
+          description: Thành công
+          headers:
+            X-Request-Id:
+              description: Mã liên kết request/audit; baseline có thể thiếu trên lỗi security filter.
+              schema:
+                type: string
+                format: uuid
           content:
             application/json:
               schema:
                 type: array
                 items:
-                  $ref: '#/components/schemas/Appointment'
+                  $ref: '#/components/schemas/TimeOffView'
         '400':
-          description: Invalid request format
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
+          $ref: '#/components/responses/BadRequest'
         '401':
-          description: Unauthenticated
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
+          $ref: '#/components/responses/Unauthorized'
         '403':
-          description: Forbidden
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
+          $ref: '#/components/responses/Forbidden'
         '404':
-          description: Not found or not visible
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
+          $ref: '#/components/responses/NotFound'
         '409':
-          description: Conflict or stale version
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
+          $ref: '#/components/responses/Conflict'
         '422':
-          description: Business validation failed
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
+          $ref: '#/components/responses/Unprocessable'
         '503':
-          description: Dependency or audit unavailable
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-      parameters:
-      - name: limit
-        in: query
-        schema:
-          type: integer
-          minimum: 1
-          maximum: 100
-          default: 20
-      - name: offset
-        in: query
-        schema:
-          type: integer
-          minimum: 0
-          default: 0
-    post:
-      operationId: bookAppointment
-      summary: Book for current patient; derive patient ID from identity
+          $ref: '#/components/responses/Unavailable'
+      summary: listTimeOff
+      description: 'Quyền mục tiêu: DOCTOR sở hữu/RECEPTIONIST/ADMINISTRATOR. Xem integration-contract.md cho cửa
+        sổ thời gian, giao dịch và phân quyền tài nguyên.'
       x-requirements:
-      - FR-08
-      description: Enforce role and object permissions from docs/design/architecture/security.md.
-        Business rules and transitions are described in the SRS.
-      responses:
-        '201':
-          description: Successful authorized result
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Appointment'
-        '400':
-          description: Invalid request format
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-        '401':
-          description: Unauthenticated
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-        '403':
-          description: Forbidden
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-        '404':
-          description: Not found or not visible
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-        '409':
-          description: Conflict or stale version
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-        '422':
-          description: Business validation failed
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-        '503':
-          description: Dependency or audit unavailable
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-      parameters:
-      - name: Idempotency-Key
-        in: header
-        required: true
-        schema:
-          type: string
-          minLength: 1
-          maxLength: 128
-        description: Retained for 24 hours per actor and operation. Same key with
-          different payload returns 409.
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/BookingInput'
-  /appointments/{appointmentId}/reschedule:
+      - FR-02
+      - FR-06
+      x-access: DOCTOR sở hữu/RECEPTIONIST/ADMINISTRATOR
+      x-implementation-gaps:
+      - BE-02
     post:
-      operationId: rescheduleAppointment
-      summary: Atomically change slot while preserving history
-      x-requirements:
-      - FR-09
-      description: Only CONFIRMED appointments at least 2 hours before start. Enforce
-        ownership, version and atomic update; conflict returns 409.
-      responses:
-        '200':
-          description: Successful authorized result
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Appointment'
-        '400':
-          description: Invalid request format
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-        '401':
-          description: Unauthenticated
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-        '403':
-          description: Forbidden
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-        '404':
-          description: Not found or not visible
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-        '409':
-          description: Conflict or stale version
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-        '422':
-          description: Business validation failed
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-        '503':
-          description: Dependency or audit unavailable
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
+      tags:
+      - M03
+      operationId: createTimeOff
       parameters:
-      - name: appointmentId
-        in: path
-        required: true
-        schema:
-          type: string
-          format: uuid
-      - name: Idempotency-Key
-        in: header
-        required: true
-        schema:
-          type: string
-          minLength: 1
-          maxLength: 128
-        description: Retained for 24 hours per actor and operation. Same key with
-          different payload returns 409.
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/RescheduleInput'
-  /appointments/{appointmentId}/cancel:
-    post:
-      operationId: cancelAppointment
-      summary: Cancel confirmed appointment
-      x-requirements:
-      - FR-10
-      description: Only CONFIRMED appointments at least 2 hours before start. Enforce
-        ownership, version and atomic update; conflict returns 409.
-      responses:
-        '200':
-          description: Successful authorized result
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Appointment'
-        '400':
-          description: Invalid request format
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-        '401':
-          description: Unauthenticated
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-        '403':
-          description: Forbidden
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-        '404':
-          description: Not found or not visible
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-        '409':
-          description: Conflict or stale version
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-        '422':
-          description: Business validation failed
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-        '503':
-          description: Dependency or audit unavailable
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-      parameters:
-      - name: appointmentId
-        in: path
-        required: true
-        schema:
-          type: string
-          format: uuid
-      - name: Idempotency-Key
-        in: header
-        required: true
-        schema:
-          type: string
-          minLength: 1
-          maxLength: 128
-        description: Retained for 24 hours per actor and operation. Same key with
-          different payload returns 409.
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/CancelInput'
-  /appointments/{appointmentId}/progress:
-    post:
-      operationId: progressAppointment
-      summary: Authorized doctor/reception changes allowed state
-      x-requirements:
-      - FR-11
-      description: >-
-        Only assigned doctors start IN_PERSON consultations from CHECKED_IN with a CALLED ticket. Remote start uses startSession. Completion requires a FINAL record and an ENDED remote session if applicable. NO_SHOW requires CONFIRMED and now >= start + 15 minutes; receptionist for IN_PERSON or assigned doctor for REMOTE. Update related states and audit atomically.
-      responses:
-        '200':
-          description: Successful authorized result
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Appointment'
-        '400':
-          description: Invalid request format
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-        '401':
-          description: Unauthenticated
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-        '403':
-          description: Forbidden
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-        '404':
-          description: Not found or not visible
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-        '409':
-          description: Conflict or stale version
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-        '422':
-          description: Business validation failed
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-        '503':
-          description: Dependency or audit unavailable
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-      parameters:
-      - name: appointmentId
+      - name: id
         in: path
         required: true
         schema:
           type: string
           format: uuid
       requestBody:
-        required: true
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/ProgressInput'
-  /patients/{patientId}/records:
+              $ref: '#/components/schemas/TimeOff'
+        required: true
+      responses:
+        '200':
+          description: Thành công
+          headers:
+            X-Request-Id:
+              description: Mã liên kết request/audit; baseline có thể thiếu trên lỗi security filter.
+              schema:
+                type: string
+                format: uuid
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TimeOffView'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '422':
+          $ref: '#/components/responses/Unprocessable'
+        '503':
+          $ref: '#/components/responses/Unavailable'
+      summary: createTimeOff
+      description: 'Quyền mục tiêu: DOCTOR sở hữu/ADMINISTRATOR. Xem integration-contract.md cho cửa sổ thời gian,
+        giao dịch và phân quyền tài nguyên.'
+      x-requirements:
+      - FR-06
+      x-access: DOCTOR sở hữu/ADMINISTRATOR
+  /encounters/{id}/prescriptions:
     get:
-      operationId: listPatientRecords
-      summary: Return only records permitted by relationship and publication state
-      x-requirements:
-      - FR-12
-      description: Enforce role and object permissions from docs/design/architecture/security.md.
-        Business rules and transitions are described in the SRS.
+      tags:
+      - M05
+      operationId: listEncounterPrescriptions
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
       responses:
         '200':
-          description: Successful authorized result
-          content:
-            application/json:
+          description: Thành công
+          headers:
+            X-Request-Id:
+              description: Mã liên kết request/audit; baseline có thể thiếu trên lỗi security filter.
               schema:
-                type: array
-                items:
-                  $ref: '#/components/schemas/Record'
-        '400':
-          description: Invalid request format
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-        '401':
-          description: Unauthenticated
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-        '403':
-          description: Forbidden
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-        '404':
-          description: Not found or not visible
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-        '409':
-          description: Conflict or stale version
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-        '422':
-          description: Business validation failed
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-        '503':
-          description: Dependency or audit unavailable
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-      parameters:
-      - name: patientId
-        in: path
-        required: true
-        schema:
-          type: string
-          format: uuid
-      - name: limit
-        in: query
-        schema:
-          type: integer
-          minimum: 1
-          maximum: 100
-          default: 20
-      - name: offset
-        in: query
-        schema:
-          type: integer
-          minimum: 0
-          default: 0
-  /encounters/{encounterId}/record:
-    put:
-      operationId: saveRecord
-      summary: Save/finalize record with version check
-      x-requirements:
-      - FR-13
-      description: >-
-        Assigned doctor saves or finalizes the current DRAFT with version validation. FINAL is immutable. Record finalization does not complete the encounter; use progressAppointment separately.
-      responses:
-        '200':
-          description: Successful authorized result
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Record'
-        '400':
-          description: Invalid request format
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-        '401':
-          description: Unauthenticated
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-        '403':
-          description: Forbidden
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-        '404':
-          description: Not found or not visible
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-        '409':
-          description: Conflict or stale version
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-        '422':
-          description: Business validation failed
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-        '503':
-          description: Dependency or audit unavailable
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-      parameters:
-      - name: encounterId
-        in: path
-        required: true
-        schema:
-          type: string
-          format: uuid
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/RecordInput'
-  /records/{recordId}/amendments:
-    post:
-      operationId: amendRecord
-      summary: Create new version of final record; preserve original
-      x-requirements:
-      - FR-13
-      description: >-
-        Assigned doctor creates a new FINAL record with a reason and supersedes reference to the latest FINAL record in the same encounter. Preserve the original; serialize versions and reject concurrent branching.
-      responses:
-        '201':
-          description: Successful authorized result
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Record'
-        '400':
-          description: Invalid request format
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-        '401':
-          description: Unauthenticated
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-        '403':
-          description: Forbidden
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-        '404':
-          description: Not found or not visible
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-        '409':
-          description: Conflict or stale version
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-        '422':
-          description: Business validation failed
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-        '503':
-          description: Dependency or audit unavailable
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-      parameters:
-      - name: recordId
-        in: path
-        required: true
-        schema:
-          type: string
-          format: uuid
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              additionalProperties: false
-              required:
-              - content
-              - reason
-              - version
-              properties:
-                content:
-                  type: string
-                  minLength: 1
-                reason:
-                  type: string
-                  minLength: 1
-                version:
-                  type: integer
-                  minimum: 0
-  /encounters/{encounterId}/prescriptions:
-    post:
-      operationId: createPrescription
-      summary: Create draft prescription
-      x-requirements:
-      - FR-14
-      description: Enforce role and object permissions from docs/design/architecture/security.md.
-        Business rules and transitions are described in the SRS.
-      responses:
-        '201':
-          description: Successful authorized result
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Prescription'
-        '400':
-          description: Invalid request format
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-        '401':
-          description: Unauthenticated
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-        '403':
-          description: Forbidden
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-        '404':
-          description: Not found or not visible
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-        '409':
-          description: Conflict or stale version
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-        '422':
-          description: Business validation failed
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-        '503':
-          description: Dependency or audit unavailable
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-      parameters:
-      - name: encounterId
-        in: path
-        required: true
-        schema:
-          type: string
-          format: uuid
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/PrescriptionInput'
-  /prescriptions/{prescriptionId}/issue:
-    post:
-      operationId: issuePrescription
-      summary: Issue nonempty valid prescription
-      x-requirements:
-      - FR-14
-      description: Enforce role and object permissions from docs/design/architecture/security.md.
-        Business rules and transitions are described in the SRS.
-      responses:
-        '200':
-          description: Successful authorized result
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Prescription'
-        '400':
-          description: Invalid request format
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-        '401':
-          description: Unauthenticated
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-        '403':
-          description: Forbidden
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-        '404':
-          description: Not found or not visible
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-        '409':
-          description: Conflict or stale version
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-        '422':
-          description: Business validation failed
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-        '503':
-          description: Dependency or audit unavailable
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-      parameters:
-      - name: prescriptionId
-        in: path
-        required: true
-        schema:
-          type: string
-          format: uuid
-      - name: Idempotency-Key
-        in: header
-        required: true
-        schema:
-          type: string
-          minLength: 1
-          maxLength: 128
-        description: Retained for 24 hours per actor and operation. Same key with
-          different payload returns 409.
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              additionalProperties: false
-              required:
-              - version
-              properties:
-                version:
-                  type: integer
-                  minimum: 0
-  /patients/{patientId}/prescriptions:
-    get:
-      operationId: listPatientPrescriptions
-      summary: Patient sees own issued prescriptions; assigned doctor sees authorized
-        drafts
-      x-requirements:
-      - FR-14
-      description: Enforce role and object permissions from docs/design/architecture/security.md.
-        Business rules and transitions are described in the SRS.
-      responses:
-        '200':
-          description: Successful authorized result
+                type: string
+                format: uuid
           content:
             application/json:
               schema:
@@ -1534,204 +1071,365 @@ paths:
                 items:
                   $ref: '#/components/schemas/Prescription'
         '400':
-          description: Invalid request format
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
+          $ref: '#/components/responses/BadRequest'
         '401':
-          description: Unauthenticated
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
+          $ref: '#/components/responses/Unauthorized'
         '403':
-          description: Forbidden
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
+          $ref: '#/components/responses/Forbidden'
         '404':
-          description: Not found or not visible
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
+          $ref: '#/components/responses/NotFound'
         '409':
-          description: Conflict or stale version
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
+          $ref: '#/components/responses/Conflict'
         '422':
-          description: Business validation failed
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
+          $ref: '#/components/responses/Unprocessable'
         '503':
-          description: Dependency or audit unavailable
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
+          $ref: '#/components/responses/Unavailable'
+      summary: listEncounterPrescriptions
+      description: 'Quyền mục tiêu: PATIENT chỉ ISSUED/DOCTOR phụ trách đọc cả DRAFT. Xem integration-contract.md
+        cho cửa sổ thời gian, giao dịch và phân quyền tài nguyên.'
+      x-requirements:
+      - FR-12
+      - FR-14
+      x-access: PATIENT chỉ ISSUED/DOCTOR phụ trách đọc cả DRAFT
+    post:
+      tags:
+      - M05
+      operationId: createPrescription
       parameters:
-      - name: patientId
+      - name: id
         in: path
         required: true
         schema:
           type: string
           format: uuid
-      - name: limit
-        in: query
+      - name: Idempotency-Key
+        in: header
+        required: true
         schema:
-          type: integer
-          minimum: 1
-          maximum: 100
-          default: 20
-      - name: offset
-        in: query
+          type: string
+          minLength: 1
+          maxLength: 128
+          pattern: ^[A-Za-z0-9._:-]+$
+        description: Bắt buộc; giữ nguyên khi retry cùng thao tác/payload trong 24 giờ.
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PrescriptionInput'
+        required: true
+      responses:
+        '200':
+          description: Thành công
+          headers:
+            X-Request-Id:
+              description: Mã liên kết request/audit; baseline có thể thiếu trên lỗi security filter.
+              schema:
+                type: string
+                format: uuid
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Prescription'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '422':
+          $ref: '#/components/responses/Unprocessable'
+        '503':
+          $ref: '#/components/responses/Unavailable'
+      summary: createPrescription
+      description: 'Quyền mục tiêu: DOCTOR phụ trách. Xem integration-contract.md cho cửa sổ thời gian, giao dịch
+        và phân quyền tài nguyên.'
+      x-requirements:
+      - FR-14
+      x-access: DOCTOR phụ trách
+  /encounters/{id}/record:
+    get:
+      tags:
+      - M05
+      operationId: getEncounterRecord
+      parameters:
+      - name: id
+        in: path
+        required: true
         schema:
-          type: integer
-          minimum: 0
-          default: 0
+          type: string
+          format: uuid
+      responses:
+        '200':
+          description: Thành công
+          headers:
+            X-Request-Id:
+              description: Mã liên kết request/audit; baseline có thể thiếu trên lỗi security filter.
+              schema:
+                type: string
+                format: uuid
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MedicalRecord'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '422':
+          $ref: '#/components/responses/Unprocessable'
+        '503':
+          $ref: '#/components/responses/Unavailable'
+      summary: getEncounterRecord
+      description: 'Quyền mục tiêu: PATIENT chỉ FINAL/DOCTOR phụ trách đọc DRAFT và FINAL. Xem integration-contract.md
+        cho cửa sổ thời gian, giao dịch và phân quyền tài nguyên. Chưa có bản ghi hoặc bệnh nhân chỉ có DRAFT trả
+        404; FE bác sĩ hiển thị form mới version=0 khi chưa có bản ghi.'
+      x-requirements:
+      - FR-12
+      x-access: PATIENT chỉ FINAL/DOCTOR phụ trách đọc DRAFT và FINAL
+    put:
+      tags:
+      - M05
+      operationId: saveRecord
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: Idempotency-Key
+        in: header
+        required: true
+        schema:
+          type: string
+          minLength: 1
+          maxLength: 128
+          pattern: ^[A-Za-z0-9._:-]+$
+        description: Bắt buộc; giữ nguyên khi retry cùng thao tác/payload trong 24 giờ.
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RecordInput'
+        required: true
+      responses:
+        '200':
+          description: Thành công
+          headers:
+            X-Request-Id:
+              description: Mã liên kết request/audit; baseline có thể thiếu trên lỗi security filter.
+              schema:
+                type: string
+                format: uuid
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MedicalRecord'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '422':
+          $ref: '#/components/responses/Unprocessable'
+        '503':
+          $ref: '#/components/responses/Unavailable'
+      summary: saveRecord
+      description: 'Quyền mục tiêu: DOCTOR phụ trách. Xem integration-contract.md cho cửa sổ thời gian, giao dịch
+        và phân quyền tài nguyên.'
+      x-requirements:
+      - FR-13
+      x-access: DOCTOR phụ trách
+  /me:
+    get:
+      tags:
+      - M01
+      operationId: getMe
+      responses:
+        '200':
+          description: Thành công
+          headers:
+            X-Request-Id:
+              description: Mã liên kết request/audit; baseline có thể thiếu trên lỗi security filter.
+              schema:
+                type: string
+                format: uuid
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Identity'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '422':
+          $ref: '#/components/responses/Unprocessable'
+        '503':
+          $ref: '#/components/responses/Unavailable'
+      summary: getMe
+      description: 'Quyền mục tiêu: Đã đăng nhập. Xem integration-contract.md cho cửa sổ thời gian, giao dịch và
+        phân quyền tài nguyên.'
+      x-requirements:
+      - FR-01
+      - FR-02
+      x-access: Đã đăng nhập
+  /me/contact:
+    put:
+      tags:
+      - M01
+      operationId: updateMyContact
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Contact'
+        required: true
+      responses:
+        '200':
+          description: Thành công; HTTP 200, body rỗng (PUT contact/roles).
+          headers:
+            X-Request-Id:
+              description: Mã liên kết request/audit; baseline có thể thiếu trên lỗi security filter.
+              schema:
+                type: string
+                format: uuid
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '422':
+          $ref: '#/components/responses/Unprocessable'
+        '503':
+          $ref: '#/components/responses/Unavailable'
+      summary: updateMyContact
+      description: 'Quyền mục tiêu: Chủ tài khoản. Xem integration-contract.md cho cửa sổ thời gian, giao dịch và
+        phân quyền tài nguyên.'
+      x-requirements:
+      - FR-01
+      - FR-17
+      x-access: Chủ tài khoản
+  /me/profile:
+    get:
+      tags:
+      - M01
+      operationId: getMyProfile
+      responses:
+        '200':
+          description: Thành công
+          headers:
+            X-Request-Id:
+              description: Mã liên kết request/audit; baseline có thể thiếu trên lỗi security filter.
+              schema:
+                type: string
+                format: uuid
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserProfile'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '422':
+          $ref: '#/components/responses/Unprocessable'
+        '503':
+          $ref: '#/components/responses/Unavailable'
+      summary: getMyProfile
+      description: 'Quyền mục tiêu: Chủ tài khoản. Xem integration-contract.md cho cửa sổ thời gian, giao dịch và
+        phân quyền tài nguyên.'
+      x-requirements:
+      - FR-01
+      - FR-02
+      x-access: Chủ tài khoản
   /notification-jobs:
     get:
+      tags:
+      - M06
       operationId: listNotificationJobs
-      summary: Authorized coordinator views delivery metadata
+      responses:
+        '200':
+          description: Thành công
+          headers:
+            X-Request-Id:
+              description: Mã liên kết request/audit; baseline có thể thiếu trên lỗi security filter.
+              schema:
+                type: string
+                format: uuid
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/NotificationJob'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '422':
+          $ref: '#/components/responses/Unprocessable'
+        '503':
+          $ref: '#/components/responses/Unavailable'
+      summary: listNotificationJobs
+      description: 'Quyền mục tiêu: RECEPTIONIST/ADMINISTRATOR. Xem integration-contract.md cho cửa sổ thời gian,
+        giao dịch và phân quyền tài nguyên.'
       x-requirements:
       - FR-15
       - FR-16
-      description: Enforce role and object permissions from docs/design/architecture/security.md.
-        Business rules and transitions are described in the SRS.
-      responses:
-        '200':
-          description: Successful authorized result
-          content:
-            application/json:
-              schema:
-                type: array
-                items:
-                  $ref: '#/components/schemas/Notification'
-        '400':
-          description: Invalid request format
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-        '401':
-          description: Unauthenticated
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-        '403':
-          description: Forbidden
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-        '404':
-          description: Not found or not visible
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-        '409':
-          description: Conflict or stale version
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-        '422':
-          description: Business validation failed
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-        '503':
-          description: Dependency or audit unavailable
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-      parameters:
-      - name: limit
-        in: query
-        schema:
-          type: integer
-          minimum: 1
-          maximum: 100
-          default: 20
-      - name: offset
-        in: query
-        schema:
-          type: integer
-          minimum: 0
-          default: 0
-  /audit-events:
+      x-access: RECEPTIONIST/ADMINISTRATOR
+  /patients/{id}/prescriptions:
     get:
-      operationId: listAuditEvents
-      summary: Auditor filters immutable audit records
-      x-requirements:
-      - FR-17
-      - FR-18
-      description: Enforce role and object permissions from docs/design/architecture/security.md.
-        Business rules and transitions are described in the SRS.
-      responses:
-        '200':
-          description: Successful authorized result
-          content:
-            application/json:
-              schema:
-                type: array
-                items:
-                  $ref: '#/components/schemas/Audit'
-        '400':
-          description: Invalid request format
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-        '401':
-          description: Unauthenticated
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-        '403':
-          description: Forbidden
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-        '404':
-          description: Not found or not visible
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-        '409':
-          description: Conflict or stale version
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-        '422':
-          description: Business validation failed
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-        '503':
-          description: Dependency or audit unavailable
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
+      tags:
+      - M05
+      operationId: listPatientPrescriptions
       parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
       - name: limit
         in: query
+        required: false
         schema:
           type: integer
           minimum: 1
@@ -1739,88 +1437,118 @@ paths:
           default: 20
       - name: offset
         in: query
+        required: false
         schema:
           type: integer
           minimum: 0
           default: 0
-      - name: actorId
-        in: query
+      responses:
+        '200':
+          description: Thành công
+          headers:
+            X-Request-Id:
+              description: Mã liên kết request/audit; baseline có thể thiếu trên lỗi security filter.
+              schema:
+                type: string
+                format: uuid
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Prescription'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '422':
+          $ref: '#/components/responses/Unprocessable'
+        '503':
+          $ref: '#/components/responses/Unavailable'
+      summary: listPatientPrescriptions
+      description: 'Quyền mục tiêu: PATIENT của mình/DOCTOR có quan hệ điều trị; chỉ ISSUED. Xem integration-contract.md
+        cho cửa sổ thời gian, giao dịch và phân quyền tài nguyên. History chỉ FINAL/ISSUED. Không dùng để mở lại
+        bản nháp của encounter hiện tại.'
+      x-requirements:
+      - FR-12
+      - FR-14
+      x-access: PATIENT của mình/DOCTOR có quan hệ điều trị; chỉ ISSUED
+  /patients/{id}/records:
+    get:
+      tags:
+      - M05
+      operationId: listPatientRecords
+      parameters:
+      - name: id
+        in: path
+        required: true
         schema:
           type: string
           format: uuid
-      - name: resourceId
+      - name: limit
         in: query
+        required: false
         schema:
-          type: string
-      - name: from
+          type: integer
+          minimum: 1
+          maximum: 100
+          default: 20
+      - name: offset
         in: query
+        required: false
         schema:
-          type: string
-          format: date-time
-      - name: to
-        in: query
-        schema:
-          type: string
-          format: date-time
-  /appointments/{appointmentId}/check-in:
-    post:
-      operationId: checkIn
-      summary: Reception checks in; repeat returns same ticket
-      x-requirements:
-      - FR-19
-      description: >-
-        Receptionist checks IN_PERSON CONFIRMED appointments during [start - 15 minutes, start + 15 minutes). Lock Doctor then Patient then appointment; allocate queue position under the Doctor lock. Repeated check-in returns the existing ticket.
+          type: integer
+          minimum: 0
+          default: 0
       responses:
         '200':
-          description: Successful authorized result
+          description: Thành công
+          headers:
+            X-Request-Id:
+              description: Mã liên kết request/audit; baseline có thể thiếu trên lỗi security filter.
+              schema:
+                type: string
+                format: uuid
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/QueueTicket'
+                type: array
+                items:
+                  $ref: '#/components/schemas/MedicalRecord'
         '400':
-          description: Invalid request format
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
+          $ref: '#/components/responses/BadRequest'
         '401':
-          description: Unauthenticated
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
+          $ref: '#/components/responses/Unauthorized'
         '403':
-          description: Forbidden
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
+          $ref: '#/components/responses/Forbidden'
         '404':
-          description: Not found or not visible
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
+          $ref: '#/components/responses/NotFound'
         '409':
-          description: Conflict or stale version
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
+          $ref: '#/components/responses/Conflict'
         '422':
-          description: Business validation failed
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
+          $ref: '#/components/responses/Unprocessable'
         '503':
-          description: Dependency or audit unavailable
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
+          $ref: '#/components/responses/Unavailable'
+      summary: listPatientRecords
+      description: 'Quyền mục tiêu: PATIENT của mình/DOCTOR có quan hệ điều trị. Xem integration-contract.md cho
+        cửa sổ thời gian, giao dịch và phân quyền tài nguyên. History chỉ FINAL/ISSUED. Không dùng để mở lại bản
+        nháp của encounter hiện tại.'
+      x-requirements:
+      - FR-12
+      x-access: PATIENT của mình/DOCTOR có quan hệ điều trị
+  /prescriptions/{id}:
+    put:
+      tags:
+      - M05
+      operationId: updatePrescription
       parameters:
-      - name: appointmentId
+      - name: id
         in: path
         required: true
         schema:
@@ -1833,69 +1561,54 @@ paths:
           type: string
           minLength: 1
           maxLength: 128
-        description: Retained for 24 hours per actor and operation. Same key with
-          different payload returns 409.
-  /doctors/{doctorId}/queue/next:
-    post:
-      operationId: callNext
-      summary: Assigned doctor atomically claims next waiting ticket
-      x-requirements:
-      - FR-20
-      description: >-
-        Assigned doctor claims the lowest WAITING position in their local-day queue under the Doctor lock. Persist the idempotency result with the claim; retries do not claim another ticket.
+          pattern: ^[A-Za-z0-9._:-]+$
+        description: Bắt buộc; giữ nguyên khi retry cùng thao tác/payload trong 24 giờ.
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PrescriptionUpdate'
+        required: true
       responses:
         '200':
-          description: Successful authorized result
+          description: Thành công
+          headers:
+            X-Request-Id:
+              description: Mã liên kết request/audit; baseline có thể thiếu trên lỗi security filter.
+              schema:
+                type: string
+                format: uuid
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/QueueTicket'
-        '204':
-          description: No waiting ticket
+                $ref: '#/components/schemas/Prescription'
         '400':
-          description: Invalid request format
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
+          $ref: '#/components/responses/BadRequest'
         '401':
-          description: Unauthenticated
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
+          $ref: '#/components/responses/Unauthorized'
         '403':
-          description: Forbidden
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
+          $ref: '#/components/responses/Forbidden'
         '404':
-          description: Not found or not visible
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
+          $ref: '#/components/responses/NotFound'
         '409':
-          description: Conflict or stale version
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
+          $ref: '#/components/responses/Conflict'
         '422':
-          description: Business validation failed
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
+          $ref: '#/components/responses/Unprocessable'
         '503':
-          description: Dependency or audit unavailable
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
+          $ref: '#/components/responses/Unavailable'
+      summary: updatePrescription
+      description: 'Quyền mục tiêu: DOCTOR phụ trách; chỉ DRAFT. Xem integration-contract.md cho cửa sổ thời gian,
+        giao dịch và phân quyền tài nguyên.'
+      x-requirements:
+      - FR-14
+      x-access: DOCTOR phụ trách; chỉ DRAFT
+  /prescriptions/{id}/issue:
+    post:
+      tags:
+      - M05
+      operationId: issuePrescription
       parameters:
-      - name: doctorId
+      - name: id
         in: path
         required: true
         schema:
@@ -1908,417 +1621,917 @@ paths:
           type: string
           minLength: 1
           maxLength: 128
-        description: Retained for 24 hours per actor and operation. Same key with
-          different payload returns 409.
-  /queue-tickets/{ticketId}/skip:
+          pattern: ^[A-Za-z0-9._:-]+$
+        description: Bắt buộc; giữ nguyên khi retry cùng thao tác/payload trong 24 giờ.
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Version'
+        required: true
+      responses:
+        '200':
+          description: Thành công
+          headers:
+            X-Request-Id:
+              description: Mã liên kết request/audit; baseline có thể thiếu trên lỗi security filter.
+              schema:
+                type: string
+                format: uuid
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Prescription'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '422':
+          $ref: '#/components/responses/Unprocessable'
+        '503':
+          $ref: '#/components/responses/Unavailable'
+      summary: issuePrescription
+      description: 'Quyền mục tiêu: DOCTOR phụ trách; ít nhất 1 thuốc đủ 5 trường. Xem integration-contract.md cho
+        cửa sổ thời gian, giao dịch và phân quyền tài nguyên.'
+      x-requirements:
+      - FR-14
+      x-access: DOCTOR phụ trách; ít nhất 1 thuốc đủ 5 trường
+  /queue-tickets/{id}/skip:
     post:
+      tags:
+      - M08
       operationId: skipTicket
-      summary: Reception returns CALLED ticket to end of queue
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: Idempotency-Key
+        in: header
+        required: true
+        schema:
+          type: string
+          minLength: 1
+          maxLength: 128
+          pattern: ^[A-Za-z0-9._:-]+$
+        description: Bắt buộc; giữ nguyên khi retry cùng thao tác/payload trong 24 giờ.
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Skip'
+        required: true
+      responses:
+        '200':
+          description: Thành công
+          headers:
+            X-Request-Id:
+              description: Mã liên kết request/audit; baseline có thể thiếu trên lỗi security filter.
+              schema:
+                type: string
+                format: uuid
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/QueueTicket'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '422':
+          $ref: '#/components/responses/Unprocessable'
+        '503':
+          $ref: '#/components/responses/Unavailable'
+      summary: skipTicket
+      description: 'Quyền mục tiêu: DOCTOR sở hữu/RECEPTIONIST. Xem integration-contract.md cho cửa sổ thời gian,
+        giao dịch và phân quyền tài nguyên.'
       x-requirements:
       - FR-21
-      description: >-
-        Receptionist returns a CALLED ticket to WAITING with a nonempty reason. Under the Doctor lock allocate MAX(position)+1 for the same doctor/day; preserve ticket identity.
+      x-access: DOCTOR sở hữu/RECEPTIONIST
+  /records/{id}/amendments:
+    post:
+      tags:
+      - M05
+      operationId: amendRecord
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: Idempotency-Key
+        in: header
+        required: true
+        schema:
+          type: string
+          minLength: 1
+          maxLength: 128
+          pattern: ^[A-Za-z0-9._:-]+$
+        description: Bắt buộc; giữ nguyên khi retry cùng thao tác/payload trong 24 giờ.
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Amendment'
+        required: true
       responses:
         '200':
-          description: Successful authorized result
+          description: Thành công
+          headers:
+            X-Request-Id:
+              description: Mã liên kết request/audit; baseline có thể thiếu trên lỗi security filter.
+              schema:
+                type: string
+                format: uuid
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/QueueTicket'
+                $ref: '#/components/schemas/MedicalRecord'
         '400':
-          description: Invalid request format
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
+          $ref: '#/components/responses/BadRequest'
         '401':
-          description: Unauthenticated
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
+          $ref: '#/components/responses/Unauthorized'
         '403':
-          description: Forbidden
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
+          $ref: '#/components/responses/Forbidden'
         '404':
-          description: Not found or not visible
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
+          $ref: '#/components/responses/NotFound'
         '409':
-          description: Conflict or stale version
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
+          $ref: '#/components/responses/Conflict'
         '422':
-          description: Business validation failed
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
+          $ref: '#/components/responses/Unprocessable'
         '503':
-          description: Dependency or audit unavailable
+          $ref: '#/components/responses/Unavailable'
+      summary: amendRecord
+      description: 'Quyền mục tiêu: DOCTOR phụ trách; chỉ bản FINAL mới nhất. Xem integration-contract.md cho cửa
+        sổ thời gian, giao dịch và phân quyền tài nguyên.'
+      x-requirements:
+      - FR-13
+      x-access: DOCTOR phụ trách; chỉ bản FINAL mới nhất
+  /slots:
+    get:
+      tags:
+      - M03
+      operationId: listSlots
+      parameters:
+      - name: date
+        in: query
+        required: true
+        schema:
+          type: string
+          format: date
+      - name: doctorId
+        in: query
+        required: false
+        schema:
+          type: string
+          format: uuid
+      - name: specialtyId
+        in: query
+        required: false
+        schema:
+          type: string
+          format: uuid
+      - name: mode
+        in: query
+        required: false
+        schema:
+          $ref: '#/components/schemas/AppointmentMode'
+      responses:
+        '200':
+          description: Thành công
+          headers:
+            X-Request-Id:
+              description: Mã liên kết request/audit; baseline có thể thiếu trên lỗi security filter.
+              schema:
+                type: string
+                format: uuid
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
+                type: array
+                items:
+                  $ref: '#/components/schemas/SlotView'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '422':
+          $ref: '#/components/responses/Unprocessable'
+        '503':
+          $ref: '#/components/responses/Unavailable'
+      summary: listSlots
+      description: 'Quyền mục tiêu: PATIENT/DOCTOR/RECEPTIONIST/ADMINISTRATOR. Xem integration-contract.md cho cửa
+        sổ thời gian, giao dịch và phân quyền tài nguyên.'
+      x-requirements:
+      - FR-02
+      - FR-07
+      x-access: PATIENT/DOCTOR/RECEPTIONIST/ADMINISTRATOR
+      x-implementation-gaps:
+      - BE-03
+  /specialties:
+    get:
+      tags:
+      - M02
+      operationId: listSpecialties
+      responses:
+        '200':
+          description: Thành công
+          headers:
+            X-Request-Id:
+              description: Mã liên kết request/audit; baseline có thể thiếu trên lỗi security filter.
+              schema:
+                type: string
+                format: uuid
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/SpecialtyView'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '422':
+          $ref: '#/components/responses/Unprocessable'
+        '503':
+          $ref: '#/components/responses/Unavailable'
+      summary: listSpecialties
+      description: 'Quyền mục tiêu: PATIENT/DOCTOR/RECEPTIONIST/ADMINISTRATOR. Xem integration-contract.md cho cửa
+        sổ thời gian, giao dịch và phân quyền tài nguyên.'
+      x-requirements:
+      - FR-02
+      - FR-03
+      x-access: PATIENT/DOCTOR/RECEPTIONIST/ADMINISTRATOR
+      x-implementation-gaps:
+      - BE-03
+    post:
+      tags:
+      - M02
+      operationId: createSpecialty
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Specialty'
+        required: true
+      responses:
+        '200':
+          description: Thành công
+          headers:
+            X-Request-Id:
+              description: Mã liên kết request/audit; baseline có thể thiếu trên lỗi security filter.
+              schema:
+                type: string
+                format: uuid
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SpecialtyView'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '422':
+          $ref: '#/components/responses/Unprocessable'
+        '503':
+          $ref: '#/components/responses/Unavailable'
+      summary: createSpecialty
+      description: 'Quyền mục tiêu: ADMINISTRATOR. Xem integration-contract.md cho cửa sổ thời gian, giao dịch và
+        phân quyền tài nguyên.'
+      x-requirements:
+      - FR-03
+      x-access: ADMINISTRATOR
+  /telehealth-sessions/{id}:
+    get:
+      tags:
+      - M09
+      operationId: getSession
       parameters:
-      - name: ticketId
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        '200':
+          description: Thành công
+          headers:
+            X-Request-Id:
+              description: Mã liên kết request/audit; baseline có thể thiếu trên lỗi security filter.
+              schema:
+                type: string
+                format: uuid
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TelehealthSession'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '422':
+          $ref: '#/components/responses/Unprocessable'
+        '503':
+          $ref: '#/components/responses/Unavailable'
+      summary: getSession
+      description: 'Quyền mục tiêu: PATIENT chủ lịch/DOCTOR phụ trách; đọc được ENDED/CANCELLED. Xem integration-contract.md
+        cho cửa sổ thời gian, giao dịch và phân quyền tài nguyên. Dùng để poll trạng thái, kể cả sau khi kết thúc.'
+      x-requirements:
+      - FR-22
+      - FR-24
+      x-access: PATIENT chủ lịch/DOCTOR phụ trách; đọc được ENDED/CANCELLED
+  /telehealth-sessions/{id}/connection:
+    post:
+      tags:
+      - M09
+      operationId: updateConnection
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: X-Room-Token
+        in: header
+        required: true
+        schema:
+          type: string
+          minLength: 1
+          maxLength: 128
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Connection'
+        required: true
+      responses:
+        '200':
+          description: Thành công
+          headers:
+            X-Request-Id:
+              description: Mã liên kết request/audit; baseline có thể thiếu trên lỗi security filter.
+              schema:
+                type: string
+                format: uuid
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TelehealthSession'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '422':
+          $ref: '#/components/responses/Unprocessable'
+        '503':
+          $ref: '#/components/responses/Unavailable'
+      summary: updateConnection
+      description: 'Quyền mục tiêu: Người tham gia; JWT và token phòng của chính mình. Xem integration-contract.md
+        cho cửa sổ thời gian, giao dịch và phân quyền tài nguyên.'
+      x-requirements:
+      - FR-24
+      x-access: Người tham gia; JWT và token phòng của chính mình
+  /telehealth-sessions/{id}/end:
+    post:
+      tags:
+      - M09
+      operationId: endSession
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: Idempotency-Key
+        in: header
+        required: true
+        schema:
+          type: string
+          minLength: 1
+          maxLength: 128
+          pattern: ^[A-Za-z0-9._:-]+$
+        description: Bắt buộc; giữ nguyên khi retry cùng thao tác/payload trong 24 giờ.
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Version'
+        required: true
+      responses:
+        '200':
+          description: Thành công
+          headers:
+            X-Request-Id:
+              description: Mã liên kết request/audit; baseline có thể thiếu trên lỗi security filter.
+              schema:
+                type: string
+                format: uuid
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TelehealthSession'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '422':
+          $ref: '#/components/responses/Unprocessable'
+        '503':
+          $ref: '#/components/responses/Unavailable'
+      summary: endSession
+      description: 'Quyền mục tiêu: DOCTOR phụ trách. Xem integration-contract.md cho cửa sổ thời gian, giao dịch
+        và phân quyền tài nguyên.'
+      x-requirements:
+      - FR-24
+      x-access: DOCTOR phụ trách
+  /telehealth-sessions/{id}/join:
+    post:
+      tags:
+      - M09
+      operationId: joinSession
+      parameters:
+      - name: id
         in: path
         required: true
         schema:
           type: string
           format: uuid
       requestBody:
-        required: true
         content:
           application/json:
             schema:
-              type: object
-              additionalProperties: false
-              required:
-              - reason
-              properties:
-                reason:
-                  type: string
-                  minLength: 1
-  /appointments/{appointmentId}/telehealth-session:
-    post:
-      operationId: prepareSession
-      summary: Create or get unique telehealth waiting room
-      x-requirements:
-      - FR-22
-      description: >-
-        Owner prepares a unique session for a REMOTE CONFIRMED appointment during [start - 10 minutes, start + 15 minutes). Returns Session, not a token. Provider creation is idempotent and outside the DB transaction; recheck state before admission. NO_SHOW cancels an unused session.
+              $ref: '#/components/schemas/Join'
+        required: true
       responses:
         '200':
-          description: Successful authorized result
-          content:
-            application/json:
+          description: Thành công
+          headers:
+            X-Request-Id:
+              description: Mã liên kết request/audit; baseline có thể thiếu trên lỗi security filter.
               schema:
-                $ref: '#/components/schemas/Session'
-        '400':
-          description: Invalid request format
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-        '401':
-          description: Unauthenticated
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-        '403':
-          description: Forbidden
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-        '404':
-          description: Not found or not visible
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-        '409':
-          description: Conflict or stale version
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-        '422':
-          description: Business validation failed
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-        '503':
-          description: Dependency or audit unavailable
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-      parameters:
-      - name: appointmentId
-        in: path
-        required: true
-        schema:
-          type: string
-          format: uuid
-      - name: Idempotency-Key
-        in: header
-        required: true
-        schema:
-          type: string
-          minLength: 1
-          maxLength: 128
-        description: Retained for 24 hours per actor and operation. Same key with
-          different payload returns 409.
-  /telehealth-sessions/{sessionId}/join:
-    post:
-      operationId: joinSession
-      summary: Admit authorized participant with short-lived token
-      x-requirements:
-      - FR-23
-      description: >-
-        Return a 5-minute user/session-bound token after authorization and patient consent. Initial patient admission requires the join window and a ready room, and moves CREATED to WAITING. Assigned doctor joins after startSession. ACTIVE or RECONNECTING participants may rejoin after the initial window; ENDED/CANCELLED always reject admission.
-      responses:
-        '200':
-          description: Successful authorized result
+                type: string
+                format: uuid
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/JoinToken'
         '400':
-          description: Invalid request format
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
+          $ref: '#/components/responses/BadRequest'
         '401':
-          description: Unauthenticated
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
+          $ref: '#/components/responses/Unauthorized'
         '403':
-          description: Forbidden
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
+          $ref: '#/components/responses/Forbidden'
         '404':
-          description: Not found or not visible
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
+          $ref: '#/components/responses/NotFound'
         '409':
-          description: Conflict or stale version
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
+          $ref: '#/components/responses/Conflict'
         '422':
-          description: Business validation failed
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
+          $ref: '#/components/responses/Unprocessable'
         '503':
-          description: Dependency or audit unavailable
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-      parameters:
-      - name: sessionId
-        in: path
-        required: true
-        schema:
-          type: string
-          format: uuid
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              additionalProperties: false
-              required:
-              - participationConfirmed
-              properties:
-                participationConfirmed:
-                  type: boolean
-                  const: true
-                  description: Participant explicitly confirms joining this consultation.
-  /telehealth-sessions/{sessionId}/start:
-    post:
-      operationId: startSession
-      summary: Assigned doctor activates consultation
+          $ref: '#/components/responses/Unavailable'
+      summary: joinSession
+      description: 'Quyền mục tiêu: PATIENT chủ lịch/DOCTOR phụ trách. Xem integration-contract.md cho cửa sổ thời
+        gian, giao dịch và phân quyền tài nguyên.'
       x-requirements:
       - FR-23
-      description: >-
-        Assigned doctor starts a WAITING session with an admitted patient during [start, start + 15 minutes). Validate version; atomically set ACTIVE, appointment IN_PROGRESS, create Encounter and audit. Returns Session; call joinSession separately for a token.
-      responses:
-        '200':
-          description: Successful authorized result
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Session'
-        '400':
-          description: Invalid request format
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-        '401':
-          description: Unauthenticated
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-        '403':
-          description: Forbidden
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-        '404':
-          description: Not found or not visible
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-        '409':
-          description: Conflict or stale version
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-        '422':
-          description: Business validation failed
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-        '503':
-          description: Dependency or audit unavailable
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
+      x-access: PATIENT chủ lịch/DOCTOR phụ trách
+      x-implementation-gaps:
+      - BE-01
+  /telehealth-sessions/{id}/signals:
+    get:
+      tags:
+      - M09
+      operationId: pollSignals
       parameters:
-      - name: sessionId
+      - name: id
         in: path
         required: true
         schema:
           type: string
           format: uuid
-      requestBody:
+      - name: X-Room-Token
+        in: header
         required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              additionalProperties: false
-              required:
-              - version
-              properties:
-                version:
-                  type: integer
-                  minimum: 0
-  /telehealth-sessions/{sessionId}/end:
-    post:
-      operationId: endSession
-      summary: End media and revoke admission; clinical finalization is separate
+        schema:
+          type: string
+          minLength: 1
+          maxLength: 128
+      - name: after
+        in: query
+        required: false
+        schema:
+          type: integer
+          format: int64
+          minimum: 0
+          default: 0
+      responses:
+        '200':
+          description: Thành công
+          headers:
+            X-Request-Id:
+              description: Mã liên kết request/audit; baseline có thể thiếu trên lỗi security filter.
+              schema:
+                type: string
+                format: uuid
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/SignalMessage'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '422':
+          $ref: '#/components/responses/Unprocessable'
+        '503':
+          $ref: '#/components/responses/Unavailable'
+      summary: pollSignals
+      description: 'Quyền mục tiêu: Người tham gia; JWT và token phòng của chính mình. Xem integration-contract.md
+        cho cửa sổ thời gian, giao dịch và phân quyền tài nguyên. Tối đa 100 message phía đối diện còn hạn 5 phút;
+        lần sau dùng after bằng id cuối nhận. [] khi chưa có message.'
       x-requirements:
+      - FR-23
       - FR-24
-      description: >-
-        Assigned doctor ends ACTIVE or RECONNECTING with version validation. Atomically persist ENDED, audit and a durable room-closure task. Deny new tokens immediately; retry provider closure until acknowledged. Clinical finalization and encounter completion remain separate.
+      x-access: Người tham gia; JWT và token phòng của chính mình
+    post:
+      tags:
+      - M09
+      operationId: sendSignal
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: X-Room-Token
+        in: header
+        required: true
+        schema:
+          type: string
+          minLength: 1
+          maxLength: 128
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Signal'
+        required: true
       responses:
         '200':
-          description: Successful authorized result
+          description: Thành công
+          headers:
+            X-Request-Id:
+              description: Mã liên kết request/audit; baseline có thể thiếu trên lỗi security filter.
+              schema:
+                type: string
+                format: uuid
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Session'
+                $ref: '#/components/schemas/SignalAccepted'
         '400':
-          description: Invalid request format
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
+          $ref: '#/components/responses/BadRequest'
         '401':
-          description: Unauthenticated
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
+          $ref: '#/components/responses/Unauthorized'
         '403':
-          description: Forbidden
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
+          $ref: '#/components/responses/Forbidden'
         '404':
-          description: Not found or not visible
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
+          $ref: '#/components/responses/NotFound'
         '409':
-          description: Conflict or stale version
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
+          $ref: '#/components/responses/Conflict'
         '422':
-          description: Business validation failed
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
+          $ref: '#/components/responses/Unprocessable'
+        '429':
+          $ref: '#/components/responses/RateLimited'
         '503':
-          description: Dependency or audit unavailable
+          $ref: '#/components/responses/Unavailable'
+      summary: sendSignal
+      description: 'Quyền mục tiêu: Người tham gia; JWT và token phòng của chính mình. Xem integration-contract.md
+        cho cửa sổ thời gian, giao dịch và phân quyền tài nguyên. Payload tối đa 65536 ký tự; 300 message/người/phòng/phút;
+        429 khi vượt giới hạn.'
+      x-requirements:
+      - FR-23
+      - FR-24
+      x-access: Người tham gia; JWT và token phòng của chính mình
+  /telehealth-sessions/{id}/start:
+    post:
+      tags:
+      - M09
+      operationId: startSession
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: Idempotency-Key
+        in: header
+        required: true
+        schema:
+          type: string
+          minLength: 1
+          maxLength: 128
+          pattern: ^[A-Za-z0-9._:-]+$
+        description: Bắt buộc; giữ nguyên khi retry cùng thao tác/payload trong 24 giờ.
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Version'
+        required: true
+      responses:
+        '200':
+          description: Thành công
+          headers:
+            X-Request-Id:
+              description: Mã liên kết request/audit; baseline có thể thiếu trên lỗi security filter.
+              schema:
+                type: string
+                format: uuid
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
+                $ref: '#/components/schemas/TelehealthSession'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '422':
+          $ref: '#/components/responses/Unprocessable'
+        '503':
+          $ref: '#/components/responses/Unavailable'
+      summary: startSession
+      description: 'Quyền mục tiêu: DOCTOR phụ trách. Xem integration-contract.md cho cửa sổ thời gian, giao dịch
+        và phân quyền tài nguyên.'
+      x-requirements:
+      - FR-23
+      x-access: DOCTOR phụ trách
+  /time-off/{id}:
+    delete:
+      tags:
+      - M03
+      operationId: deleteTimeOff
       parameters:
-      - name: sessionId
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        '204':
+          description: Xóa thành công; không có body
+          headers:
+            X-Request-Id:
+              description: Mã liên kết request/audit; baseline có thể thiếu trên lỗi security filter.
+              schema:
+                type: string
+                format: uuid
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '422':
+          $ref: '#/components/responses/Unprocessable'
+        '503':
+          $ref: '#/components/responses/Unavailable'
+      summary: deleteTimeOff
+      description: 'Quyền mục tiêu: DOCTOR sở hữu/ADMINISTRATOR; tương lai. Xem integration-contract.md cho cửa
+        sổ thời gian, giao dịch và phân quyền tài nguyên.'
+      x-requirements:
+      - FR-06
+      x-access: DOCTOR sở hữu/ADMINISTRATOR; tương lai
+  /users:
+    get:
+      tags:
+      - M01
+      operationId: listUsers
+      parameters:
+      - name: limit
+        in: query
+        required: false
+        schema:
+          type: integer
+          minimum: 1
+          maximum: 100
+          default: 20
+      - name: offset
+        in: query
+        required: false
+        schema:
+          type: integer
+          minimum: 0
+          default: 0
+      responses:
+        '200':
+          description: Thành công
+          headers:
+            X-Request-Id:
+              description: Mã liên kết request/audit; baseline có thể thiếu trên lỗi security filter.
+              schema:
+                type: string
+                format: uuid
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/UserSummary'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '422':
+          $ref: '#/components/responses/Unprocessable'
+        '503':
+          $ref: '#/components/responses/Unavailable'
+      summary: listUsers
+      description: 'Quyền mục tiêu: ADMINISTRATOR. Xem integration-contract.md cho cửa sổ thời gian, giao dịch và
+        phân quyền tài nguyên.'
+      x-requirements:
+      - FR-02
+      x-access: ADMINISTRATOR
+  /users/{id}/roles:
+    put:
+      tags:
+      - M01
+      operationId: setRoles
+      parameters:
+      - name: id
         in: path
         required: true
         schema:
           type: string
           format: uuid
       requestBody:
-        required: true
         content:
           application/json:
             schema:
-              type: object
-              additionalProperties: false
-              required:
-              - version
-              properties:
-                version:
-                  type: integer
-                  minimum: 0
+              $ref: '#/components/schemas/Roles'
+        required: true
+      responses:
+        '200':
+          description: Thành công; HTTP 200, body rỗng (PUT contact/roles).
+          headers:
+            X-Request-Id:
+              description: Mã liên kết request/audit; baseline có thể thiếu trên lỗi security filter.
+              schema:
+                type: string
+                format: uuid
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '422':
+          $ref: '#/components/responses/Unprocessable'
+        '503':
+          $ref: '#/components/responses/Unavailable'
+      summary: setRoles
+      description: 'Quyền mục tiêu: ADMINISTRATOR; không tự đổi quyền. Xem integration-contract.md cho cửa sổ thời
+        gian, giao dịch và phân quyền tài nguyên.'
+      x-requirements:
+      - FR-02
+      - FR-17
+      x-access: ADMINISTRATOR; không tự đổi quyền
 components:
-  securitySchemes:
-    bearerAuth:
-      type: http
-      scheme: bearer
-      description: Access token from OAuth2/OIDC. Re-authenticate after expiration.
   schemas:
-    Error:
-      type: object
-      additionalProperties: false
-      required:
-      - code
-      - message
-      - correlationId
-      properties:
-        code:
-          type: string
-        message:
-          type: string
-        correlationId:
-          type: string
+    Role:
+      type: string
+      enum:
+      - PATIENT
+      - DOCTOR
+      - RECEPTIONIST
+      - ADMINISTRATOR
+      - AUDITOR
+    AppointmentMode:
+      type: string
+      enum:
+      - IN_PERSON
+      - REMOTE
+    AppointmentStatus:
+      type: string
+      enum:
+      - CONFIRMED
+      - CHECKED_IN
+      - IN_PROGRESS
+      - COMPLETED
+      - CANCELLED
+      - NO_SHOW
+    QueueStatus:
+      type: string
+      enum:
+      - WAITING
+      - CALLED
+      - IN_SERVICE
+      - DONE
+    SessionStatus:
+      type: string
+      enum:
+      - CREATED
+      - WAITING
+      - ACTIVE
+      - RECONNECTING
+      - ENDED
+      - CANCELLED
+    DbBoolean:
+      oneOf:
+      - type: boolean
+      - type: integer
+        enum:
+        - 0
+        - 1
+      description: Chuẩn hóa ở adapter FE thành boolean. Không dùng Boolean("0").
     Identity:
       type: object
-      additionalProperties: false
-      required:
-      - id
-      - roles
       properties:
         id:
           type: string
@@ -2326,78 +2539,142 @@ components:
         roles:
           type: array
           items:
-            type: string
-            enum:
-            - PATIENT
-            - DOCTOR
-            - RECEPTIONIST
-            - ADMIN
-            - AUDITOR
-    Doctor:
-      type: object
-      additionalProperties: false
+            $ref: '#/components/schemas/Role'
+          uniqueItems: true
       required:
       - id
-      - displayName
-      - specialtyIds
-      - active
+      - roles
+      example:
+        id: 00000000-0000-4000-8000-000000000001
+        roles:
+        - PATIENT
+    UserProfile:
+      type: object
       properties:
         id:
           type: string
           format: uuid
         displayName:
           type: string
-        specialtyIds:
+          minLength: 1
+          maxLength: 255
+          pattern: \S
+        active:
+          $ref: '#/components/schemas/DbBoolean'
+        roles:
           type: array
           items:
-            type: string
-            format: uuid
-        active:
-          type: boolean
-    DoctorInput:
-      type: object
-      additionalProperties: false
+            $ref: '#/components/schemas/Role'
+          uniqueItems: true
+        patientId:
+          type:
+          - string
+          - 'null'
+          format: uuid
+        doctorId:
+          type:
+          - string
+          - 'null'
+          format: uuid
       required:
+      - id
       - displayName
-      - specialtyIds
       - active
+      - roles
+      - patientId
+      - doctorId
+      example:
+        id: 00000000-0000-4000-8000-000000000001
+        displayName: Bệnh nhân mô phỏng
+        active: true
+        roles:
+        - PATIENT
+        patientId: 00000000-0000-4000-8000-000000000001
+        doctorId: null
+    UserSummary:
+      type: object
       properties:
+        id:
+          type: string
+          format: uuid
         displayName:
           type: string
           minLength: 1
-        specialtyIds:
-          type: array
-          minItems: 1
-          items:
-            type: string
-            format: uuid
+          maxLength: 255
+          pattern: \S
         active:
-          type: boolean
-    Specialty:
-      type: object
-      additionalProperties: false
+          $ref: '#/components/schemas/DbBoolean'
+        roles:
+          type: array
+          items:
+            $ref: '#/components/schemas/Role'
+          uniqueItems: true
       required:
       - id
-      - name
+      - displayName
       - active
+      - roles
+    SpecialtyView:
+      type: object
       properties:
         id:
           type: string
           format: uuid
         name:
           type: string
+          minLength: 1
+          maxLength: 255
+          pattern: \S
         active:
-          type: boolean
-    Availability:
-      type: object
-      additionalProperties: false
+          $ref: '#/components/schemas/DbBoolean'
       required:
       - id
-      - doctorId
-      - startAt
-      - endAt
-      - slotMinutes
-      - mode
+      - name
+      - active
+      example:
+        id: 00000000-0000-4000-8000-000000000001
+        name: Nội tổng quát
+        active: true
+    DoctorRow:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        active:
+          $ref: '#/components/schemas/DbBoolean'
+        displayName:
+          type: string
+          minLength: 1
+          maxLength: 255
+          pattern: \S
+        specialtyId:
+          type: string
+          format: uuid
+      required:
+      - id
+      - active
+      - displayName
+      - specialtyId
+      description: GET /doctors trả một dòng trên mỗi chuyên khoa; FE nhóm theo id. Không có userId trong danh sách.
+    DoctorView:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        userId:
+          type: string
+          format: uuid
+        active:
+          $ref: '#/components/schemas/DbBoolean'
+      required:
+      - id
+      - userId
+      - active
+      description: Response tạo/sửa bác sĩ là bản ghi doctor, không phải DoctorRow của danh sách.
+    AvailabilityView:
+      type: object
       properties:
         id:
           type: string
@@ -2414,42 +2691,18 @@ components:
         slotMinutes:
           type: integer
           minimum: 1
+          maximum: 540
         mode:
-          type: string
-          enum:
-          - IN_PERSON
-          - TELEHEALTH
-    AvailabilityInput:
-      type: object
-      additionalProperties: false
+          $ref: '#/components/schemas/AppointmentMode'
       required:
+      - id
+      - doctorId
       - startAt
       - endAt
       - slotMinutes
       - mode
-      properties:
-        startAt:
-          type: string
-          format: date-time
-        endAt:
-          type: string
-          format: date-time
-        slotMinutes:
-          type: integer
-          minimum: 1
-        mode:
-          type: string
-          enum:
-          - IN_PERSON
-          - TELEHEALTH
-    TimeOff:
+    TimeOffView:
       type: object
-      additionalProperties: false
-      required:
-      - id
-      - doctorId
-      - startAt
-      - endAt
       properties:
         id:
           type: string
@@ -2463,17 +2716,18 @@ components:
         endAt:
           type: string
           format: date-time
-    Slot:
-      type: object
-      additionalProperties: false
       required:
       - id
       - doctorId
       - startAt
       - endAt
-      - mode
+    SlotView:
+      type: object
       properties:
         id:
+          type: string
+          format: uuid
+        availabilityId:
           type: string
           format: uuid
         doctorId:
@@ -2486,22 +2740,16 @@ components:
           type: string
           format: date-time
         mode:
-          type: string
-          enum:
-          - IN_PERSON
-          - TELEHEALTH
-    Appointment:
-      type: object
-      additionalProperties: false
+          $ref: '#/components/schemas/AppointmentMode'
       required:
       - id
-      - patientId
+      - availabilityId
       - doctorId
-      - slotId
-      - status
+      - startAt
+      - endAt
       - mode
-      - version
-      - encounterId
+    AppointmentView:
+      type: object
       properties:
         id:
           type: string
@@ -2515,44 +2763,698 @@ components:
         slotId:
           type: string
           format: uuid
-        status:
+        startAt:
           type: string
-          enum:
-          - CONFIRMED
-          - CHECKED_IN
-          - IN_PROGRESS
-          - COMPLETED
-          - CANCELLED
-          - NO_SHOW
+          format: date-time
+        endAt:
+          type: string
+          format: date-time
         mode:
-          type: string
-          enum:
-          - IN_PERSON
-          - TELEHEALTH
+          $ref: '#/components/schemas/AppointmentMode'
+        status:
+          $ref: '#/components/schemas/AppointmentStatus'
         version:
           type: integer
           minimum: 0
+        cancellationReason:
+          type:
+          - string
+          - 'null'
+          maxLength: 1000
+      required:
+      - id
+      - patientId
+      - doctorId
+      - slotId
+      - startAt
+      - endAt
+      - mode
+      - status
+      - version
+      - cancellationReason
+      example:
+        id: 00000000-0000-4000-8000-000000000001
+        patientId: 00000000-0000-4000-8000-000000000001
+        doctorId: 00000000-0000-4000-8000-000000000002
+        slotId: 00000000-0000-4000-8000-000000000002
+        startAt: '2030-01-08T02:00:00Z'
+        endAt: '2030-01-08T02:20:00Z'
+        mode: IN_PERSON
+        status: CONFIRMED
+        version: 0
+        cancellationReason: null
+      description: Danh sách và đặt/đổi/hủy không cam kết encounterId. Không suy ra encounterId từ appointmentId.
+    AppointmentDetail:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        patientId:
+          type: string
+          format: uuid
+        doctorId:
+          type: string
+          format: uuid
+        slotId:
+          type: string
+          format: uuid
+        startAt:
+          type: string
+          format: date-time
+        endAt:
+          type: string
+          format: date-time
+        mode:
+          $ref: '#/components/schemas/AppointmentMode'
+        status:
+          $ref: '#/components/schemas/AppointmentStatus'
+        version:
+          type: integer
+          minimum: 0
+        cancellationReason:
+          type:
+          - string
+          - 'null'
+          maxLength: 1000
         encounterId:
           type:
           - string
           - 'null'
           format: uuid
-          description: Set when consultation starts; null before encounter creation.
-    BookingInput:
-      type: object
-      additionalProperties: false
       required:
+      - id
+      - patientId
+      - doctorId
       - slotId
+      - startAt
+      - endAt
+      - mode
+      - status
+      - version
+      - cancellationReason
+      - encounterId
+      example:
+        id: 00000000-0000-4000-8000-000000000001
+        patientId: 00000000-0000-4000-8000-000000000001
+        doctorId: 00000000-0000-4000-8000-000000000002
+        slotId: 00000000-0000-4000-8000-000000000002
+        startAt: '2030-01-08T02:00:00Z'
+        endAt: '2030-01-08T02:20:00Z'
+        mode: IN_PERSON
+        status: CONFIRMED
+        version: 0
+        cancellationReason: null
+        encounterId: null
+      description: GET detail và progress trả encounterId; null trước khi bắt đầu khám.
+    QueueTicket:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        appointmentId:
+          type: string
+          format: uuid
+        doctorId:
+          type: string
+          format: uuid
+        queueDate:
+          type: string
+          format: date
+        position:
+          type: integer
+          minimum: 1
+        status:
+          $ref: '#/components/schemas/QueueStatus'
+        version:
+          type: integer
+          minimum: 0
+        skipReason:
+          type:
+          - string
+          - 'null'
+          maxLength: 1000
+        createdAt:
+          type: string
+          format: date-time
+        patientId:
+          type: string
+          format: uuid
+      required:
+      - id
+      - appointmentId
+      - doctorId
+      - queueDate
+      - position
+      - status
+      - version
+      - skipReason
+      - createdAt
+      example:
+        id: 00000000-0000-4000-8000-000000000001
+        appointmentId: 00000000-0000-4000-8000-000000000002
+        doctorId: 00000000-0000-4000-8000-000000000002
+        queueDate: '2030-01-08'
+        position: 1
+        status: WAITING
+        version: 0
+        skipReason: null
+        createdAt: '2030-01-08T02:00:00Z'
+      description: patientId chỉ có trong GET queue. createdAt là lúc check-in; không có checkedInAt. version phải
+        dùng khi skip.
+    MedicalRecord:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        encounterId:
+          type: string
+          format: uuid
+        version:
+          type: integer
+          minimum: 1
+        status:
+          type: string
+          enum:
+          - DRAFT
+          - FINAL
+        content:
+          type: string
+          minLength: 1
+          maxLength: 100000
+          pattern: \S
+        supersedesId:
+          type:
+          - string
+          - 'null'
+          format: uuid
+        amendmentReason:
+          type:
+          - string
+          - 'null'
+          maxLength: 1000
+        createdAt:
+          type: string
+          format: date-time
+        patientId:
+          type: string
+          format: uuid
+        doctorId:
+          type: string
+          format: uuid
+        startAt:
+          type: string
+          format: date-time
+      required:
+      - id
+      - encounterId
+      - version
+      - status
+      - content
+      - supersedesId
+      - amendmentReason
+      - createdAt
+      example:
+        id: 00000000-0000-4000-8000-000000000001
+        encounterId: 00000000-0000-4000-8000-000000000002
+        version: 1
+        status: DRAFT
+        content: Dữ liệu khám mô phỏng
+        supersedesId: null
+        amendmentReason: null
+        createdAt: '2030-01-08T02:00:00Z'
+      description: content là chuỗi opaque. FE có thể serialize JSON riêng nhưng BE không suy diễn triệu chứng/chẩn
+        đoán/liều dùng.
+    PrescriptionItem:
+      type: object
+      properties:
+        medicineName:
+          type: string
+          minLength: 1
+          maxLength: 1000
+          pattern: \S
+        doseText:
+          type: string
+          minLength: 1
+          maxLength: 1000
+          pattern: \S
+        route:
+          type: string
+          minLength: 1
+          maxLength: 1000
+          pattern: \S
+        frequency:
+          type: string
+          minLength: 1
+          maxLength: 1000
+          pattern: \S
+        durationText:
+          type: string
+          minLength: 1
+          maxLength: 1000
+          pattern: \S
+      required:
+      - medicineName
+      - doseText
+      - route
+      - frequency
+      - durationText
+      example:
+        medicineName: Thuốc mô phỏng
+        doseText: Liều mô phỏng do bác sĩ nhập
+        route: Đường dùng mô phỏng
+        frequency: Tần suất mô phỏng
+        durationText: Thời gian dùng mô phỏng
+    Prescription:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        encounterId:
+          type: string
+          format: uuid
+        version:
+          type: integer
+          minimum: 0
+        status:
+          type: string
+          enum:
+          - DRAFT
+          - ISSUED
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/PrescriptionItem'
+          maxItems: 100
+        createdAt:
+          type: string
+          format: date-time
+        issuedAt:
+          type:
+          - string
+          - 'null'
+          format: date-time
+        patientId:
+          type: string
+          format: uuid
+        doctorId:
+          type: string
+          format: uuid
+        startAt:
+          type: string
+          format: date-time
+      required:
+      - id
+      - encounterId
+      - version
+      - status
+      - items
+      - createdAt
+      - issuedAt
+      example:
+        id: 00000000-0000-4000-8000-000000000001
+        encounterId: 00000000-0000-4000-8000-000000000002
+        version: 0
+        status: DRAFT
+        items: []
+        createdAt: '2030-01-08T02:00:00Z'
+        issuedAt: null
+      description: DRAFT có thể rỗng; ISSUE yêu cầu ít nhất một item đủ 5 trường. Danh sách lịch sử chỉ có ISSUED.
+    TelehealthSession:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        appointmentId:
+          type: string
+          format: uuid
+        status:
+          $ref: '#/components/schemas/SessionStatus'
+        version:
+          type: integer
+          minimum: 0
+        patientConsentedAt:
+          type:
+          - string
+          - 'null'
+          format: date-time
+        endedAt:
+          type:
+          - string
+          - 'null'
+          format: date-time
+      required:
+      - id
+      - appointmentId
+      - status
+      - version
+      - patientConsentedAt
+      - endedAt
+      example:
+        id: 00000000-0000-4000-8000-000000000001
+        appointmentId: 00000000-0000-4000-8000-000000000002
+        status: CREATED
+        version: 0
+        patientConsentedAt: null
+        endedAt: null
+    JoinToken:
+      type: object
+      properties:
+        sessionId:
+          type: string
+          format: uuid
+        token:
+          type: string
+          minLength: 1
+          maxLength: 128
+        expiresAt:
+          type: string
+          format: date-time
+        signalingUrl:
+          type: string
+          pattern: ^/api/telehealth-sessions/[^/]+/signals$
+      required:
+      - sessionId
+      - token
+      - expiresAt
+      - signalingUrl
+      example:
+        sessionId: 00000000-0000-4000-8000-000000000001
+        token: synthetic-example-not-a-real-token
+        expiresAt: '2030-01-08T02:05:00Z'
+        signalingUrl: /api/telehealth-sessions/00000000-0000-4000-8000-000000000001/signals
+      description: Token phòng chỉ sống trong bộ nhớ; không phải JWT đăng nhập. signalingUrl đã có /api, không nối
+        prefix hai lần.
+    SignalMessage:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+          minimum: 1
+        kind:
+          type: string
+          enum:
+          - OFFER
+          - ANSWER
+          - ICE
+        payload:
+          type: string
+          minLength: 1
+          maxLength: 65536
+          pattern: \S
+        createdAt:
+          type: string
+          format: date-time
+      required:
+      - id
+      - kind
+      - payload
+      - createdAt
+    SignalAccepted:
+      type: object
+      properties:
+        accepted:
+          type: boolean
+          const: true
+      required:
+      - accepted
+      example:
+        accepted: true
+    NotificationJob:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        appointmentId:
+          type: string
+          format: uuid
+        eventType:
+          type: string
+          enum:
+          - BOOKED
+          - RESCHEDULED
+          - CANCELLED
+          - REMINDER
+        status:
+          type: string
+          enum:
+          - PENDING
+          - PROCESSING
+          - SENT
+          - SKIPPED
+          - FAILED
+        attempts:
+          type: integer
+          minimum: 0
+        lastError:
+          type:
+          - string
+          - 'null'
+        dueAt:
+          type: string
+          format: date-time
+      required:
+      - id
+      - appointmentId
+      - eventType
+      - status
+      - attempts
+      - lastError
+      - dueAt
+    AuditEvent:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        actorId:
+          type:
+          - string
+          - 'null'
+          format: uuid
+        actorType:
+          type: string
+          enum:
+          - USER
+          - SYSTEM
+        actorLabel:
+          type:
+          - string
+          - 'null'
+        action:
+          type: string
+          minLength: 1
+          maxLength: 64
+          pattern: \S
+        resourceId:
+          type: string
+          minLength: 1
+          maxLength: 128
+          pattern: \S
+        result:
+          type: string
+          enum:
+          - SUCCESS
+          - DENIED
+          - FAILURE
+        correlationId:
+          type: string
+          format: uuid
+        createdAt:
+          type: string
+          format: date-time
+      required:
+      - id
+      - actorId
+      - actorType
+      - actorLabel
+      - action
+      - resourceId
+      - result
+      - correlationId
+      - createdAt
+      example:
+        id: 00000000-0000-4000-8000-000000000001
+        actorId: null
+        actorType: SYSTEM
+        actorLabel: clinic-background-worker
+        action: NOTIFICATION_SENT
+        resourceId: 00000000-0000-4000-8000-000000000002
+        result: SUCCESS
+        correlationId: 00000000-0000-4000-8000-000000000002
+        createdAt: '2030-01-08T02:00:00Z'
+      description: createdAt là tên chuẩn, không có timestamp. DENIED/FAILURE là giá trị mục tiêu; baseline chỉ
+        ghi SUCCESS (BE-01).
+    ProblemDetail:
+      type: object
+      properties:
+        type:
+          type: string
+          format: uri
+        title:
+          type: string
+        status:
+          type: integer
+          minimum: 400
+          maximum: 599
+        detail:
+          type: string
+        instance:
+          type: string
+      required:
+      - type
+      - title
+      - status
+      example:
+        type: about:blank
+        title: Conflict
+        status: 409
+        detail: Stale version
+        instance: /api/appointments/example/progress
+      description: Không có code/message/correlationId trong body chuẩn. Lấy mã liên kết từ X-Request-Id. 401/403
+        ở security filter có thể có body rỗng.
+    Roles:
+      type: object
+      properties:
+        roles:
+          type: array
+          items:
+            $ref: '#/components/schemas/Role'
+          uniqueItems: true
+          minItems: 1
+      required:
+      - roles
+      example:
+        roles:
+        - PATIENT
+    Contact:
+      type: object
+      properties:
+        email:
+          type: string
+          minLength: 1
+          maxLength: 254
+          pattern: \S
+          format: email
+      required:
+      - email
+      example:
+        email: patient@example.test
+    Specialty:
+      type: object
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 255
+          pattern: \S
+      required:
+      - name
+      example:
+        name: Nội tổng quát
+    Doctor:
+      type: object
+      properties:
+        userId:
+          type: string
+          format: uuid
+        specialtyIds:
+          type: array
+          items:
+            type: string
+            format: uuid
+          minItems: 1
+      required:
+      - userId
+      - specialtyIds
+      example:
+        userId: 00000000-0000-4000-8000-000000000001
+        specialtyIds:
+        - 00000000-0000-4000-8000-000000000002
+    UpdateDoctor:
+      type: object
+      properties:
+        active:
+          type: boolean
+          default: false
+        displayName:
+          type: string
+          minLength: 1
+          maxLength: 255
+          pattern: \S
+        specialtyIds:
+          type: array
+          items:
+            type: string
+            format: uuid
+          minItems: 1
+      required:
+      - displayName
+      - specialtyIds
+      example:
+        active: true
+        displayName: Bác sĩ mô phỏng
+        specialtyIds:
+        - 00000000-0000-4000-8000-000000000002
+      description: FE luôn gửi active rõ ràng; Java primitive mặc định false nếu bỏ trường.
+    Availability:
+      type: object
+      properties:
+        startAt:
+          type: string
+          format: date-time
+        endAt:
+          type: string
+          format: date-time
+        slotMinutes:
+          type: integer
+          minimum: 1
+          maximum: 540
+        mode:
+          $ref: '#/components/schemas/AppointmentMode'
+      required:
+      - startAt
+      - endAt
+      - slotMinutes
+      - mode
+      example:
+        startAt: '2030-01-08T02:00:00Z'
+        endAt: '2030-01-08T02:20:00Z'
+        slotMinutes: 20
+        mode: IN_PERSON
+    TimeOff:
+      type: object
+      properties:
+        startAt:
+          type: string
+          format: date-time
+        endAt:
+          type: string
+          format: date-time
+      required:
+      - startAt
+      - endAt
+      example:
+        startAt: '2030-01-08T02:00:00Z'
+        endAt: '2030-01-08T02:20:00Z'
+    Booking:
+      type: object
       properties:
         slotId:
           type: string
           format: uuid
-    RescheduleInput:
-      type: object
-      additionalProperties: false
       required:
       - slotId
-      - version
+      example:
+        slotId: 00000000-0000-4000-8000-000000000001
+    Reschedule:
+      type: object
       properties:
         slotId:
           type: string
@@ -2560,25 +3462,31 @@ components:
         version:
           type: integer
           minimum: 0
-    CancelInput:
-      type: object
-      additionalProperties: false
       required:
-      - reason
+      - slotId
       - version
+      example:
+        slotId: 00000000-0000-4000-8000-000000000001
+        version: 0
+    Cancel:
+      type: object
       properties:
         reason:
           type: string
           minLength: 1
+          maxLength: 1000
+          pattern: \S
         version:
           type: integer
           minimum: 0
-    ProgressInput:
-      type: object
-      additionalProperties: false
       required:
-      - targetStatus
+      - reason
       - version
+      example:
+        reason: Thay đổi kế hoạch mô phỏng
+        version: 0
+    Progress:
+      type: object
       properties:
         targetStatus:
           type: string
@@ -2589,39 +3497,31 @@ components:
         version:
           type: integer
           minimum: 0
-    Record:
-      type: object
-      additionalProperties: false
       required:
-      - id
-      - encounterId
+      - targetStatus
       - version
-      - status
-      - content
+      example:
+        targetStatus: IN_PROGRESS
+        version: 1
+    Skip:
+      type: object
       properties:
-        id:
+        reason:
           type: string
-          format: uuid
-        encounterId:
-          type: string
-          format: uuid
+          minLength: 1
+          maxLength: 1000
+          pattern: \S
         version:
           type: integer
           minimum: 0
-        status:
-          type: string
-          enum:
-          - DRAFT
-          - FINAL
-        content:
-          type: string
+      required:
+      - reason
+      - version
+      example:
+        reason: Bệnh nhân chưa có mặt
+        version: 1
     RecordInput:
       type: object
-      additionalProperties: false
-      required:
-      - version
-      - content
-      - status
       properties:
         version:
           type: integer
@@ -2629,202 +3529,245 @@ components:
         content:
           type: string
           minLength: 1
+          maxLength: 100000
+          pattern: \S
         status:
           type: string
           enum:
           - DRAFT
           - FINAL
-    PrescriptionItem:
-      type: object
-      additionalProperties: false
       required:
-      - medicineName
-      - doseText
-      - route
-      - frequency
-      - durationText
-      properties:
-        medicineName:
-          type: string
-          minLength: 1
-        doseText:
-          type: string
-          minLength: 1
-        route:
-          type: string
-          minLength: 1
-        frequency:
-          type: string
-          minLength: 1
-        durationText:
-          type: string
-          minLength: 1
-    Prescription:
-      type: object
-      additionalProperties: false
-      required:
-      - id
-      - encounterId
-      - status
       - version
-      - items
+      - content
+      - status
+      example:
+        version: 0
+        content: Bản nháp mô phỏng
+        status: DRAFT
+    Amendment:
+      type: object
       properties:
-        id:
-          type: string
-          format: uuid
-        encounterId:
-          type: string
-          format: uuid
-        status:
-          type: string
-          enum:
-          - DRAFT
-          - ISSUED
         version:
           type: integer
           minimum: 0
-        items:
-          type: array
-          items:
-            $ref: '#/components/schemas/PrescriptionItem'
+        content:
+          type: string
+          minLength: 1
+          maxLength: 100000
+          pattern: \S
+        reason:
+          type: string
+          minLength: 1
+          maxLength: 1000
+          pattern: \S
+      required:
+      - version
+      - content
+      - reason
+      example:
+        version: 1
+        content: Bổ sung mô phỏng
+        reason: Bổ sung thông tin
     PrescriptionInput:
       type: object
-      additionalProperties: false
-      required:
-      - items
       properties:
         items:
           type: array
           items:
             $ref: '#/components/schemas/PrescriptionItem'
-    QueueTicket:
-      type: object
-      additionalProperties: false
+          maxItems: 100
       required:
-      - id
-      - appointmentId
-      - position
-      - status
-      properties:
-        id:
-          type: string
-          format: uuid
-        appointmentId:
-          type: string
-          format: uuid
-        position:
-          type: integer
-          minimum: 1
-        status:
-          type: string
-          enum:
-          - WAITING
-          - CALLED
-          - IN_SERVICE
-          - DONE
-    Session:
+      - items
+      example:
+        items:
+        - medicineName: Thuốc mô phỏng
+          doseText: Liều mô phỏng do bác sĩ nhập
+          route: Đường dùng mô phỏng
+          frequency: Tần suất mô phỏng
+          durationText: Thời gian dùng mô phỏng
+    PrescriptionUpdate:
       type: object
-      additionalProperties: false
-      required:
-      - id
-      - appointmentId
-      - status
-      - version
       properties:
-        id:
-          type: string
-          format: uuid
-        appointmentId:
-          type: string
-          format: uuid
-        status:
-          type: string
-          enum:
-          - CREATED
-          - WAITING
-          - ACTIVE
-          - RECONNECTING
-          - ENDED
-          - CANCELLED
         version:
           type: integer
           minimum: 0
-    JoinToken:
-      type: object
-      additionalProperties: false
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/PrescriptionItem'
+          maxItems: 100
       required:
-      - sessionId
-      - token
-      - expiresAt
-      properties:
-        sessionId:
-          type: string
-          format: uuid
-        token:
-          type: string
-        expiresAt:
-          type: string
-          format: date-time
-    Notification:
+      - version
+      - items
+      example:
+        version: 0
+        items:
+        - medicineName: Thuốc mô phỏng
+          doseText: Liều mô phỏng do bác sĩ nhập
+          route: Đường dùng mô phỏng
+          frequency: Tần suất mô phỏng
+          durationText: Thời gian dùng mô phỏng
+    Version:
       type: object
-      additionalProperties: false
-      required:
-      - id
-      - appointmentId
-      - channel
-      - status
-      - attempts
       properties:
-        id:
-          type: string
-          format: uuid
-        appointmentId:
-          type: string
-          format: uuid
-        channel:
-          type: string
-          enum:
-          - EMAIL
-          - SMS
-        status:
-          type: string
-          enum:
-          - PENDING
-          - SENT
-          - DELIVERED
-          - FAILED
-          - SKIPPED
-        attempts:
+        version:
           type: integer
           minimum: 0
-    Audit:
-      type: object
-      additionalProperties: false
       required:
-      - id
-      - actorId
-      - action
-      - resourceId
-      - timestamp
-      - result
-      - correlationId
+      - version
+      example:
+        version: 1
+    Join:
+      type: object
       properties:
-        id:
+        consent:
+          type: boolean
+      required:
+      - consent
+      example:
+        consent: true
+      description: Bệnh nhân phải gửi true. Bác sĩ có thể gửi false sau khi đã start. participationConfirmed không
+        phải trường hợp đồng.
+    Connection:
+      type: object
+      properties:
+        version:
+          type: integer
+          minimum: 0
+        state:
           type: string
-          format: uuid
-        actorId:
-          type:
-          - string
-          - 'null'
-          format: uuid
-        action:
+          enum:
+          - ACTIVE
+          - RECONNECTING
+      required:
+      - version
+      - state
+      example:
+        version: 2
+        state: RECONNECTING
+    Signal:
+      type: object
+      properties:
+        kind:
           type: string
-        resourceId:
+          enum:
+          - OFFER
+          - ANSWER
+          - ICE
+        payload:
           type: string
-        timestamp:
-          type: string
-          format: date-time
-        result:
-          type: string
-        correlationId:
-          type: string
+          minLength: 1
+          maxLength: 65536
+          pattern: \S
+      required:
+      - kind
+      - payload
+      example:
+        kind: ICE
+        payload: '{"candidate":"synthetic-example"}'
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: OIDC issuer realm clinic; audience clinic-api. Quyền lấy từ database.
+  responses:
+    BadRequest:
+      description: Thiếu/sai header, kiểu dữ liệu, query hoặc body
+      headers:
+        X-Request-Id:
+          description: Mã liên kết request/audit; baseline có thể thiếu trên lỗi security filter.
+          schema:
+            type: string
+            format: uuid
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/ProblemDetail'
+    Unauthorized:
+      description: JWT thiếu, sai issuer/audience/chữ ký hoặc hết hạn
+      headers:
+        X-Request-Id:
+          description: Mã liên kết request/audit; baseline có thể thiếu trên lỗi security filter.
+          schema:
+            type: string
+            format: uuid
+    Forbidden:
+      description: Thiếu quyền hoặc token phòng không hợp lệ
+      headers:
+        X-Request-Id:
+          description: Mã liên kết request/audit; baseline có thể thiếu trên lỗi security filter.
+          schema:
+            type: string
+            format: uuid
+    NotFound:
+      description: Không tồn tại hoặc không được phép biết tài nguyên
+      headers:
+        X-Request-Id:
+          description: Mã liên kết request/audit; baseline có thể thiếu trên lỗi security filter.
+          schema:
+            type: string
+            format: uuid
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/ProblemDetail'
+    Conflict:
+      description: Sai trạng thái, version cũ, quá hạn hoặc xung đột
+      headers:
+        X-Request-Id:
+          description: Mã liên kết request/audit; baseline có thể thiếu trên lỗi security filter.
+          schema:
+            type: string
+            format: uuid
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/ProblemDetail'
+    Unprocessable:
+      description: Không đáp ứng quy tắc nghiệp vụ
+      headers:
+        X-Request-Id:
+          description: Mã liên kết request/audit; baseline có thể thiếu trên lỗi security filter.
+          schema:
+            type: string
+            format: uuid
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/ProblemDetail'
+    RateLimited:
+      description: Vượt giới hạn signaling
+      headers:
+        X-Request-Id:
+          description: Mã liên kết request/audit; baseline có thể thiếu trên lỗi security filter.
+          schema:
+            type: string
+            format: uuid
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/ProblemDetail'
+    Unavailable:
+      description: Storage/audit không khả dụng
+      headers:
+        X-Request-Id:
+          description: Mã liên kết request/audit; baseline có thể thiếu trên lỗi security filter.
+          schema:
+            type: string
+            format: uuid
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/ProblemDetail'
+x-contract-date: '2026-11-16'
+x-baseline-main-commit: a04dcb159007ef35daadfdb67f835576f0a05a7b
+x-release-blockers:
+- BE-01
+- BE-02
+- BE-03
+- BE-04
+- FE-API
+- FE-CLINICAL
+- FE-WEBRTC
+- E2E
