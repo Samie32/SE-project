@@ -1,0 +1,16 @@
+[
+  {
+    "key": "ENC_A_DONE",
+    "id": "4e6b93b4-7453-51ea-b305-4516b6011969",
+    "appointment_id": "092b9d3b-7825-51f3-ae78-c3cc1781d9e2",
+    "status": "COMPLETED",
+    "version": 2
+  },
+  {
+    "key": "ENC_B_DONE_REMOTE",
+    "id": "8fa1c1c1-8542-5eeb-a90c-983bfe117ab3",
+    "appointment_id": "4dfc6c89-23b3-5af2-8a59-8b23e7465b95",
+    "status": "COMPLETED",
+    "version": 2
+  }
+]

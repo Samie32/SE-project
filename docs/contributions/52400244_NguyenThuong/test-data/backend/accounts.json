@@ -1,0 +1,17 @@
+{
+  "profile": "demo",
+  "issuer": "http://localhost:8180/realms/clinic",
+  "audience": "clinic-api",
+  "cli_client": "clinic-local-cli",
+  "web_client": "clinic-web",
+  "accounts": [
+    {"username":"admin","userId":"00000000-0000-0000-0000-000000000001","roles":["ADMINISTRATOR"]},
+    {"username":"doctor","userId":"00000000-0000-0000-0000-000000000002","roles":["DOCTOR"],"doctorId":"20000000-0000-0000-0000-000000000001"},
+    {"username":"patient","userId":"00000000-0000-0000-0000-000000000003","roles":["PATIENT"],"patientId":"00000000-0000-0000-0000-000000000003"},
+    {"username":"patient2","userId":"00000000-0000-0000-0000-000000000004","roles":["PATIENT"],"patientId":"00000000-0000-0000-0000-000000000004"},
+    {"username":"receptionist","userId":"00000000-0000-0000-0000-000000000005","roles":["RECEPTIONIST"]},
+    {"username":"auditor","userId":"00000000-0000-0000-0000-000000000006","roles":["AUDITOR"]}
+  ],
+  "specialties": [{"id":"10000000-0000-0000-0000-000000000001","name":"General practice"}],
+  "note": "Reference for DemoData.java and realm-template.json, NOT an import file. Resolve /api/me and catalog IDs again if local DB was changed. No second doctor is seeded."
+}

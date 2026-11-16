@@ -1,0 +1,72 @@
+[
+  {
+    "key": "U_PAT_A",
+    "id": "98587c38-36be-51db-84a0-1741bdd280ac",
+    "issuer": "https://idp.example.invalid",
+    "subject": "sample-pat-a",
+    "status": "ACTIVE",
+    "roles": [
+      "PATIENT"
+    ]
+  },
+  {
+    "key": "U_PAT_B",
+    "id": "2ff0dd6f-72a9-5cc4-93fe-e501db57d6dc",
+    "issuer": "https://idp.example.invalid",
+    "subject": "sample-pat-b",
+    "status": "ACTIVE",
+    "roles": [
+      "PATIENT"
+    ]
+  },
+  {
+    "key": "U_DOC_A",
+    "id": "fef1d1ad-ef97-5e90-9b8b-beee213327a4",
+    "issuer": "https://idp.example.invalid",
+    "subject": "sample-doc-a",
+    "status": "ACTIVE",
+    "roles": [
+      "DOCTOR"
+    ]
+  },
+  {
+    "key": "U_DOC_B",
+    "id": "91dcb1f5-5efd-5c52-bc06-c8bab8d2063b",
+    "issuer": "https://idp.example.invalid",
+    "subject": "sample-doc-b",
+    "status": "ACTIVE",
+    "roles": [
+      "DOCTOR"
+    ]
+  },
+  {
+    "key": "U_REC",
+    "id": "31a7a6d2-d359-58bc-a440-db503e047223",
+    "issuer": "https://idp.example.invalid",
+    "subject": "sample-rec",
+    "status": "ACTIVE",
+    "roles": [
+      "RECEPTIONIST"
+    ]
+  },
+  {
+    "key": "U_ADMIN",
+    "id": "bd45fc08-26de-5dfc-ab81-f64538396c3c",
+    "issuer": "https://idp.example.invalid",
+    "subject": "sample-admin",
+    "status": "ACTIVE",
+    "roles": [
+      "ADMIN"
+    ]
+  },
+  {
+    "key": "U_AUD",
+    "id": "dd2dd70c-ba2c-526a-9817-24043ba54336",
+    "issuer": "https://idp.example.invalid",
+    "subject": "sample-aud",
+    "status": "ACTIVE",
+    "roles": [
+      "AUDITOR"
+    ]
+  }
+]

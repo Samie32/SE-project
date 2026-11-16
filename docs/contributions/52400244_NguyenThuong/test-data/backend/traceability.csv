@@ -1,0 +1,25 @@
+test_case,module,backend_scope,execution_status,action_or_blocker
+TC-01,M01,IMPLEMENTED,NOT_RUN,OIDC login and disabled account; use real Keycloak
+TC-02,M01/M07,IMPLEMENTED,NOT_RUN,JWT and record ownership APIs exist; test patient/doctor isolation
+TC-03,M02,IMPLEMENTED,NOT_RUN,POST specialties/doctors; use new userId from /me; seed has only one doctor
+TC-04,M02,IMPLEMENTED,NOT_RUN,PUT doctor active=false while a future confirmed appointment exists expects 409
+TC-05,M03,IMPLEMENTED,NOT_RUN,08:00-09:00 UTC+7 availability; avoid duplicate seed blocks
+TC-06,M03,IMPLEMENTED,NOT_RUN,POST time-off; reject overlap with active appointment; valid leave hides slots
+TC-07,M03,IMPLEMENTED,NOT_RUN,GET slots by local date/doctor/mode; booked slots excluded
+TC-08,M04,IMPLEMENTED,NOT_RUN,Two simultaneous patient requests for one slot; separate keys; one success and one 409
+TC-09,M04,IMPLEMENTED,NOT_RUN,POST reschedule; slotId/version from responses; at least two hours notice
+TC-10,M04,IMPLEMENTED,NOT_RUN,POST cancel; reason/version and Idempotency-Key; CONFIRMED and at least two hours notice
+TC-11,M04/M08,IMPLEMENTED,NOT_RUN,Check-in then next and IN_PROGRESS; clinical.http; obey time window
+TC-12,M05/M07,IMPLEMENTED,NOT_RUN,Encounter record and patient history; FINAL visibility and access audit
+TC-13,M05,IMPLEMENTED,NOT_RUN,PUT DRAFT/FINAL with current version then amendment on latest FINAL
+TC-14,M05,IMPLEMENTED,NOT_RUN,Create/update DRAFT rx then issue with five synthetic fields
+TC-15,M06,IMPLEMENTED,NOT_RUN,AppointmentService schedules REMINDER at start minus 1800s; NotificationWorker handles stale jobs; verify delivery with Mailpit at runtime
+TC-16,M06,PARTIAL,NOT_RUN,Notification retry/outbox exists; run worker fault-injection tests; no SMS integration
+TC-17,M07,PARTIAL,NOT_RUN,Clinical read audit exists; fail-closed tests; denied-room audit BE-01 remains
+TC-18,M07,IMPLEMENTED,NOT_RUN,AUDITOR audit query; append-only policy; catalog gap BE-03
+TC-19,M08,IMPLEMENTED,NOT_RUN,Check-in replay must not create a second queue ticket
+TC-20,M08,PARTIAL,NOT_RUN,Queue next implemented; empty queue 204 contract gap BE-04
+TC-21,M08,IMPLEMENTED,NOT_RUN,Skip CALLED reason/version returns WAITING at queue end
+TC-22,M09,PARTIAL,NOT_RUN,BE signaling and FE media exist; real BE and TURN acceptance not run
+TC-23,M09,IMPLEMENTED,NOT_RUN,Patient consent then doctor start in valid window
+TC-24,M09,PARTIAL,NOT_RUN,Token refresh reconnect end cleanup; native FE tests separate from BE E2E

@@ -1,0 +1,16 @@
+[
+  {
+    "key": "D_A",
+    "id": "def08225-35f3-511c-af7d-11f9ebe4c0e7",
+    "user_id": "fef1d1ad-ef97-5e90-9b8b-beee213327a4",
+    "display_name": "Bác sĩ giả lập A",
+    "active": true
+  },
+  {
+    "key": "D_B",
+    "id": "33e92afe-0c78-53d5-adf1-9ad9b81266f5",
+    "user_id": "91dcb1f5-5efd-5c52-bc06-c8bab8d2063b",
+    "display_name": "Bác sĩ giả lập B",
+    "active": true
+  }
+]

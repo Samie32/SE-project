@@ -40,6 +40,8 @@ Kế hoạch phân biệt công việc đã thực hiện với nhiệm vụ đ�
 | Frontend bác sĩ tuần 3–4 | Nguyễn Huỳnh Anh Kiệt | Giao diện lịch làm việc/lịch nghỉ (M03), danh sách lịch hẹn (M04), phòng gọi CallingRoom dùng chung; cấu hình proxy và API service sẵn sàng tích hợp |
 | Frontend bệnh nhân và cổng dịch vụ | Vũ Trần Khắc Thuận | Giao diện ClinicCare; đăng nhập Keycloak; tổng quan, tra cứu và tích hợp API đặt/đổi/hủy lịch; đóng gói Docker và cấu hình CI. 18 test frontend, build và đăng nhập thật đạt. API hồ sơ/đơn thuốc và signaling đã được bổ sung; frontend chờ tích hợp và nghiệm thu cuộc gọi đầu cuối. [Chi tiết](frontend-patient.md) |
 | Giao diện Frontend Staff cho hệ thống Clinic Telehealth. Thiết lập môi trường và cấu hình đăng nhập Keycloak. Các chức năng giao diện dành cho quản trị viên, lễ tân và kiểm toán. | Nguyễn Hiếu Nhân | frontend/frontend_staff. Giao diện quản trị, lễ tân và kiểm toán|
+| Nội dung dữ liệu mô phỏng, công cụ và tài liệu demo — cập nhật 17/11/2026 | Nguyễn Thường — 52400244 | 16 nhóm fixtures thiết kế có validator; 47 ví dụ cho 46 API hiện tại; generator ngày Việt Nam và 3 luồng HTTP; hướng dẫn sử dụng theo source, runbook và bàn giao. 40 test công cụ/dữ liệu đạt; chưa xác nhận đã nạp MySQL hoặc nghiệm thu E2E. [Checklist](contributions/52400244_NguyenThuong/CHECKLIST.md) |
+| Chuẩn hóa và bàn giao hợp đồng tích hợp BE–FE 1.0.0 | Nguyễn Thường — 52400244 (tổng hợp theo backend hiện có) | 46 thao tác/38 đường dẫn/48 schema, ví dụ request/response, header/quyền và truy vết FR-01…24; checker và 7 test hợp đồng. Không đồng nghĩa đã sửa BE-01…04 hoặc hoàn thành tích hợp FE. [Hợp đồng](api/integration-contract.md) |
 
 ## 4. Phân công giai đoạn triển khai
 
@@ -102,8 +104,8 @@ Tuần 1–2 tương ứng với khối lượng phân tích và thiết kế hi
 | Frontend lễ tân, quản trị và kiểm toán | Nguyễn Hiếu Nhân | Tuần 3–6 | Chưa triển khai |
 | Kiểm thử độc lập, toàn trình, tải và bảo mật hệ thống | Vũ Đức Thắng | Tuần 3–8 | Chưa ghi nhận kết quả kiểm thử độc lập của thành viên; bộ test backend do Vòng Kỷ Phong thực hiện được ghi riêng ở trên |
 | MySQL, các môi trường, nạp dữ liệu, sao lưu/phục hồi, đóng gói và CI/CD | Vòng Kỷ Phong | Tuần 3–8 | Đã có migration V1/V2, trigger bảo vệ dữ liệu, MySQL local/test và dữ liệu demo trực tiếp/từ xa; script run-backend tự khởi động MySQL/Keycloak/Mailpit. Build backend và smoke test local đạt; đã có cấu hình đóng gói/CI. CI trên GitHub, môi trường production và sao lưu/phục hồi chưa nghiệm thu |
-| Nội dung dữ liệu mô phỏng và tài liệu sử dụng | Nguyễn Thường | Tuần 3–8 | Chưa hoàn thành |
-| Báo cáo tổng hợp, slide và bàn giao | Nguyễn Thường tổng hợp; cả nhóm cung cấp nội dung | Tuần 7–8 | Chưa hoàn thành |
+| Nội dung dữ liệu mô phỏng và tài liệu sử dụng | Nguyễn Thường | Tuần 3–8 | Cập nhật 17/11/2026: đã bàn giao nội dung dữ liệu, 47 ví dụ/46 API, generator và 3 luồng HTTP, hướng dẫn theo source và runbook; 40 test dữ liệu/công cụ đạt. Đã chuẩn hóa hợp đồng 1.0.0, checker và 7 test đạt. Chưa xác nhận nạp MySQL, ảnh UI hoặc nghiệm thu E2E; không đánh dấu toàn hệ thống hoàn thành. [Checklist](contributions/52400244_NguyenThuong/CHECKLIST.md) |
+| Báo cáo tổng hợp, slide và bàn giao | Nguyễn Thường tổng hợp; cả nhóm cung cấp nội dung | Tuần 7–8 | Chưa hoàn thành báo cáo tổng hợp/slide; chưa có bản DOCX/PPTX được bàn giao. Đã bàn giao riêng gói dữ liệu/tài liệu demo, không dùng việc này để đánh dấu báo cáo/slide hoàn tất |
 
 Tiến độ thực tế được ghi nhận theo sản phẩm bàn giao và kết quả kiểm tra. Việc có kế hoạch hoặc tài liệu không đồng nghĩa với hoàn thành triển khai. Các thay đổi tiếp theo được ghi nhận cùng người thực hiện, kết quả và thời hạn điều chỉnh.
 
@@ -129,3 +131,15 @@ Các phần cần tiếp tục theo phân công:
 
 Kết quả trên xác nhận phần backend và kiểm thử đã thực hiện; chưa xác nhận toàn hệ thống hoặc cuộc gọi video/audio đã hoàn tất đầu cuối.
 
+
+## 9. Checklist bàn giao Nguyễn Thường — 52400244, cập nhật 17/11/2026
+
+- [x] Chuẩn bị nội dung dữ liệu mô phỏng, mapping seed và request mẫu chuẩn API; không nạp trực tiếp fixtures thiết kế vào DB.
+- [x] Bàn giao generator ngày Việt Nam, luồng đặt/đổi/hủy, clinical/queue và vòng đời telehealth; kiểm tra tĩnh và 40 test công cụ/dữ liệu đạt.
+- [x] Bàn giao bản hướng dẫn theo source, kịch bản demo, truy vết 24 TC và báo cáo kiểm chứng của bộ dữ liệu.
+- [x] Bàn giao hợp đồng BE–FE 1.0.0: 46 thao tác/38 đường dẫn/48 schema, checker và 7 test hợp đồng đạt.
+- [ ] Phối hợp thành viên BE/QA xác minh nạp dữ liệu, chạy demo/E2E thật và bổ sung ảnh UI theo phiên bản nghiệm thu.
+- [ ] Hoàn thành báo cáo tổng hợp và slide DOCX/PPTX từ minh chứng cả nhóm; chưa có bản bàn giao.
+- [ ] Tổ chức chạy thử và nghiệm thu kịch bản demo toàn hệ thống.
+
+Chỉ checklist của 52400244 được cập nhật trong đợt này. Việc kiểm nội dung/công cụ không thay nhiệm vụ nạp DB, kiểm thử độc lập hoặc nghiệm thu phần mềm của các thành viên khác. Xem [checklist chi tiết](contributions/52400244_NguyenThuong/CHECKLIST.md) và [bằng chứng bản đưa lên main](contributions/52400244_NguyenThuong/report/main-handover.md).

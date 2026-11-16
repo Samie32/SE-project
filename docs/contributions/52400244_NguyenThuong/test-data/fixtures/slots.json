@@ -1,0 +1,137 @@
+[
+  {
+    "key": "AV_A_FUT_S1",
+    "id": "55eff0fc-47e1-522e-8fb0-7d6c76e08db1",
+    "availability_id": "51d7f73b-25cc-5571-b070-cec63dc77525",
+    "doctor_id": "def08225-35f3-511c-af7d-11f9ebe4c0e7",
+    "start_at": "2026-11-10T02:00:00Z",
+    "end_at": "2026-11-10T02:20:00Z",
+    "mode": "IN_PERSON"
+  },
+  {
+    "key": "AV_A_FUT_S2",
+    "id": "1d5d9358-001c-5ac2-bfd3-28afbb94ff34",
+    "availability_id": "51d7f73b-25cc-5571-b070-cec63dc77525",
+    "doctor_id": "def08225-35f3-511c-af7d-11f9ebe4c0e7",
+    "start_at": "2026-11-10T02:20:00Z",
+    "end_at": "2026-11-10T02:40:00Z",
+    "mode": "IN_PERSON"
+  },
+  {
+    "key": "AV_A_FUT_S3",
+    "id": "060a6da1-ecb8-52da-b76e-c2ebd520cfb4",
+    "availability_id": "51d7f73b-25cc-5571-b070-cec63dc77525",
+    "doctor_id": "def08225-35f3-511c-af7d-11f9ebe4c0e7",
+    "start_at": "2026-11-10T02:40:00Z",
+    "end_at": "2026-11-10T03:00:00Z",
+    "mode": "IN_PERSON"
+  },
+  {
+    "key": "AV_B_FUT_S1",
+    "id": "4aa25cdc-31d1-5554-abae-bf019da51478",
+    "availability_id": "0f535258-5281-57dc-aabd-f6e9855f4170",
+    "doctor_id": "33e92afe-0c78-53d5-adf1-9ad9b81266f5",
+    "start_at": "2026-11-10T03:00:00Z",
+    "end_at": "2026-11-10T03:20:00Z",
+    "mode": "IN_PERSON"
+  },
+  {
+    "key": "AV_B_FUT_S2",
+    "id": "5bff22f1-cbec-524c-ae2d-2212455fe016",
+    "availability_id": "0f535258-5281-57dc-aabd-f6e9855f4170",
+    "doctor_id": "33e92afe-0c78-53d5-adf1-9ad9b81266f5",
+    "start_at": "2026-11-10T03:20:00Z",
+    "end_at": "2026-11-10T03:40:00Z",
+    "mode": "IN_PERSON"
+  },
+  {
+    "key": "AV_B_FUT_S3",
+    "id": "1373015a-57a0-51a8-8b86-ac8b619b0645",
+    "availability_id": "0f535258-5281-57dc-aabd-f6e9855f4170",
+    "doctor_id": "33e92afe-0c78-53d5-adf1-9ad9b81266f5",
+    "start_at": "2026-11-10T03:40:00Z",
+    "end_at": "2026-11-10T04:00:00Z",
+    "mode": "IN_PERSON"
+  },
+  {
+    "key": "AV_A_REMOTE_FUT_S1",
+    "id": "2bb5d2e5-318f-58e7-9098-ee2d0c34cd46",
+    "availability_id": "7a7585bb-8e56-5ed7-89d9-1ee8774c1145",
+    "doctor_id": "def08225-35f3-511c-af7d-11f9ebe4c0e7",
+    "start_at": "2026-11-11T02:00:00Z",
+    "end_at": "2026-11-11T02:20:00Z",
+    "mode": "TELEHEALTH"
+  },
+  {
+    "key": "AV_A_REMOTE_FUT_S2",
+    "id": "c6bb24d6-bd7b-5f1a-ab16-424bfc932490",
+    "availability_id": "7a7585bb-8e56-5ed7-89d9-1ee8774c1145",
+    "doctor_id": "def08225-35f3-511c-af7d-11f9ebe4c0e7",
+    "start_at": "2026-11-11T02:20:00Z",
+    "end_at": "2026-11-11T02:40:00Z",
+    "mode": "TELEHEALTH"
+  },
+  {
+    "key": "AV_A_REMOTE_FUT_S3",
+    "id": "c581eb46-8d0b-5c99-bcd1-b429a703d611",
+    "availability_id": "7a7585bb-8e56-5ed7-89d9-1ee8774c1145",
+    "doctor_id": "def08225-35f3-511c-af7d-11f9ebe4c0e7",
+    "start_at": "2026-11-11T02:40:00Z",
+    "end_at": "2026-11-11T03:00:00Z",
+    "mode": "TELEHEALTH"
+  },
+  {
+    "key": "AV_A_HIST_S1",
+    "id": "39985811-e83c-5683-b570-39d8093c41ba",
+    "availability_id": "eee4b9d8-f667-5f6d-994f-136ddb8c642e",
+    "doctor_id": "def08225-35f3-511c-af7d-11f9ebe4c0e7",
+    "start_at": "2026-10-20T02:00:00Z",
+    "end_at": "2026-10-20T02:20:00Z",
+    "mode": "IN_PERSON"
+  },
+  {
+    "key": "AV_A_HIST_S2",
+    "id": "21f42f92-d0d1-5b98-9409-31a26e189d05",
+    "availability_id": "eee4b9d8-f667-5f6d-994f-136ddb8c642e",
+    "doctor_id": "def08225-35f3-511c-af7d-11f9ebe4c0e7",
+    "start_at": "2026-10-20T02:20:00Z",
+    "end_at": "2026-10-20T02:40:00Z",
+    "mode": "IN_PERSON"
+  },
+  {
+    "key": "AV_A_HIST_S3",
+    "id": "44dea4c8-acdb-5552-afd0-055f9d79f0b1",
+    "availability_id": "eee4b9d8-f667-5f6d-994f-136ddb8c642e",
+    "doctor_id": "def08225-35f3-511c-af7d-11f9ebe4c0e7",
+    "start_at": "2026-10-20T02:40:00Z",
+    "end_at": "2026-10-20T03:00:00Z",
+    "mode": "IN_PERSON"
+  },
+  {
+    "key": "AV_B_REMOTE_HIST_S1",
+    "id": "f95048f7-8484-5b91-b1f2-d79c58c1b3ef",
+    "availability_id": "a6b228fc-2d6b-5644-b498-dc10d384df34",
+    "doctor_id": "33e92afe-0c78-53d5-adf1-9ad9b81266f5",
+    "start_at": "2026-10-21T03:00:00Z",
+    "end_at": "2026-10-21T03:20:00Z",
+    "mode": "TELEHEALTH"
+  },
+  {
+    "key": "AV_B_REMOTE_HIST_S2",
+    "id": "59307893-9711-5db1-8b3e-7aab745e38c1",
+    "availability_id": "a6b228fc-2d6b-5644-b498-dc10d384df34",
+    "doctor_id": "33e92afe-0c78-53d5-adf1-9ad9b81266f5",
+    "start_at": "2026-10-21T03:20:00Z",
+    "end_at": "2026-10-21T03:40:00Z",
+    "mode": "TELEHEALTH"
+  },
+  {
+    "key": "AV_B_REMOTE_HIST_S3",
+    "id": "7bcfeed1-34d9-53ce-8e88-f87fd3e0a6a7",
+    "availability_id": "a6b228fc-2d6b-5644-b498-dc10d384df34",
+    "doctor_id": "33e92afe-0c78-53d5-adf1-9ad9b81266f5",
+    "start_at": "2026-10-21T03:40:00Z",
+    "end_at": "2026-10-21T04:00:00Z",
+    "mode": "TELEHEALTH"
+  }
+]

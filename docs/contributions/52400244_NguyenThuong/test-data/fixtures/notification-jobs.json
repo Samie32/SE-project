@@ -1,0 +1,28 @@
+[
+  {
+    "key": "NOT_A_REMINDER",
+    "id": "ab380692-e46b-5847-ae76-3a2ce335fda9",
+    "appointment_id": "416557ab-61da-5730-a4f2-1cab4785cb2f",
+    "appointment_version": 1,
+    "channel": "EMAIL",
+    "due_at": "2026-11-10T01:30:00Z",
+    "status": "PENDING",
+    "attempts": 0,
+    "dedupe_key": "demo:apt-a:1:reminder:email",
+    "lease_until": null,
+    "provider_message_id": null
+  },
+  {
+    "key": "NOT_B_REMINDER",
+    "id": "b141f7af-ab53-52a0-b302-e4474d23b3fd",
+    "appointment_id": "0a7e6f80-a574-52b2-ba91-be52a0aa9ba4",
+    "appointment_version": 1,
+    "channel": "SMS",
+    "due_at": "2026-11-10T02:30:00Z",
+    "status": "PENDING",
+    "attempts": 0,
+    "dedupe_key": "demo:apt-b:1:reminder:sms",
+    "lease_until": null,
+    "provider_message_id": null
+  }
+]

@@ -1,0 +1,44 @@
+=== Fixture validator ===
+PASS: static fixture validation (KHÔNG phải API/MySQL test)
+Groups: 16 Records: 52
+Appointments: 4 Prescription: 1 Items: 1
+Traceability: TC-01..TC-24 được lập kế hoạch; chưa chạy runtime
+=== Unittest ===
+test_contract_covers_every_implemented_operation (test_backend_demo.BackendDemoTests.test_contract_covers_every_implemented_operation) ... ok
+test_contract_detects_old_field_enum_role_and_missing_header (test_backend_demo.BackendDemoTests.test_contract_detects_old_field_enum_role_and_missing_header) ... ok
+test_http_resolves_server_ids_and_versions (test_backend_demo.BackendDemoTests.test_http_resolves_server_ids_and_versions) ... ok
+test_missing_operation_and_unknown_field_are_detected (test_backend_demo.BackendDemoTests.test_missing_operation_and_unknown_field_are_detected) ... ok
+test_next_day_uses_vietnam_date_and_skips_sunday (test_backend_demo.BackendDemoTests.test_next_day_uses_vietnam_date_and_skips_sunday) ... ok
+test_payload_uses_runtime_names_modes_and_zero_version (test_backend_demo.BackendDemoTests.test_payload_uses_runtime_names_modes_and_zero_version) ... ok
+test_reject_sunday_past_and_naive_clock (test_backend_demo.BackendDemoTests.test_reject_sunday_past_and_naive_clock) ... ok
+test_snapshot_hash_survives_git_autocrlf_checkout (test_backend_demo.BackendDemoTests.test_snapshot_hash_survives_git_autocrlf_checkout) ... ok
+test_missing_read_audit_detected (test_demo.AuditEvidenceTests.test_missing_read_audit_detected) ... ok
+test_read_record_audit_fixture_exists (test_demo.AuditEvidenceTests.test_read_record_audit_fixture_exists) ... ok
+test_appointment_overlap_rejected (test_demo.FixtureTests.test_appointment_overlap_rejected) ... ok
+test_appointment_snapshot_mismatch (test_demo.FixtureTests.test_appointment_snapshot_mismatch) ... ok
+test_base_is_consistent (test_demo.FixtureTests.test_base_is_consistent) ... ok
+test_broken_patient_reference_is_rejected (test_demo.FixtureTests.test_broken_patient_reference_is_rejected) ... ok
+test_encounter_missing_appointment (test_demo.FixtureTests.test_encounter_missing_appointment) ... ok
+test_no_password_in_users (test_demo.FixtureTests.test_no_password_in_users) ... ok
+test_notification_not_minus_30_rejected (test_demo.FixtureTests.test_notification_not_minus_30_rejected) ... ok
+test_notification_stale_version_rejected (test_demo.FixtureTests.test_notification_stale_version_rejected) ... ok
+test_prescription_item_missing_field_rejected (test_demo.FixtureTests.test_prescription_item_missing_field_rejected) ... ok
+test_prescription_without_item_rejected (test_demo.FixtureTests.test_prescription_without_item_rejected) ... ok
+test_queue_wrong_doctor_rejected (test_demo.FixtureTests.test_queue_wrong_doctor_rejected) ... ok
+test_slot_outside_availability_is_rejected (test_demo.FixtureTests.test_slot_outside_availability_is_rejected) ... ok
+test_telehealth_requires_remote (test_demo.FixtureTests.test_telehealth_requires_remote) ... ok
+test_utc_must_be_explicit (test_demo.FixtureTests.test_utc_must_be_explicit) ... ok
+test_wrong_mode_is_rejected (test_demo.FixtureTests.test_wrong_mode_is_rejected) ... ok
+test_reject_weekend_overrun (test_demo.RebaseTests.test_reject_weekend_overrun) ... ok
+test_shift_future_dates_and_keep_past_history (test_demo.RebaseTests.test_shift_future_dates_and_keep_past_history) ... ok
+
+----------------------------------------------------------------------
+Ran 27 tests in 0.118s
+
+OK
+=== Design OpenAPI catalog ===
+PASS: 30/30 OpenAPI operations có ví dụ metadata; 20 request bodies được kiểm schema (gồm negative examples).
+NOTE: schema-valid != business-valid. Chưa kiểm thử HTTP, phân quyền, side effects hay MySQL.
+=== Implemented backend contract ===
+PASS: backend request schemas/parameters, 19 operations. NOT a live API/MySQL test.
+PASS: all static checks. NOT a MySQL/API integration result.
