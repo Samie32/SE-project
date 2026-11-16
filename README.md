@@ -5,12 +5,23 @@
 Hệ thống gồm chín phân hệ, hỗ trợ quản lý lịch khám, tiếp đón bệnh nhân, khám trực tiếp và từ xa, hồ sơ bệnh án, đơn thuốc, thông báo và kiểm soát truy cập.
 
 - Công nghệ: React + TypeScript, Java Spring Boot, MySQL.
-- Giai đoạn: đã có phân tích và thiết kế; backend và môi trường local tuần 3–4 đã triển khai.
+- Backend: đã bổ sung hàng đợi, khám bệnh, bệnh án, đơn thuốc, nhắc lịch, audit và signaling từ xa. [Hướng dẫn và giới hạn tích hợp](docs/backend-completion.md).
 - Tài liệu: [Danh mục tài liệu đồ án](docs/README.md).
 
 Quy mô nhóm: **6 thành viên**, thời gian thực hiện: **8 tuần**. [Phân công nhiệm vụ và kế hoạch tiến độ](docs/project-plan.md).
 
-## Triển khai tuần 3–4
+## Chạy backend
+
+Yêu cầu Java 21+ và Docker Desktop đang chạy:
+
+```powershell
+.\scripts\run-backend.ps1
+```
+
+Script khởi động hạ tầng và backend. Swagger: http://localhost:8080/swagger-ui/index.html.
+[API và các luồng khám](docs/backend-completion.md).
+
+## Tài liệu các giai đoạn trước
 
 - [Hướng dẫn chạy backend và môi trường local](docs/running.md).
 - [API đã triển khai và tích hợp frontend](docs/api/implementation.md).

@@ -21,6 +21,19 @@ public class AuthController {
     return access.actor(jwt);
   }
 
+  @GetMapping("/me/profile")
+  public Object profile(@AuthenticationPrincipal Jwt jwt) {
+    return access.profile(access.actor(jwt));
+  }
+
+  @GetMapping("/users")
+  public Object users(
+      @AuthenticationPrincipal Jwt jwt,
+      @RequestParam(defaultValue = "20") int limit,
+      @RequestParam(defaultValue = "0") int offset) {
+    return access.users(access.actor(jwt), limit, offset);
+  }
+
   public record Roles(@NotEmpty Set<String> roles) {}
 
   @PutMapping("/users/{id}/roles")

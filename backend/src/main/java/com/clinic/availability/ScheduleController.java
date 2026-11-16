@@ -65,4 +65,16 @@ public class ScheduleController {
         mode,
         specialtyId == null ? null : specialtyId.toString());
   }
+
+  @DeleteMapping("/availability/{id}")
+  @ResponseStatus(org.springframework.http.HttpStatus.NO_CONTENT)
+  public void removeAvailability(@AuthenticationPrincipal Jwt j, @PathVariable UUID id) {
+    service.remove(access.actor(j), id.toString(), false);
+  }
+
+  @DeleteMapping("/time-off/{id}")
+  @ResponseStatus(org.springframework.http.HttpStatus.NO_CONTENT)
+  public void removeTimeOff(@AuthenticationPrincipal Jwt j, @PathVariable UUID id) {
+    service.remove(access.actor(j), id.toString(), true);
+  }
 }

@@ -15,15 +15,18 @@ public class NotificationWorker {
   private final JavaMailSender mail;
   private final Crypto crypto;
   private final boolean enabled;
+  private final Clock clock;
 
   public NotificationWorker(
       NotificationStore s,
       JavaMailSender m,
       Crypto c,
+      Clock clock,
       @Value("${clinic.notifications-enabled}") boolean enabled) {
     store = s;
     mail = m;
     crypto = c;
+    this.clock = clock;
     this.enabled = enabled;
   }
 
@@ -41,6 +44,12 @@ public class NotificationWorker {
     var data = store.delivery(job);
     if (!data.get("version").equals(job.get("appointmentVersion"))) {
       store.complete(job, "SKIPPED", "OBSOLETE_VERSION");
+      return;
+    }
+    if ("REMINDER".equals(job.get("eventType"))
+        && (!"CONFIRMED".equals(data.get("status"))
+            || !clock.instant().isBefore(Db.instant(data, "startAt")))) {
+      store.complete(job, "SKIPPED", "APPOINTMENT_NOT_REMINDABLE");
       return;
     }
     if (data.get("emailEncrypted") == null) {

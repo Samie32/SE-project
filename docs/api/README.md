@@ -1,5 +1,7 @@
 # Đặc tả giao diện lập trình ứng dụng
 
+> Triển khai hiện tại: [hướng dẫn backend](../backend-completion.md) và [OpenAPI JSON](openapi.json). YAML bên dưới là bản thiết kế, không phải hợp đồng sinh từ controller. Backend dùng ProblemDetail và header X-Request-Id cho lỗi/mã liên kết.
+
 [Hợp đồng OpenAPI](openapi.yaml) xác định 30 thao tác API của chín phân hệ. Tên miền example.invalid được sử dụng làm địa chỉ minh họa trong tài liệu.
 
 ## Quy ước giao tiếp

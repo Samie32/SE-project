@@ -38,9 +38,11 @@ public class SecurityConfig {
   SecurityFilterChain security(HttpSecurity http, @Value("${clinic.cors}") String origin)
       throws Exception {
     var cors = new CorsConfiguration();
-    cors.setAllowedOrigins(List.of(origin));
-    cors.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "OPTIONS"));
-    cors.setAllowedHeaders(List.of("Authorization", "Content-Type", "Idempotency-Key"));
+    cors.setAllowedOrigins(java.util.Arrays.stream(origin.split(",")).map(String::trim).toList());
+    cors.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
+    cors.setExposedHeaders(List.of("X-Request-Id"));
+    cors.setAllowedHeaders(
+        List.of("Authorization", "Content-Type", "Idempotency-Key", "X-Room-Token"));
     var source = new UrlBasedCorsConfigurationSource();
     source.registerCorsConfiguration("/**", cors);
     return http.csrf(c -> c.disable())

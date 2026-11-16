@@ -142,9 +142,9 @@ public class AppointmentService {
     Problem.require(
         db.count(
                 """
-                SELECT COUNT(*) FROM appointment WHERE id<>? AND status IN ('CONFIRMED','CHECKED_IN','IN_PROGRESS')
-                AND (doctor_id=? OR patient_id=?) AND start_at<? AND end_at>?
-                """,
+SELECT COUNT(*) FROM appointment WHERE id<>? AND status IN ('CONFIRMED','CHECKED_IN','IN_PROGRESS')
+AND (doctor_id=? OR patient_id=?) AND start_at<? AND end_at>?
+""",
                 excluded,
                 doctor,
                 patient,
@@ -168,6 +168,15 @@ public class AppointmentService {
         result.get("version"),
         event,
         clock.instant());
+    Instant reminderAt = Db.instant(result, "startAt").minusSeconds(1800);
+    if ("CONFIRMED".equals(result.get("status")) && !reminderAt.isBefore(clock.instant()))
+      db.update(
+          "INSERT INTO notification_job(id,appointment_id,appointment_version,event_type,due_at)"
+              + " VALUES(?,?,?,'REMINDER',?)",
+          Db.id(),
+          id,
+          result.get("version"),
+          reminderAt);
     idem.complete(actor.id(), operation, key, result);
     return result;
   }

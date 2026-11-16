@@ -1,5 +1,7 @@
 # Thiết kế triển khai backend
 
+> Cập nhật: [backend và hợp đồng tích hợp hiện tại](backend-completion.md). Các mô tả tuần 3–4 dưới đây được giữ để đối chiếu lịch sử.
+
 ## Cấu trúc và giao dịch
 
 Spring Boot modular monolith, Java 21, Spring JDBC, MySQL 8.4 InnoDB, Flyway. Controller kiểm tra định dạng; service kiểm tra quyền và quản lý giao dịch; Db chuẩn hóa truy vấn tham số và ánh xạ snake_case sang camelCase.

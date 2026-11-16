@@ -12,11 +12,13 @@ public class Idempotency {
   private final Db db;
   private final ObjectMapper json;
   private final Clock clock;
+  private final Crypto crypto;
 
-  public Idempotency(Db db, ObjectMapper json, Clock clock) {
+  public Idempotency(Db db, ObjectMapper json, Clock clock, Crypto crypto) {
     this.db = db;
     this.json = json;
     this.clock = clock;
+    this.crypto = crypto;
   }
 
   public Map<String, Object> begin(String actor, String operation, String key, Object payload) {
@@ -57,9 +59,13 @@ public class Idempotency {
         "Idempotency key already used with different payload");
     if (row.get("responseJson") == null) return null;
     try {
+      String saved = row.get("responseJson").toString();
+      var envelope = json.readTree(saved);
+      if (envelope.has("encryptedResponse"))
+        saved =
+            crypto.decrypt(Base64.getDecoder().decode(envelope.get("encryptedResponse").asText()));
       return json.readValue(
-          row.get("responseJson").toString(),
-          new com.fasterxml.jackson.core.type.TypeReference<Map<String, Object>>() {});
+          saved, new com.fasterxml.jackson.core.type.TypeReference<Map<String, Object>>() {});
     } catch (Exception e) {
       throw new IllegalStateException("Invalid persisted response", e);
     }
@@ -70,7 +76,11 @@ public class Idempotency {
       db.update(
           "UPDATE idempotency_record SET response_json=? WHERE actor_id=? AND operation=? AND"
               + " request_key=?",
-          json.writeValueAsString(result),
+          json.writeValueAsString(
+              Map.of(
+                  "encryptedResponse",
+                  Base64.getEncoder()
+                      .encodeToString(crypto.encrypt(json.writeValueAsString(result))))),
           actor,
           op,
           key);

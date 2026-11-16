@@ -1,5 +1,7 @@
 # Hệ thống quản lý phòng khám ngoại trú, đặt lịch và khám từ xa
 
+> Chạy bản hiện tại bằng `.\scripts\run-backend.ps1` (tự khởi động hạ tầng Docker). Xem [API và hướng dẫn backend mới](backend-completion.md); nội dung tuần 3–4 bên dưới là lịch sử triển khai.
+
 Bản triển khai tuần 3–4 của **Vòng Kỷ Phong — 52400225**, gồm backend Spring Boot, MySQL và môi trường phát triển. Mã nguồn được tích hợp vào cấu trúc SE-project cùng bộ tài liệu phân tích và thiết kế.
 
 ## Phạm vi đã triển khai

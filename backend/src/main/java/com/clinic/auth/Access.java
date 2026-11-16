@@ -109,4 +109,38 @@ public class Access {
         "UPDATE user_account SET email_encrypted=? WHERE id=?", crypto.encrypt(email), actor.id());
     audit.record(actor.id(), "CONTACT_UPDATED", actor.id());
   }
+
+  @Transactional
+  public Map<String, Object> profile(Actor actor) {
+    var result = db.one("SELECT id,display_name,active FROM user_account WHERE id=?", actor.id());
+    result.put("roles", actor.roles());
+    var patients = db.list("SELECT id FROM patient WHERE user_id=?", actor.id());
+    var doctors = db.list("SELECT id FROM doctor WHERE user_id=?", actor.id());
+    result.put("patientId", patients.isEmpty() ? null : patients.getFirst().get("id"));
+    result.put("doctorId", doctors.isEmpty() ? null : doctors.getFirst().get("id"));
+    audit.record(actor.id(), "PROFILE_READ", actor.id());
+    return result;
+  }
+
+  @Transactional
+  public List<Map<String, Object>> users(Actor actor, int limit, int offset) {
+    actor.require("ADMINISTRATOR");
+    Problem.require(limit > 0 && limit <= 100 && offset >= 0, 400, "Invalid pagination");
+    var users =
+        db.list(
+            "SELECT id,display_name,active FROM user_account ORDER BY display_name,id LIMIT ?"
+                + " OFFSET ?",
+            limit,
+            offset);
+    for (var user : users)
+      user.put(
+          "roles",
+          db
+              .list("SELECT role FROM user_role WHERE user_id=? ORDER BY role", user.get("id"))
+              .stream()
+              .map(x -> x.get("role"))
+              .toList());
+    audit.record(actor.id(), "USERS_READ", actor.id());
+    return users;
+  }
 }
