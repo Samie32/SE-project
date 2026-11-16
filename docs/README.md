@@ -10,7 +10,7 @@ Bộ tài liệu trình bày phạm vi, yêu cầu, mô hình nghiệp vụ và 
 | Phân tích nghiệp vụ | [Quy tắc nghiệp vụ](requirements/business-rules.md), [quy trình nghiệp vụ](analysis/business-processes.md), [đặc tả ca sử dụng](analysis/use-cases.md) |
 | Yêu cầu người dùng | [User stories](requirements/user-stories.md), [tiêu chí chấp nhận](requirements/acceptance-criteria.md) |
 | Thiết kế hệ thống | [Kiến trúc](design/architecture/architecture.md), [phân quyền và bảo mật](design/architecture/security.md), [mô hình dữ liệu](design/database/data-dictionary.md), [giao diện người dùng](design/gui-mockups/screen-specifications.md) |
-| Giao diện lập trình | [Hợp đồng BE–FE 1.0.0](api/integration-contract.md), [OpenAPI](api/openapi.yaml), [backlog tích hợp](api/integration-backlog.md), [danh mục API](api/README.md) |
+| Giao diện lập trình | [Hợp đồng OpenAPI](api/openapi.yaml), [quy ước API](api/README.md) |
 | Kiểm thử | [Kế hoạch kiểm thử](testing/test-plan.md), [ca kiểm thử](testing/test-cases.md), [ma trận truy vết](requirements/traceability-matrix.md) |
 | Tổ chức thực hiện | [Phân công nhiệm vụ và tiến độ 8 tuần](project-plan.md) |
 
@@ -24,5 +24,7 @@ Bộ tài liệu trình bày phạm vi, yêu cầu, mô hình nghiệp vụ và 
 | UC / TC | Ca sử dụng / ca kiểm thử |
 
 ## Triển khai và kiểm chứng
+
+[Frontend gộp chính và kết quả chuẩn bị tích hợp](frontend-unified.md), theo [hợp đồng BE–FE 1.0.0](api/integration-contract.md). Các frontend cũ giữ làm tài liệu lịch sử.
 
 [Hướng dẫn chạy](running.md), [thiết kế backend triển khai](backend-design.md), [API tuần 3–4](api/implementation.md) và [kết quả thực hiện](week-03-04.md). Các tài liệu thiết kế chín phân hệ vẫn mô tả phạm vi toàn hệ thống.

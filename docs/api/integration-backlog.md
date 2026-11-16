@@ -2,6 +2,8 @@
 
 Ngày 16/11/2026. Chuẩn: [integration-contract.md](integration-contract.md), [openapi.yaml](openapi.yaml). Đây là việc cần thực hiện, không phải danh sách lỗi đã sửa. Thay đổi lần này chỉ đồng bộ nhánh, hợp đồng, tài liệu và kiểm tra tĩnh.
 
+**Cập nhật sau đợt chuẩn bị FE cùng ngày:** frontend chính đã chuyển sang source ZIP ở `frontend/`; adapter API, profile, current clinical, queue/audit và vòng đời telehealth đã được sửa theo hợp đồng. FE đạt 29 test, production build và Docker build. [Hướng dẫn và bằng chứng](../frontend-unified.md). BE-01…04, media WebRTC và E2E thật vẫn mở; các bảng dưới là phạm vi công việc gốc, không có nghĩa toàn bộ FE vẫn chưa sửa.
+
 ## Backend
 
 | ID | Ưu tiên | Việc chốt phải sửa | Điều kiện kiểm chứng |
@@ -17,7 +19,7 @@ BE-01, GET availability cho lễ tân và GET doctors cho auditor đã có probe
 
 ## Frontend gộp
 
-Tham chiếu đường dẫn trong `frontend-unified.zip` đã đánh giá. Nhánh hiện vẫn giữ các frontend patient/doctor/staff; commit hợp đồng này không tự thay chúng bằng ZIP.
+Tham chiếu đường dẫn trong `frontend-unified.zip` đã đánh giá. Sau đợt chuẩn bị FE, Compose dùng frontend gộp ngay tại `frontend/`; frontend patient/doctor/staff cũ vẫn giữ đối chiếu. FE-API/CLINICAL/QUEUE/AUDIT/CONFIG đã chuẩn bị và có test; FE-WEBRTC mới hoàn thiện phần vòng đời và adapter, chưa media.
 
 | Nhóm | Nội dung | Tiêu chí hoàn thành |
 |---|---|---|

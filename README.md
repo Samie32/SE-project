@@ -7,7 +7,7 @@ Hệ thống gồm chín phân hệ, hỗ trợ quản lý lịch khám, tiếp 
 - Công nghệ: React + TypeScript, Java Spring Boot, MySQL.
 - Backend: đã bổ sung hàng đợi, khám bệnh, bệnh án, đơn thuốc, nhắc lịch, audit và signaling từ xa. [Hướng dẫn và giới hạn tích hợp](docs/backend-completion.md).
 - Tài liệu: [Danh mục tài liệu đồ án](docs/README.md).
-- Hợp đồng BE–FE chốt 16/11/2026: [quy ước tích hợp 1.0.0](docs/api/integration-contract.md), [OpenAPI](docs/api/openapi.yaml), [công việc còn lại](docs/api/integration-backlog.md). Các lỗi quyền/audit và việc nối frontend vẫn cần thực hiện theo backlog.
+- Frontend chính: [ClinicCare gộp năm vai trò](docs/frontend-unified.md), source ngay trong `frontend/`, theo [hợp đồng BE–FE 1.0.0](docs/api/integration-contract.md).
 
 Quy mô nhóm: **6 thành viên**, thời gian thực hiện: **8 tuần**. [Phân công nhiệm vụ và kế hoạch tiến độ](docs/project-plan.md).
 
@@ -34,8 +34,8 @@ Chạy từ thư mục gốc SE-project:
 
 ~~~powershell
 ./scripts/setup-local.ps1
-docker compose up -d --build
+docker compose up -d --build --remove-orphans
 .\scripts\apply-login-theme.ps1
 ~~~
 
-Cổng bệnh nhân: http://localhost:5173. Đăng nhập qua Keycloak bằng tài khoản patient hoặc patient2, mật khẩu DEMO_PASSWORD trong .env do script setup sinh. Frontend gọi API qua proxy; backend quản lý kết nối MySQL.
+Cổng frontend gộp: http://localhost:5173. Đăng nhập qua Keycloak bằng tài khoản demo theo vai trò; mật khẩu DEMO_PASSWORD trong .env do script setup sinh. Frontend gọi API qua proxy; backend quản lý kết nối MySQL. Frontend cũ chỉ giữ đối chiếu. Media video/audio hai phía còn cần tích hợp.

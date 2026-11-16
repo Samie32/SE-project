@@ -4,6 +4,8 @@
 
 Backend Spring Boot có API cho chín phân hệ. Migration V2 bổ sung hàng đợi, lần khám, bệnh án, đơn thuốc và phiên khám từ xa; giữ nguyên V1 và dữ liệu đặt lịch hiện có.
 
+Frontend chính hiện là [bản gộp tại frontend/](frontend-unified.md); các frontend cũ giữ để đối chiếu. Đợt chuẩn bị FE không sửa backend hoặc khẳng định đã nghiệm thu media/E2E.
+
 ## Chạy local
 
 Yêu cầu Java 21 trở lên và Docker Desktop đang chạy. Từ thư mục gốc:

@@ -1,0 +1,10 @@
+node_modules
+dist
+.git
+.env
+.env.*
+*.log
+frontend_patient
+frontend_doctor
+frontend_staff
+coverage

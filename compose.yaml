@@ -1,11 +1,17 @@
 name: clinic-telehealth
 services:
-  patient-frontend:
+  frontend:
     build:
-      context: ./frontend/frontend_patient
+      context: ./frontend
       args:
         VITE_OIDC_AUTHORITY: ${PATIENT_OIDC_AUTHORITY:-http://localhost:8180/realms/clinic}
         VITE_OIDC_CLIENT_ID: ${PATIENT_OIDC_CLIENT_ID:-clinic-web}
+        VITE_BACKEND_CHECKIN: ${FE_BACKEND_CHECKIN:-true}
+        VITE_BACKEND_QUEUE: ${FE_BACKEND_QUEUE:-true}
+        VITE_BACKEND_PROGRESS: ${FE_BACKEND_PROGRESS:-true}
+        VITE_BACKEND_CLINICAL: ${FE_BACKEND_CLINICAL:-true}
+        VITE_BACKEND_TELEHEALTH: ${FE_BACKEND_TELEHEALTH:-true}
+        VITE_BACKEND_AUDIT: ${FE_BACKEND_AUDIT:-true}
     ports: ["127.0.0.1:5173:80"]
     depends_on:
       backend: {condition: service_started}
