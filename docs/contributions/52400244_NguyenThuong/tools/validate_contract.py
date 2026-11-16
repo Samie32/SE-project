@@ -10,7 +10,9 @@ except ImportError:
     raise SystemExit('Thiếu dependency: python -m pip install -r docs/contributions/52400244_NguyenThuong/tools/requirements-contract.txt')
 ROOT=Path(__file__).resolve().parents[4]
 BASE=Path(__file__).resolve().parent.parent
-SPEC=ROOT/'docs/api/openapi.yaml'
+# Catalog/fixtures giai đoạn thiết kế gắn với bản 0.1, không phải hợp đồng 1.0.0.
+# Kiểm tra hợp đồng mới bằng scripts/check-api-contract.py.
+SPEC=ROOT/'docs/api/archive/openapi-design-0.1.yaml'
 CATALOG=BASE/'test-data/scenarios/api-catalog.json'
 EX=BASE/'test-data/api-examples'
 

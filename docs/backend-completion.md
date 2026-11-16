@@ -1,5 +1,7 @@
 # Backend: triển khai và tích hợp
 
+> Cập nhật hợp đồng 16/11/2026: FE/BE triển khai tiếp theo [hợp đồng 1.0.0](api/integration-contract.md) và [OpenAPI YAML](api/openapi.yaml). Nội dung dưới mô tả baseline đang chạy. [Backlog](api/integration-backlog.md) ghi riêng audit từ chối, quyền đọc và queue rỗng 204 chưa được sửa; không coi việc chốt tài liệu là đã nghiệm thu.
+
 Backend Spring Boot có API cho chín phân hệ. Migration V2 bổ sung hàng đợi, lần khám, bệnh án, đơn thuốc và phiên khám từ xa; giữ nguyên V1 và dữ liệu đặt lịch hiện có.
 
 ## Chạy local

@@ -72,6 +72,8 @@ Nếu PowerShell chặn script, chạy các lệnh Python riêng, gồm `backend
 
 ## Không thực hiện trong phạm vi đóng góp này
 
+> Phạm vi dưới đây là của bộ dữ liệu/demo giai đoạn trước. Theo yêu cầu mới ngày 16/11/2026, nhánh đã đồng bộ main và bổ sung [hợp đồng BE–FE 1.0.0](../../api/integration-contract.md) cùng [backlog](../../api/integration-backlog.md). Lần cập nhật này chưa sửa mã nghiệp vụ hay tích hợp frontend ZIP. Catalog 30 thao tác cũ được kiểm với bản thiết kế trong `docs/api/archive/`; hợp đồng mới kiểm bằng `scripts/check-api-contract.py`.
+
 - Không chỉnh `backend/`, `frontend/`, `docs/requirements/`, `docs/api/` hoặc migration nhóm.
 - Không tự xây danh mục thuốc, tồn kho hay thêm `Medication` vì mô hình chính có `Prescription` và `PrescriptionItem` lưu `medicine_name`.
 - Không tạo seed SQL chạy production; bộ JSON cần được Phong map vào migration, tạo dữ liệu mã hóa và tài khoản IdP thử nghiệm.

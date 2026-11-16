@@ -7,6 +7,7 @@ Hệ thống gồm chín phân hệ, hỗ trợ quản lý lịch khám, tiếp 
 - Công nghệ: React + TypeScript, Java Spring Boot, MySQL.
 - Backend: đã bổ sung hàng đợi, khám bệnh, bệnh án, đơn thuốc, nhắc lịch, audit và signaling từ xa. [Hướng dẫn và giới hạn tích hợp](docs/backend-completion.md).
 - Tài liệu: [Danh mục tài liệu đồ án](docs/README.md).
+- Hợp đồng BE–FE chốt 16/11/2026: [quy ước tích hợp 1.0.0](docs/api/integration-contract.md), [OpenAPI](docs/api/openapi.yaml), [công việc còn lại](docs/api/integration-backlog.md). Các lỗi quyền/audit và việc nối frontend vẫn cần thực hiện theo backlog.
 
 Quy mô nhóm: **6 thành viên**, thời gian thực hiện: **8 tuần**. [Phân công nhiệm vụ và kế hoạch tiến độ](docs/project-plan.md).
 
