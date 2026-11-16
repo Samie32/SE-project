@@ -2,7 +2,7 @@
 
 Ngày 16/11/2026. Chuẩn: [integration-contract.md](integration-contract.md), [openapi.yaml](openapi.yaml). Đây là việc cần thực hiện, không phải danh sách lỗi đã sửa. Thay đổi lần này chỉ đồng bộ nhánh, hợp đồng, tài liệu và kiểm tra tĩnh.
 
-**Cập nhật sau đợt chuẩn bị FE cùng ngày:** frontend chính đã chuyển sang source ZIP ở `frontend/`; adapter API, profile, current clinical, queue/audit và vòng đời telehealth đã được sửa theo hợp đồng. FE đạt 29 test, production build và Docker build. [Hướng dẫn và bằng chứng](../frontend-unified.md). BE-01…04, media WebRTC và E2E thật vẫn mở; các bảng dưới là phạm vi công việc gốc, không có nghĩa toàn bộ FE vẫn chưa sửa.
+**Cập nhật 17/11/2026:** frontend chính đã chuyển sang source ZIP ở `frontend/`; adapter API, profile, current clinical, queue/audit và vòng đời telehealth đã được sửa theo hợp đồng. Media WebRTC phía FE đã triển khai; xem [hướng dẫn media](../webrtc-client.md) và [bằng chứng FE](../frontend-unified.md). BE-01…04, E2E BE thật và nghiệm thu TURN/xuyên NAT vẫn mở; các bảng dưới là phạm vi công việc gốc.
 
 ## Backend
 
@@ -19,7 +19,7 @@ BE-01, GET availability cho lễ tân và GET doctors cho auditor đã có probe
 
 ## Frontend gộp
 
-Tham chiếu đường dẫn trong `frontend-unified.zip` đã đánh giá. Sau đợt chuẩn bị FE, Compose dùng frontend gộp ngay tại `frontend/`; frontend patient/doctor/staff cũ vẫn giữ đối chiếu. FE-API/CLINICAL/QUEUE/AUDIT/CONFIG đã chuẩn bị và có test; FE-WEBRTC mới hoàn thiện phần vòng đời và adapter, chưa media.
+Tham chiếu đường dẫn trong `frontend-unified.zip` đã đánh giá. Compose dùng frontend gộp ngay tại `frontend/`; frontend patient/doctor/staff cũ vẫn giữ đối chiếu. FE-API/CLINICAL/QUEUE/AUDIT/CONFIG đã chuẩn bị và có test; FE-WEBRTC đã có media client, chờ nối BE thật và nghiệm thu hạ tầng.
 
 | Nhóm | Nội dung | Tiêu chí hoàn thành |
 |---|---|---|
@@ -43,4 +43,4 @@ Tham chiếu đường dẫn trong `frontend-unified.zip` đã đánh giá. Sau 
 - Bộ backend gốc trên MySQL 8.4: 49/49 test đạt tại lần đối chiếu 16/11/2026; việc này không xóa ba lỗi bổ sung theo đặc tả.
 - ZIP frontend: 12/12 test logic/mock và production build đạt; chưa E2E với Keycloak/BE thật.
 - Các kiểm tra Python đi kèm chỉ là kiểm tra hợp đồng tĩnh. Snapshot runtime có response generic Object nên không xác minh được đầy đủ response DTO hoặc quyền chỉ bằng so sánh OpenAPI.
-- Chưa thay mã nghiệp vụ BE, chưa tích hợp ZIP và chưa nghiệm thu cuộc gọi P2P. Mục provider callback/outbox đóng media trong thiết kế vẫn mở; signaling nội bộ không chứng minh nhà cung cấp đã đóng media.
+- Chưa thay mã nghiệp vụ BE. ZIP đã thay frontend chính; media client có kiểm thử với signaling fixture. Chưa nghiệm thu cuộc gọi qua BE thật/xuyên NAT. Mục provider callback/outbox đóng media trong thiết kế vẫn mở; signaling nội bộ không chứng minh nhà cung cấp đã đóng media.

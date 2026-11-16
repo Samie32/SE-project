@@ -26,3 +26,5 @@ pnpm-debug.log*
 .idea/
 .DS_Store
 *.local
+test-results/
+playwright-report/

@@ -38,4 +38,4 @@ docker compose up -d --build --remove-orphans
 .\scripts\apply-login-theme.ps1
 ~~~
 
-Cổng frontend gộp: http://localhost:5173. Đăng nhập qua Keycloak bằng tài khoản demo theo vai trò; mật khẩu DEMO_PASSWORD trong .env do script setup sinh. Frontend gọi API qua proxy; backend quản lý kết nối MySQL. Frontend cũ chỉ giữ đối chiếu. Media video/audio hai phía còn cần tích hợp.
+Cổng frontend gộp: http://localhost:5173. Đăng nhập qua Keycloak bằng tài khoản demo theo vai trò; mật khẩu DEMO_PASSWORD trong .env do script setup sinh. Frontend gọi API qua proxy; backend quản lý kết nối MySQL. Frontend cũ chỉ giữ đối chiếu. FE đã có media WebRTC hai phía; xem [cấu hình và giới hạn nghiệm thu](docs/webrtc-client.md) trước khi nối BE thật và triển khai Internet.

@@ -98,7 +98,7 @@ Join trả sessionId, token, expiresAt, signalingUrl. Token ngẫu nhiên 256-bi
 - End chuyển ENDED, xóa token/message nguyên tử; không cấp lại token/mở lại phòng. Sau đó chốt bệnh án và gọi progress COMPLETED riêng.
 - NO_SHOW chuyển CREATED/WAITING → CANCELLED, thu hồi token.
 
-**Giới hạn:** frontend chưa có cuộc gọi WebRTC thật nối API này. Backend không chuyển tiếp media và không thể cưỡng chế ngắt luồng P2P đã thiết lập; client phải quan sát trạng thái và đóng RTCPeerConnection khi ENDED. Gọi xuyên NAT cần STUN/TURN, HTTPS và kiểm thử hai trình duyệt. Thiết kế callback/outbox đóng phòng nhà cung cấp trong đặc tả chưa áp dụng cho signaling nội bộ. Nếu cần cưỡng chế thu hồi media phía server, cần SFU/provider cùng outbox đóng phòng và webhook xác thực. Test signaling không phải nghiệm thu video/audio đầu cuối.
+**Giới hạn:** [frontend đã có media WebRTC](webrtc-client.md), nhưng chưa nghiệm thu nối API BE thật. Backend không chuyển tiếp media và không thể cưỡng chế ngắt luồng P2P đã thiết lập; client quan sát trạng thái và đóng RTCPeerConnection khi ENDED. Gọi xuyên NAT cần STUN/TURN, HTTPS và kiểm thử hai mạng. Thiết kế callback/outbox đóng phòng nhà cung cấp trong đặc tả chưa áp dụng cho signaling nội bộ. Nếu cần cưỡng chế thu hồi media phía server, cần SFU/provider cùng outbox đóng phòng và webhook xác thực. Test signaling không phải nghiệm thu video/audio đầu cuối.
 
 ## Email và tác vụ nền
 

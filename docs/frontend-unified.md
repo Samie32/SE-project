@@ -53,8 +53,8 @@ Có bộ chọn tài khoản demo và banner giả lập; dữ liệu nằm tron
 ## Phần còn lại trước nghiệm thu
 
 - **BE-01…04** trong [backlog](api/integration-backlog.md) chưa sửa. Trong race hàng đợi vừa hết, baseline có thể trả 404; FE hiển thị lỗi và cho tải lại, không giả thành công.
-- **Media WebRTC hai phía chưa triển khai**: UI camera/micro chỉ xem trước thiết bị; các API signaling đã sẵn sàng nhưng chưa có RTCPeerConnection, remote tracks hoặc STUN/TURN. Bật TELEHEALTH chỉ bật vòng đời phiên, không xác nhận cuộc gọi thật.
-- Cần E2E Keycloak → UI → BE → MySQL cho luồng trực tiếp, kiểm tra hai tab/stale version và tải lại draft; sau đó triển khai media và nghiệm thu hai trình duyệt. Không dùng test mock/build xanh để kết luận đã nối hoàn chỉnh.
+- **Media WebRTC hai phía đã triển khai ở FE**, gồm remote tracks, audio-only, mute, token refresh, ICE restart và cleanup. Xem [hướng dẫn media](webrtc-client.md). Cần cấu hình dịch vụ ICE/TURN cho triển khai Internet.
+- Cần E2E Keycloak → UI → BE → MySQL cho luồng trực tiếp, kiểm tra hai tab/stale version và tải lại draft; nghiệm thu media với BE thật và hai mạng. Không dùng test fixture/build xanh để kết luận đã nối hoàn chỉnh.
 - NFR tải, backup/restore, usability và cấu hình TLS/TURN vẫn cần kiểm chứng riêng.
 
 ## Kiểm tra FE
@@ -75,3 +75,10 @@ Workflow `unified-frontend.yml` kiểm tra frontend mới; workflow patient cũ 
 - `docker compose --env-file .env.example config --quiet` đạt; build image `cliniccare-unified:local` đạt với source sau các sửa lỗi cuối.
 - Playwright/Edge: mở cổng bác sĩ, trang khám và audit bằng tài khoản mock; không thấy console error. Đã kiểm tra ảnh audit ở viewport 390×844. Không gọi đây là E2E đăng nhập/API thật.
 - Hai lỗi tìm thấy khi review (mất key phát hành do đổi tab; poll cũ ghi đè trạng thái mới) đã có regression test đạt. Media hai phía và BE-01…04 vẫn chưa triển khai trong đợt này.
+
+## Hoàn thiện media FE 17/11/2026
+
+- **41/41 test FE đạt** trên source cuối, gồm 12 test controller WebRTC và 29 test API/UI trước đó. Đã thêm regression cho ICE thế hệ mới, publication cũ, setLocalDescription đang chờ và ICE restart không phát event connected mới.
+- **2/2 bài Playwright Chromium đạt**: hai context nhận RTP audio/video hai chiều và video từ xa có kích thước thực; mute/unmute, refresh token gần hết hạn, restart ICE, bác sĩ end đóng cả hai peer và dừng gửi signaling; camera bị từ chối dùng audio thật, rời/vào lại.
+- Thiết bị media của Chromium là thiết bị giả, RTCPeerConnection và RTP là native. Signaling HTTP dùng fixture mô phỏng hợp đồng. Chưa nghiệm thu BE/Keycloak/MySQL thật, camera vật lý, TURN hay xuyên NAT.
+- TypeScript/Vite production build, Compose config và Docker image `cliniccare-unified:local` đạt trên source cuối. [Tài liệu media](webrtc-client.md) ghi payload v1, cấu hình runtime và bước nghiệm thu hạ tầng. BE-01…04 vẫn mở.

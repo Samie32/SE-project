@@ -1,9 +1,9 @@
 name: Unified frontend
 on:
   push:
-    paths: ['frontend/src/**', 'frontend/tests/**', 'frontend/*.json', 'frontend/*.ts', 'frontend/Dockerfile', 'frontend/nginx.conf', 'frontend/.dockerignore', 'compose.yaml', '.github/workflows/unified-frontend.yml']
+    paths: ['frontend/src/**', 'frontend/tests/**', 'frontend/public/**', 'frontend/*.json', 'frontend/*.ts', 'frontend/Dockerfile', 'frontend/nginx.conf', 'frontend/.dockerignore', 'compose.yaml', '.github/workflows/unified-frontend.yml']
   pull_request:
-    paths: ['frontend/src/**', 'frontend/tests/**', 'frontend/*.json', 'frontend/*.ts', 'frontend/Dockerfile', 'frontend/nginx.conf', 'frontend/.dockerignore', 'compose.yaml', '.github/workflows/unified-frontend.yml']
+    paths: ['frontend/src/**', 'frontend/tests/**', 'frontend/public/**', 'frontend/*.json', 'frontend/*.ts', 'frontend/Dockerfile', 'frontend/nginx.conf', 'frontend/.dockerignore', 'compose.yaml', '.github/workflows/unified-frontend.yml']
 permissions:
   contents: read
 jobs:
@@ -23,4 +23,13 @@ jobs:
       - run: npm run typecheck
       - run: npm test
       - run: npm run build
+      - run: npx playwright install --with-deps chromium
+      - run: npm run test:rtc
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: webrtc-test-evidence
+          path: |
+            frontend/test-results/
+            frontend/playwright-report/
       - run: docker build -t cliniccare-unified .

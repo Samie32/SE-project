@@ -72,13 +72,13 @@ export function prepareSession(appointmentId:string, key:string) {
   requireBackend("telehealth");
   return api.post<TelehealthSession>(`/appointments/${appointmentId}/telehealth-session`, undefined, key);
 }
-export function getSession(id:string) {
+export function getSession(id:string, signal?:AbortSignal) {
   requireBackend("telehealth");
-  return api.get<TelehealthSession>(`/telehealth-sessions/${id}`);
+  return apiFetch<TelehealthSession>(`/telehealth-sessions/${id}`, {signal});
 }
-export function joinSession(id:string, consent:boolean) {
+export function joinSession(id:string, consent:boolean, signal?:AbortSignal) {
   requireBackend("telehealth");
-  return api.post<JoinToken>(`/telehealth-sessions/${id}/join`, {consent});
+  return apiFetch<JoinToken>(`/telehealth-sessions/${id}/join`, {method:"POST",body:JSON.stringify({consent}),signal});
 }
 export function startSession(id:string, version:number, key:string) {
   requireBackend("telehealth");
@@ -88,17 +88,17 @@ export function endSession(id:string, version:number, key:string) {
   requireBackend("telehealth");
   return api.post<TelehealthSession>(`/telehealth-sessions/${id}/end`, {version}, key);
 }
-export function updateConnection(id:string, version:number, state:"ACTIVE"|"RECONNECTING", token:string) {
+export function updateConnection(id:string, version:number, state:"ACTIVE"|"RECONNECTING", token:string, signal?:AbortSignal) {
   requireBackend("telehealth");
-  return apiFetch<TelehealthSession>(`/telehealth-sessions/${id}/connection`, {method:"POST",headers:{"X-Room-Token":token},body:JSON.stringify({version,state})});
+  return apiFetch<TelehealthSession>(`/telehealth-sessions/${id}/connection`, {method:"POST",headers:{"X-Room-Token":token},body:JSON.stringify({version,state}),signal});
 }
-export function pollSignals(id:string, token:string, after=0) {
+export function pollSignals(id:string, token:string, after=0, signal?:AbortSignal) {
   requireBackend("telehealth");
-  return apiFetch<SignalMessage[]>(`/telehealth-sessions/${id}/signals${qs({after})}`, {headers:{"X-Room-Token":token}});
+  return apiFetch<SignalMessage[]>(`/telehealth-sessions/${id}/signals${qs({after})}`, {headers:{"X-Room-Token":token},signal});
 }
-export function sendSignal(id:string, token:string, kind:SignalMessage["kind"], payload:string) {
+export function sendSignal(id:string, token:string, kind:SignalMessage["kind"], payload:string, signal?:AbortSignal) {
   requireBackend("telehealth");
-  return apiFetch<{accepted:true}>(`/telehealth-sessions/${id}/signals`, {method:"POST",headers:{"X-Room-Token":token},body:JSON.stringify({kind,payload})});
+  return apiFetch<{accepted:true}>(`/telehealth-sessions/${id}/signals`, {method:"POST",headers:{"X-Room-Token":token},body:JSON.stringify({kind,payload}),signal});
 }
 export function listAuditEvents(q:AuditQuery) {
   requireBackend("audit");

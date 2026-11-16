@@ -8,3 +8,6 @@ frontend_patient
 frontend_doctor
 frontend_staff
 coverage
+test-results
+playwright-report
+tests

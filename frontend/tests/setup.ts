@@ -1,6 +1,8 @@
 // jsdom does not implement the native dialog top layer.
 import { configure } from "@testing-library/react";
 configure({asyncUtilTimeout:5000});
+HTMLMediaElement.prototype.play = async function () {};
+HTMLMediaElement.prototype.pause = function () {};
 HTMLDialogElement.prototype.showModal = function () {
   this.setAttribute("open", "");
 };

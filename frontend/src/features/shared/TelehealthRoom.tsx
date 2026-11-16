@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Camera, CameraOff, LogIn, Mic, MicOff, PhoneOff, PlayCircle, Video } from "lucide-react";
 import { endSession, getSession, joinSession, prepareSession, startSession } from "@/api/operations";
+import { WebRtcCall, type CallState } from "@/core/webrtc";
+import { createCallTransport } from "@/core/rtc-transport";
 import { useCommand } from "@/core/useCommand";
 import { config } from "@/core/config";
 import { ApiError, errorMessage } from "@/core/client";
@@ -19,8 +21,7 @@ interface Props {
 
 /**
  * Phòng khám từ xa dùng chung. Vòng đời phiên chạy qua API (prepare → join → start → end).
- * Vòng đời và token nối API hiện có; camera/micro là xem trước cục bộ.
- * RTCPeerConnection/media hai phía chưa được tích hợp.
+ * Camera/micro truyền hai phía qua WebRTC; signaling/token vẫn do backend cấp.
  */
 export function TelehealthRoom({ role, appointment, counterpartName, onSessionChange }: Props) {
   const toast = useToast();
@@ -28,6 +29,15 @@ export function TelehealthRoom({ role, appointment, counterpartName, onSessionCh
   const now = useNow(1000).getTime();
   const enabled = config.backend.telehealth;
   const [session, setSession] = useState<TelehealthSession | null>(null);
+  const [callState, setCallState] = useState<CallState>("idle");
+  const [callError, setCallError] = useState("");
+  const [deviceNote, setDeviceNote] = useState("");
+  const [localStream, setLocalStream] = useState<MediaStream | null>(null);
+  const [remoteStream, setRemoteStream] = useState<MediaStream | null>(null);
+  const [playRequired, setPlayRequired] = useState(false);
+  const [callGeneration, setCallGeneration] = useState(0);
+  const call = useRef<WebRtcCall | null>(null);
+  const remoteVideo = useRef<HTMLVideoElement>(null);
   const [token, setToken] = useState<JoinToken | null>(null);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
@@ -78,26 +88,83 @@ export function TelehealthRoom({ role, appointment, counterpartName, onSessionCh
       setToken(null);
       stream.current?.getTracks().forEach(t => t.stop());
       stream.current = null;
-      setMedia("idle");
+      setMedia("idle"); setLocalStream(null);setDeviceNote("");
     }
   }, [session?.status]);
-  useEffect(() => { if (token && Date.parse(token.expiresAt) <= now) setToken(null); }, [token, now]);
+  useEffect(() => {
+    if (!session?.id) return;
+    let active = true;
+    const engine = new WebRtcCall({role, session, transport:createCallTransport(session.id, role === "PATIENT"),
+      onRemoteStream: value => {if (active && mounted.current) setRemoteStream(value);},
+      onState: value => {if (active && mounted.current) setCallState(value);},
+      onError: value => {if (active && mounted.current) setCallError(value);},
+      onToken: value => {if (active && mounted.current) setToken(value);},
+      onSession: value => {if (active && mounted.current) setS(value);},
+    });
+    call.current = engine;
+    return () => {active=false;call.current=null;engine.close();};
+    // Same room keeps its peer across token refresh and status/version changes.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [session?.id, role, callGeneration]);
+  useEffect(() => {
+    if (session) call.current?.updateSession(session);
+    if (token && localStream) void call.current?.admit(token, localStream).catch(() => {
+      if (mounted.current) setCallError("Không khởi tạo được cuộc gọi. Kiểm tra cấu hình kết nối và thử lại.");
+    });
+  }, [session, token, localStream, callGeneration]);
+  useEffect(() => {
+    if (video.current) {
+      video.current.srcObject=localStream;
+      if (localStream) void video.current.play()?.catch(()=>{});
+    }
+  }, [localStream]);
+  useEffect(() => {
+    const element=remoteVideo.current;
+    if (!element) return;
+    element.srcObject=remoteStream;setPlayRequired(false);
+    if (remoteStream) void element.play().catch(() => {if (mounted.current && element.srcObject === remoteStream) setPlayRequired(true);});
+  }, [remoteStream]);
+  useEffect(() => {
+    const online=()=>{if (call.current && ["ACTIVE","RECONNECTING"].includes(sessionRef.current?.status ?? "")) void call.current.restart();};
+    const offline=()=>{setCallError("Thiết bị đang mất mạng. Cuộc gọi sẽ thử nối lại khi có mạng.");setCallState("reconnecting");};
+    window.addEventListener("online",online);window.addEventListener("offline",offline);
+    return () => {window.removeEventListener("online",online);window.removeEventListener("offline",offline);};
+  }, []);
 
-  const startMedia = async () => {
-    setMedia("busy");
-    stream.current?.getTracks().forEach((t) => t.stop());
+  const startMedia = async (wantVideo=cam):Promise<MediaStream> => {
+    if (stream.current?.getAudioTracks().some(t=>t.readyState === "live")) return stream.current;
+    setMedia("busy");setCallError("");
     try {
-      if (!navigator.mediaDevices?.getUserMedia) throw new Error("unsupported");
-      const m = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
-      if (!mounted.current || ["ENDED","CANCELLED"].includes(sessionRef.current?.status ?? "")) { m.getTracks().forEach(t => t.stop()); return; }
-      stream.current = m;
-      m.getVideoTracks().forEach((t) => (t.enabled = cam));
-      m.getAudioTracks().forEach((t) => (t.enabled = mic));
-      if (video.current) video.current.srcObject = m;
-      setMedia("ok");
-    } catch { setMedia("denied"); }
+      if (!navigator.mediaDevices?.getUserMedia) throw Error("unsupported");
+      let m:MediaStream;
+      try {m=await navigator.mediaDevices.getUserMedia({video:wantVideo,audio:true});}
+      catch (error) {
+        if (!wantVideo) throw error;
+        m=await navigator.mediaDevices.getUserMedia({video:false,audio:true});
+        setCam(false);setDeviceNote("Không mở được camera. Đã chuyển sang cuộc gọi chỉ âm thanh.");
+      }
+      if (!mounted.current || ["ENDED","CANCELLED"].includes(sessionRef.current?.status ?? "")) {m.getTracks().forEach(t=>t.stop());throw Error("closed");}
+      stream.current?.getTracks().filter(t=>!m.getTracks().includes(t)).forEach(t=>t.stop());
+      stream.current=m;
+      m.getVideoTracks().forEach(t=>{t.enabled=wantVideo;});
+      m.getAudioTracks().forEach(t=>{t.enabled=mic;});
+      setLocalStream(m);setMedia("ok");return m;
+    } catch {
+      setMedia("denied");throw Error("Không mở được micro. Hãy cấp quyền thiết bị rồi thử lại.");
+    }
   };
-  const toggleCam = () => { const n = !cam; setCam(n); stream.current?.getVideoTracks().forEach((t) => (t.enabled = n)); };
+  const toggleCam = async () => {
+    if (!stream.current) {setCam(!cam);return;}
+    const tracks=stream.current.getVideoTracks();
+    if (tracks.length) {tracks.forEach(t=>{t.enabled=!cam;});setCam(!cam);return;}
+    try {
+      const camera=await navigator.mediaDevices.getUserMedia({video:true,audio:false});
+      if (!mounted.current || ["ENDED","CANCELLED"].includes(sessionRef.current?.status ?? "")) {camera.getTracks().forEach(t=>t.stop());return;}
+      camera.getVideoTracks().forEach(t=>stream.current!.addTrack(t));
+      await call.current?.replaceLocalStream(stream.current);
+      setCam(true);setCallError("");setDeviceNote("");
+    } catch {setCallError("Không mở được camera. Bạn vẫn có thể tiếp tục bằng âm thanh.");}
+  };
   const toggleMic = () => { const n = !mic; setMic(n); stream.current?.getAudioTracks().forEach((t) => (t.enabled = n)); };
 
   const run = async (fn: () => Promise<void>) => {
@@ -106,12 +173,14 @@ export function TelehealthRoom({ role, appointment, counterpartName, onSessionCh
   };
   const join = () => run(async () => {
     if (!session) return;
+    await startMedia();
     setToken(await joinSession(session.id, role === "PATIENT"));
     await refresh();
     toast.success("Đã vào phòng chờ.");
   });
   const start = () => run(async () => {
     if (!session) return;
+    await startMedia();
     setS(await command(`start:${session.id}`, {version:session.version}, key => startSession(session.id, session.version, key)));
     setToken(await joinSession(session.id, role === "PATIENT"));
     toast.success("Đã bắt đầu phiên khám từ xa.");
@@ -123,6 +192,11 @@ export function TelehealthRoom({ role, appointment, counterpartName, onSessionCh
     toast.success("Đã kết thúc phiên. Hãy hoàn tất hồ sơ bệnh án và lần khám.");
   });
 
+  const leave = () => {
+    call.current?.close();stream.current?.getTracks().forEach(t=>t.stop());stream.current=null;
+    setToken(null);setLocalStream(null);setRemoteStream(null);setMedia("idle");setCallGeneration(n=>n+1);
+  };
+  const stateLabel:Record<CallState,string>={idle:"Chưa tham gia",connecting:"Đang kết nối cuộc gọi",connected:"Đã kết nối",reconnecting:"Đang nối lại",failed:"Chưa kết nối được",closed:"Đã rời cuộc gọi"};
   const st = session?.status;
   const sInfo = st ? SESSION_STATUS[st] : undefined;
   const startMs = Date.parse(appointment.startAt);
@@ -144,27 +218,34 @@ export function TelehealthRoom({ role, appointment, counterpartName, onSessionCh
     <div>
       <PendingBackend feature="telehealth" />
       {error && <Notice tone="error">{error}</Notice>}
+      {callError && <Notice tone="warn">{callError}</Notice>}
+      {deviceNote && <Notice tone="info">{deviceNote}</Notice>}
       <div className="video-layout">
         <div>
           <div className="stage">
             <div className="tiles">
               <div className="tile">
-                <div><Video size={30} aria-hidden /><p style={{ margin: "8px 0 0" }}>{counterpartName}</p>
-                  <small>{token ? "Đã vào phiên khám. Cuộc gọi âm thanh/hình ảnh hai phía chưa được tích hợp." : live ? "Chưa vào phòng." : "Chưa bắt đầu."}</small></div>
+                <video ref={remoteVideo} autoPlay playsInline aria-label="Hình ảnh người tham gia" data-testid="remote-video" />
+                {!remoteStream && <div><Video size={30} aria-hidden/><p>{counterpartName}</p><small>{stateLabel[callState]}</small></div>}
+                <span className="tag">{counterpartName}</span>
               </div>
               <div className={"tile" + (media === "ok" && cam ? "" : " hidden-video")}>
-                <video ref={video} autoPlay muted playsInline aria-label="Camera của bạn" />
+                <video ref={video} data-testid="local-video" autoPlay muted playsInline aria-label="Camera của bạn" />
                 {(media !== "ok" || !cam) && <div><CameraOff size={30} aria-hidden /><p style={{ margin: "8px 0 0" }}>{media === "ok" ? "Camera đang tắt" : media === "denied" ? "Không mở được camera/micro" : "Chưa kiểm tra thiết bị"}</p></div>}
                 <span className="tag">Bạn</span>
               </div>
             </div>
             <div className="controls">
-              <button className={"control" + (!mic ? " off" : "")} onClick={toggleMic} aria-label={mic ? "Tắt micro" : "Bật micro"} aria-pressed={!mic}>{mic ? <Mic size={16} /> : <MicOff size={16} />}</button>
-              <button className={"control" + (!cam ? " off" : "")} onClick={toggleCam} aria-label={cam ? "Tắt camera" : "Bật camera"} aria-pressed={!cam}>{cam ? <Camera size={16} /> : <CameraOff size={16} />}</button>
-              <button className="control" onClick={() => void startMedia()} disabled={media === "busy"}>{media === "busy" ? "Đang kiểm tra…" : "Kiểm tra camera & micro"}</button>
+              <button className={"control" + (!mic ? " off" : "")} onClick={toggleMic} disabled={closed || busy} aria-label={mic ? "Tắt micro" : "Bật micro"} aria-pressed={!mic}>{mic ? <Mic size={16} /> : <MicOff size={16} />}</button>
+              <button className={"control" + (!cam ? " off" : "")} onClick={() => void toggleCam()} disabled={closed || busy} aria-label={cam ? "Tắt camera" : "Bật camera"} aria-pressed={!cam}>{cam ? <Camera size={16} /> : <CameraOff size={16} />}</button>
+              <button className="control" onClick={() => void run(async () => {await startMedia();})} disabled={media === "busy" || closed || busy}>{media === "busy" ? "Đang kiểm tra…" : "Kiểm tra camera & micro"}</button>
+              {live && token && <button className="control" onClick={() => void call.current?.restart()} disabled={busy}>Kết nối lại</button>}
+              {token && !closed && <button className="control" onClick={leave} disabled={busy}>Rời cuộc gọi</button>}
               {role === "DOCTOR" && live && <button className="control end" onClick={() => setConfirmEnd(true)} disabled={busy}><PhoneOff size={16} aria-hidden /> Kết thúc phiên</button>}
             </div>
           </div>
+          {playRequired && <button className="btn" onClick={() => {void remoteVideo.current?.play().then(()=>setPlayRequired(false)).catch(()=>setCallError("Hãy cho phép trình duyệt phát âm thanh."));}}>Bật âm thanh cuộc gọi</button>}
+          {live && token && <p role="status" data-testid="call-state">{stateLabel[callState]}</p>}
           {media === "denied" && <div style={{ marginTop: 10 }}><Notice tone="warn">Không mở được camera hoặc micro. Hãy kiểm tra thiết bị và quyền truy cập của trình duyệt.</Notice></div>}
         </div>
         <aside className="panel">
@@ -172,6 +253,7 @@ export function TelehealthRoom({ role, appointment, counterpartName, onSessionCh
           <p className="sub">{formatTime(appointment.startAt)}–{formatTime(appointment.endAt)} · {counterpartName}</p>
           <div className="row" style={{ margin: "10px 0" }}>Trạng thái: {sInfo ? <Pill tone={sInfo.tone}>{sInfo.label}</Pill> : <Pill>{enabled ? "Đang tải…" : "Chưa kết nối"}</Pill>}</div>
           {hint && <Notice><span>{hint}</span></Notice>}
+          {!localStream && !closed && <label className="chk"><input type="checkbox" checked={!cam} onChange={e=>setCam(!e.target.checked)}/>Chỉ âm thanh</label>}
           {role === "PATIENT" && !closed && (
             <label className="chk" style={{ margin: "10px 0" }}>
               <input type="checkbox" checked={consent} onChange={(e) => setConsent(e.target.checked)} />

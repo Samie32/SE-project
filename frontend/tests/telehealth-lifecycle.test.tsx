@@ -1,10 +1,18 @@
-import { afterEach, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { TelehealthRoom } from "@/features/shared/TelehealthRoom";
 import { ToastProvider } from "@/ui";
 import { setFetchImpl } from "@/core/client";
 import type { Appointment } from "@/core/types";
 vi.mock("@/core/config", () => ({config:{backend:{telehealth:true}}}));
+vi.mock("@/core/webrtc", () => ({WebRtcCall:class {
+  updateSession() {} admit() {return Promise.resolve();} replaceLocalStream() {return Promise.resolve();}
+  restart() {return Promise.resolve();} close() {}
+}}));
+beforeEach(() => {
+  const track={kind:"audio",readyState:"live",enabled:true,stop:vi.fn()};
+  Object.defineProperty(navigator,"mediaDevices",{configurable:true,value:{getUserMedia:vi.fn(async()=>({getTracks:()=>[track],getAudioTracks:()=>[track],getVideoTracks:()=>[]}))}});
+});
 afterEach(() => {cleanup();vi.useRealTimers();});
 it("prepare một lần rồi GET trạng thái để nhận biết phòng đã kết thúc", async () => {
   vi.useFakeTimers({toFake:["Date","setInterval","clearInterval"]});
