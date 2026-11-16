@@ -1,10 +1,13 @@
 {
   "repository": "https://github.com/Samie32/SE-project",
-  "backend_commit": "b10e0960a6a48225b5c26af60c737dbd1c37968f",
-  "contribution_commit": "1104fdb970233a396df1ee76af37e155496ffc55",
-  "snapshot_source": "docs/api/openapi.json",
-  "snapshot_sha256": "cbf8cd10149ca161f305b1d7991d46e17e0ae97a1e89d47828f2c75257b91305",
-  "hash_encoding": "UTF-8 with LF newlines (normalized across Git autocrlf checkouts)",
-  "reviewed_on": "2026-11-04",
-  "scope": "Implemented week 3-4 API; controllers/services/migration are authoritative for business rules. Snapshot is not a runtime result from this workspace."
+  "backend_commit": "a04dcb159007ef35daadfdb67f835576f0a05a7b",
+  "contribution_baseline": "98a02e19fa79414f6b4d63fbe9738969d261889b",
+  "snapshot_source": "docs/api/openapi.yaml",
+  "contract_version": "1.0.0",
+  "snapshot_transform": "Prefix each path with /api; server origin localhost:8080; no schema changes",
+  "snapshot_sha256": "93bb9b65277e95a9575f91261505f8d867bafcf62284bc3197b6ba0669249e8b",
+  "contract_sha256": "02af852926eaf07dbbd4536b4ce711d700db22e2799df19a65dc1873631048ae",
+  "hash_encoding": "UTF-8 with LF normalized newlines",
+  "reviewed_on": "2026-11-17",
+  "scope": "Normative contract examples; runtime implementation gaps BE-01..04 remain. No HTTP/MySQL acceptance result."
 }

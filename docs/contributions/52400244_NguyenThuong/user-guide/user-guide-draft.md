@@ -1,15 +1,17 @@
 # Hướng dẫn sử dụng – bản nháp (chưa được xác nhận trên phần mềm thực tế)
 
-## Phạm vi backend đã đối chiếu 04/11/2026
+## Phạm vi đối chiếu 17/11/2026
 
-Backend main tuần 3–4 hỗ trợ đăng nhập, danh mục, lịch làm việc/nghỉ, tìm slot, đặt/đổi/hủy, danh sách lịch và thông báo xác nhận. Chưa có frontend nghiệp vụ trong main đã đọc; tên nút/ảnh trong hướng dẫn vẫn là dự kiến.
+FE gộp http://localhost:5173, hợp đồng 1.0.0 (46 API), BE a04dcb1, FE/media 98a02e1. Hướng dẫn theo source; ảnh/UI và E2E BE thật chưa nghiệm thu trong bộ đóng góp.
 
-- Bệnh nhân tự đặt cho mình; đổi/hủy khi CONFIRMED và còn ít nhất 2 giờ. Khi nhận 409, tải lại slot/lịch và version; 404 nếu lịch không tồn tại hoặc không thuộc người dùng.
-- Bác sĩ xem lịch được gán, quản lý availability/time-off của mình. Khung hợp lệ thứ Hai–thứ Bảy, 08:00–17:00 theo UTC+7.
-- Admin (role `ADMINISTRATOR`) quản lý danh mục/quyền; quyền không lấy từ JWT claim. Lễ tân xem lịch và notification jobs, chưa check-in/gọi lượt.
-- Auditor đã có account nhưng chưa có API tra cứu audit. Hồ sơ/đơn thuốc/hàng đợi/video trong các mục sau là hướng dẫn dự kiến.
+- Bệnh nhân đặt/đổi/hủy, xem lịch, hồ sơ FINAL và đơn ISSUED của mình. Đổi/hủy CONFIRMED còn >=2 giờ.
+- Bác sĩ: lịch được gán, queue/clinical/telehealth. ID nghiệp vụ từ /me/profile; stale version cần tải lại.
+- Lễ tân check-in/queue; quyền đọc lịch còn BE-02. Admin quản lý danh mục/quyền, không mặc nhiên đọc bệnh án.
+- Auditor tra cứu audit, không gọi danh mục bằng role thuần auditor; BE-03 còn mở.
+- Phòng từ xa có “Kiểm tra camera & micro”, “Tham gia phòng chờ”, “Bắt đầu phiên khám”, “Kết nối lại”, “Rời cuộc gọi”, “Kết thúc phiên”; bật/tắt camera/micro, audio-only. Autoplay bị chặn thì bấm “Bật âm thanh cuộc gọi”.
+- BE-01…04 và nghiệm thu Keycloak/BE/MySQL/TURN chưa hoàn tất; xem docs/api/integration-backlog.md. Cần chụp UI khi chạy thật.
 
-Demo qua API: xem [backend/README.md](../test-data/backend/README.md). Account/UUID thiết kế không dùng để đăng nhập realm local.
+Demo API: [backend/README.md](../test-data/backend/README.md). UUID thiết kế không dùng đăng nhập realm local.
 
 **Áp dụng cho hệ thống phòng khám ngoại trú và khám từ xa.** Giao diện có thể thay đổi trong quá trình lập trình. Thay tên nút, đường dẫn, ảnh chụp bằng bản triển khai thật trước khi bàn giao.
 

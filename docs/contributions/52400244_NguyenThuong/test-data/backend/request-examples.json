@@ -1,0 +1,891 @@
+{
+  "backend_commit": "a04dcb159007ef35daadfdb67f835576f0a05a7b",
+  "contract_version": "1.0.0",
+  "source": "docs/api/openapi.yaml",
+  "date": "2030-01-08",
+  "operations": [
+    {
+      "name": "me",
+      "method": "GET",
+      "path": "/api/me",
+      "actor": "patient",
+      "params": {},
+      "headers": {},
+      "expected_status": 200,
+      "operation_id": "getMe",
+      "access": "Đã đăng nhập",
+      "implementation_gaps": []
+    },
+    {
+      "name": "contact",
+      "method": "PUT",
+      "path": "/api/me/contact",
+      "actor": "patient",
+      "params": {},
+      "headers": {},
+      "expected_status": 200,
+      "body": {
+        "email": "patient@example.test"
+      },
+      "operation_id": "updateMyContact",
+      "access": "Chủ tài khoản",
+      "implementation_gaps": []
+    },
+    {
+      "name": "setRoles",
+      "method": "PUT",
+      "path": "/api/users/{id}/roles",
+      "actor": "admin",
+      "params": {
+        "path": {
+          "id": "00000000-0000-0000-0000-000000000004"
+        }
+      },
+      "headers": {},
+      "expected_status": 200,
+      "body": {
+        "roles": [
+          "PATIENT",
+          "RECEPTIONIST"
+        ]
+      },
+      "operation_id": "setRoles",
+      "access": "ADMINISTRATOR; không tự đổi quyền",
+      "implementation_gaps": []
+    },
+    {
+      "name": "specialties",
+      "method": "GET",
+      "path": "/api/specialties",
+      "actor": "patient",
+      "params": {},
+      "headers": {},
+      "expected_status": 200,
+      "operation_id": "listSpecialties",
+      "access": "PATIENT/DOCTOR/RECEPTIONIST/ADMINISTRATOR",
+      "implementation_gaps": [
+        "BE-03"
+      ]
+    },
+    {
+      "name": "createSpecialty",
+      "method": "POST",
+      "path": "/api/specialties",
+      "actor": "admin",
+      "params": {},
+      "headers": {},
+      "expected_status": 200,
+      "body": {
+        "name": "Demo 52400244 47dbcb63-8665-4a76-b4d9-ce2c0b38466b"
+      },
+      "operation_id": "createSpecialty",
+      "access": "ADMINISTRATOR",
+      "implementation_gaps": []
+    },
+    {
+      "name": "doctors",
+      "method": "GET",
+      "path": "/api/doctors",
+      "actor": "patient",
+      "params": {},
+      "headers": {},
+      "expected_status": 200,
+      "operation_id": "listDoctors",
+      "access": "PATIENT/DOCTOR/RECEPTIONIST/ADMINISTRATOR",
+      "implementation_gaps": [
+        "BE-03"
+      ]
+    },
+    {
+      "name": "createDoctor",
+      "method": "POST",
+      "path": "/api/doctors",
+      "actor": "admin",
+      "params": {},
+      "headers": {},
+      "expected_status": 200,
+      "body": {
+        "userId": "00000000-0000-0000-0000-000000000007",
+        "specialtyIds": [
+          "10000000-0000-0000-0000-000000000001"
+        ]
+      },
+      "operation_id": "createDoctor",
+      "access": "ADMINISTRATOR",
+      "implementation_gaps": []
+    },
+    {
+      "name": "updateDoctor",
+      "method": "PUT",
+      "path": "/api/doctors/{id}",
+      "actor": "admin",
+      "params": {
+        "path": {
+          "id": "20000000-0000-0000-0000-000000000001"
+        }
+      },
+      "headers": {},
+      "expected_status": 200,
+      "body": {
+        "active": true,
+        "displayName": "Doctor Demo",
+        "specialtyIds": [
+          "10000000-0000-0000-0000-000000000001"
+        ]
+      },
+      "operation_id": "updateDoctor",
+      "access": "ADMINISTRATOR",
+      "implementation_gaps": []
+    },
+    {
+      "name": "availabilityList",
+      "method": "GET",
+      "path": "/api/doctors/{id}/availability",
+      "actor": "admin",
+      "params": {
+        "path": {
+          "id": "20000000-0000-0000-0000-000000000001"
+        }
+      },
+      "headers": {},
+      "expected_status": 200,
+      "operation_id": "listAvailability",
+      "access": "DOCTOR sở hữu/RECEPTIONIST/ADMINISTRATOR",
+      "implementation_gaps": [
+        "BE-02"
+      ]
+    },
+    {
+      "name": "availability",
+      "method": "POST",
+      "path": "/api/doctors/{id}/availability",
+      "actor": "admin",
+      "params": {
+        "path": {
+          "id": "20000000-0000-0000-0000-000000000001"
+        }
+      },
+      "headers": {},
+      "expected_status": 200,
+      "body": {
+        "startAt": "2030-01-08T01:00:00Z",
+        "endAt": "2030-01-08T02:00:00Z",
+        "slotMinutes": 20,
+        "mode": "IN_PERSON"
+      },
+      "operation_id": "createAvailability",
+      "access": "DOCTOR sở hữu/ADMINISTRATOR",
+      "implementation_gaps": []
+    },
+    {
+      "name": "remoteAvailability",
+      "method": "POST",
+      "path": "/api/doctors/{id}/availability",
+      "actor": "admin",
+      "params": {
+        "path": {
+          "id": "20000000-0000-0000-0000-000000000001"
+        }
+      },
+      "headers": {},
+      "expected_status": 200,
+      "body": {
+        "startAt": "2030-01-08T06:00:00Z",
+        "endAt": "2030-01-08T07:00:00Z",
+        "slotMinutes": 20,
+        "mode": "REMOTE"
+      },
+      "operation_id": "createAvailability",
+      "access": "DOCTOR sở hữu/ADMINISTRATOR",
+      "implementation_gaps": []
+    },
+    {
+      "name": "timeOffList",
+      "method": "GET",
+      "path": "/api/doctors/{id}/time-off",
+      "actor": "admin",
+      "params": {
+        "path": {
+          "id": "20000000-0000-0000-0000-000000000001"
+        }
+      },
+      "headers": {},
+      "expected_status": 200,
+      "operation_id": "listTimeOff",
+      "access": "DOCTOR sở hữu/RECEPTIONIST/ADMINISTRATOR",
+      "implementation_gaps": [
+        "BE-02"
+      ]
+    },
+    {
+      "name": "timeOff",
+      "method": "POST",
+      "path": "/api/doctors/{id}/time-off",
+      "actor": "admin",
+      "params": {
+        "path": {
+          "id": "20000000-0000-0000-0000-000000000001"
+        }
+      },
+      "headers": {},
+      "expected_status": 200,
+      "body": {
+        "startAt": "2030-01-08T09:00:00Z",
+        "endAt": "2030-01-08T10:00:00Z"
+      },
+      "operation_id": "createTimeOff",
+      "access": "DOCTOR sở hữu/ADMINISTRATOR",
+      "implementation_gaps": []
+    },
+    {
+      "name": "slots",
+      "method": "GET",
+      "path": "/api/slots",
+      "actor": "patient",
+      "params": {
+        "query": {
+          "date": "2030-01-08",
+          "doctorId": "20000000-0000-0000-0000-000000000001",
+          "mode": "IN_PERSON"
+        }
+      },
+      "headers": {},
+      "expected_status": 200,
+      "operation_id": "listSlots",
+      "access": "PATIENT/DOCTOR/RECEPTIONIST/ADMINISTRATOR",
+      "implementation_gaps": [
+        "BE-03"
+      ]
+    },
+    {
+      "name": "appointments",
+      "method": "GET",
+      "path": "/api/appointments",
+      "actor": "patient",
+      "params": {
+        "query": {
+          "limit": 20,
+          "offset": 0
+        }
+      },
+      "headers": {},
+      "expected_status": 200,
+      "operation_id": "listAppointments",
+      "access": "PATIENT của mình/DOCTOR được gán/RECEPTIONIST/ADMINISTRATOR",
+      "implementation_gaps": []
+    },
+    {
+      "name": "book",
+      "method": "POST",
+      "path": "/api/appointments",
+      "actor": "patient",
+      "params": {},
+      "headers": {
+        "Idempotency-Key": "caafc367-6bc5-44ae-a59b-32bc58e12c00"
+      },
+      "expected_status": 200,
+      "body": {
+        "slotId": "30000000-0000-0000-0000-000000000001"
+      },
+      "operation_id": "bookAppointment",
+      "access": "PATIENT tự đặt",
+      "implementation_gaps": []
+    },
+    {
+      "name": "reschedule",
+      "method": "POST",
+      "path": "/api/appointments/{id}/reschedule",
+      "actor": "patient",
+      "params": {
+        "path": {
+          "id": "40000000-0000-0000-0000-000000000001"
+        }
+      },
+      "headers": {
+        "Idempotency-Key": "8e455609-8bfd-4b6a-a8a5-67f7e491b4af"
+      },
+      "expected_status": 200,
+      "body": {
+        "slotId": "30000000-0000-0000-0000-000000000001",
+        "version": 0
+      },
+      "operation_id": "rescheduleAppointment",
+      "access": "PATIENT chủ lịch",
+      "implementation_gaps": []
+    },
+    {
+      "name": "cancel",
+      "method": "POST",
+      "path": "/api/appointments/{id}/cancel",
+      "actor": "patient",
+      "params": {
+        "path": {
+          "id": "40000000-0000-0000-0000-000000000001"
+        }
+      },
+      "headers": {
+        "Idempotency-Key": "f611c2db-8115-4321-b0f7-6ffbf61bae3b"
+      },
+      "expected_status": 200,
+      "body": {
+        "reason": "Demo 52400244 completed",
+        "version": 1
+      },
+      "operation_id": "cancelAppointment",
+      "access": "PATIENT chủ lịch",
+      "implementation_gaps": []
+    },
+    {
+      "name": "notifications",
+      "method": "GET",
+      "path": "/api/notification-jobs",
+      "actor": "admin",
+      "params": {},
+      "headers": {},
+      "expected_status": 200,
+      "operation_id": "listNotificationJobs",
+      "access": "RECEPTIONIST/ADMINISTRATOR",
+      "implementation_gaps": []
+    },
+    {
+      "name": "getAppointment",
+      "method": "GET",
+      "path": "/api/appointments/{id}",
+      "actor": "patient",
+      "params": {
+        "path": {
+          "id": "40000000-0000-0000-0000-000000000001"
+        }
+      },
+      "headers": {},
+      "expected_status": 200,
+      "operation_id": "getAppointment",
+      "access": "Chủ lịch/DOCTOR được gán/RECEPTIONIST/ADMINISTRATOR",
+      "implementation_gaps": []
+    },
+    {
+      "name": "checkIn",
+      "method": "POST",
+      "path": "/api/appointments/{id}/check-in",
+      "actor": "receptionist",
+      "params": {
+        "path": {
+          "id": "40000000-0000-0000-0000-000000000001"
+        }
+      },
+      "headers": {
+        "Idempotency-Key": "a6e04748-83fa-4ba8-bf3e-e3cd0d146fae"
+      },
+      "expected_status": 200,
+      "operation_id": "checkIn",
+      "access": "RECEPTIONIST",
+      "implementation_gaps": []
+    },
+    {
+      "name": "progressAppointment",
+      "method": "POST",
+      "path": "/api/appointments/{id}/progress",
+      "actor": "doctor",
+      "params": {
+        "path": {
+          "id": "40000000-0000-0000-0000-000000000001"
+        }
+      },
+      "headers": {
+        "Idempotency-Key": "48ecca2d-168f-4c28-ac00-4d129c494090"
+      },
+      "expected_status": 200,
+      "body": {
+        "targetStatus": "IN_PROGRESS",
+        "version": 1
+      },
+      "operation_id": "progressAppointment",
+      "access": "DOCTOR được gán; NO_SHOW trực tiếp: RECEPTIONIST",
+      "implementation_gaps": []
+    },
+    {
+      "name": "prepareSession",
+      "method": "POST",
+      "path": "/api/appointments/{id}/telehealth-session",
+      "actor": "patient",
+      "params": {
+        "path": {
+          "id": "40000000-0000-0000-0000-000000000001"
+        }
+      },
+      "headers": {
+        "Idempotency-Key": "93f09148-b10c-47d3-ac68-e26006317e6e"
+      },
+      "expected_status": 200,
+      "operation_id": "prepareSession",
+      "access": "PATIENT chủ lịch/DOCTOR phụ trách",
+      "implementation_gaps": []
+    },
+    {
+      "name": "listAuditEvents",
+      "method": "GET",
+      "path": "/api/audit-events",
+      "actor": "auditor",
+      "params": {},
+      "headers": {},
+      "expected_status": 200,
+      "operation_id": "listAuditEvents",
+      "access": "AUDITOR",
+      "implementation_gaps": [
+        "BE-01"
+      ]
+    },
+    {
+      "name": "deleteAvailability",
+      "method": "DELETE",
+      "path": "/api/availability/{id}",
+      "actor": "doctor",
+      "params": {
+        "path": {
+          "id": "50000000-0000-4000-8000-000000000001"
+        }
+      },
+      "headers": {},
+      "expected_status": 204,
+      "operation_id": "deleteAvailability",
+      "access": "DOCTOR sở hữu/ADMINISTRATOR; tương lai, chưa có lịch sử hẹn",
+      "implementation_gaps": []
+    },
+    {
+      "name": "getDoctorQueue",
+      "method": "GET",
+      "path": "/api/doctors/{id}/queue",
+      "actor": "doctor",
+      "params": {
+        "path": {
+          "id": "20000000-0000-0000-0000-000000000001"
+        },
+        "query": {
+          "date": "2030-01-08"
+        }
+      },
+      "headers": {},
+      "expected_status": 200,
+      "operation_id": "getDoctorQueue",
+      "access": "DOCTOR sở hữu/RECEPTIONIST",
+      "implementation_gaps": []
+    },
+    {
+      "name": "callNext",
+      "method": "POST",
+      "path": "/api/doctors/{id}/queue/next",
+      "actor": "doctor",
+      "params": {
+        "path": {
+          "id": "20000000-0000-0000-0000-000000000001"
+        },
+        "query": {
+          "date": "2030-01-08"
+        }
+      },
+      "headers": {
+        "Idempotency-Key": "6f2768a4-311d-4fe9-8cbd-68a6c0ccac08"
+      },
+      "expected_status": 200,
+      "operation_id": "callNext",
+      "access": "DOCTOR sở hữu/RECEPTIONIST",
+      "implementation_gaps": [
+        "BE-04"
+      ]
+    },
+    {
+      "name": "listEncounterPrescriptions",
+      "method": "GET",
+      "path": "/api/encounters/{id}/prescriptions",
+      "actor": "doctor",
+      "params": {
+        "path": {
+          "id": "50000000-0000-4000-8000-000000000001"
+        }
+      },
+      "headers": {},
+      "expected_status": 200,
+      "operation_id": "listEncounterPrescriptions",
+      "access": "PATIENT chỉ ISSUED/DOCTOR phụ trách đọc cả DRAFT",
+      "implementation_gaps": []
+    },
+    {
+      "name": "createPrescription",
+      "method": "POST",
+      "path": "/api/encounters/{id}/prescriptions",
+      "actor": "doctor",
+      "params": {
+        "path": {
+          "id": "50000000-0000-4000-8000-000000000001"
+        }
+      },
+      "headers": {
+        "Idempotency-Key": "80764c88-70ca-4608-94e0-e7088f78d7e9"
+      },
+      "expected_status": 200,
+      "body": {
+        "items": [
+          {
+            "medicineName": "Thuốc mô phỏng",
+            "doseText": "Liều mô phỏng do bác sĩ nhập",
+            "route": "Đường dùng mô phỏng",
+            "frequency": "Tần suất mô phỏng",
+            "durationText": "Thời gian dùng mô phỏng"
+          }
+        ]
+      },
+      "operation_id": "createPrescription",
+      "access": "DOCTOR phụ trách",
+      "implementation_gaps": []
+    },
+    {
+      "name": "getEncounterRecord",
+      "method": "GET",
+      "path": "/api/encounters/{id}/record",
+      "actor": "doctor",
+      "params": {
+        "path": {
+          "id": "50000000-0000-4000-8000-000000000001"
+        }
+      },
+      "headers": {},
+      "expected_status": 200,
+      "operation_id": "getEncounterRecord",
+      "access": "PATIENT chỉ FINAL/DOCTOR phụ trách đọc DRAFT và FINAL",
+      "implementation_gaps": []
+    },
+    {
+      "name": "saveRecord",
+      "method": "PUT",
+      "path": "/api/encounters/{id}/record",
+      "actor": "doctor",
+      "params": {
+        "path": {
+          "id": "50000000-0000-4000-8000-000000000001"
+        }
+      },
+      "headers": {
+        "Idempotency-Key": "9af8e4ca-743f-4321-a9a6-c7a6d1255846"
+      },
+      "expected_status": 200,
+      "body": {
+        "version": 0,
+        "content": "Bản nháp mô phỏng",
+        "status": "DRAFT"
+      },
+      "operation_id": "saveRecord",
+      "access": "DOCTOR phụ trách",
+      "implementation_gaps": []
+    },
+    {
+      "name": "getMyProfile",
+      "method": "GET",
+      "path": "/api/me/profile",
+      "actor": "patient",
+      "params": {},
+      "headers": {},
+      "expected_status": 200,
+      "operation_id": "getMyProfile",
+      "access": "Chủ tài khoản",
+      "implementation_gaps": []
+    },
+    {
+      "name": "listPatientPrescriptions",
+      "method": "GET",
+      "path": "/api/patients/{id}/prescriptions",
+      "actor": "patient",
+      "params": {
+        "path": {
+          "id": "00000000-0000-0000-0000-000000000003"
+        }
+      },
+      "headers": {},
+      "expected_status": 200,
+      "operation_id": "listPatientPrescriptions",
+      "access": "PATIENT của mình/DOCTOR có quan hệ điều trị; chỉ ISSUED",
+      "implementation_gaps": []
+    },
+    {
+      "name": "listPatientRecords",
+      "method": "GET",
+      "path": "/api/patients/{id}/records",
+      "actor": "patient",
+      "params": {
+        "path": {
+          "id": "00000000-0000-0000-0000-000000000003"
+        }
+      },
+      "headers": {},
+      "expected_status": 200,
+      "operation_id": "listPatientRecords",
+      "access": "PATIENT của mình/DOCTOR có quan hệ điều trị",
+      "implementation_gaps": []
+    },
+    {
+      "name": "updatePrescription",
+      "method": "PUT",
+      "path": "/api/prescriptions/{id}",
+      "actor": "doctor",
+      "params": {
+        "path": {
+          "id": "50000000-0000-4000-8000-000000000001"
+        }
+      },
+      "headers": {
+        "Idempotency-Key": "3c47cb9f-135d-499a-a42c-f6f153df6f2a"
+      },
+      "expected_status": 200,
+      "body": {
+        "version": 0,
+        "items": [
+          {
+            "medicineName": "Thuốc mô phỏng",
+            "doseText": "Liều mô phỏng do bác sĩ nhập",
+            "route": "Đường dùng mô phỏng",
+            "frequency": "Tần suất mô phỏng",
+            "durationText": "Thời gian dùng mô phỏng"
+          }
+        ]
+      },
+      "operation_id": "updatePrescription",
+      "access": "DOCTOR phụ trách; chỉ DRAFT",
+      "implementation_gaps": []
+    },
+    {
+      "name": "issuePrescription",
+      "method": "POST",
+      "path": "/api/prescriptions/{id}/issue",
+      "actor": "doctor",
+      "params": {
+        "path": {
+          "id": "50000000-0000-4000-8000-000000000001"
+        }
+      },
+      "headers": {
+        "Idempotency-Key": "6b0c4fc5-14d3-415f-b3a9-b1229b34cb14"
+      },
+      "expected_status": 200,
+      "body": {
+        "version": 1
+      },
+      "operation_id": "issuePrescription",
+      "access": "DOCTOR phụ trách; ít nhất 1 thuốc đủ 5 trường",
+      "implementation_gaps": []
+    },
+    {
+      "name": "skipTicket",
+      "method": "POST",
+      "path": "/api/queue-tickets/{id}/skip",
+      "actor": "doctor",
+      "params": {
+        "path": {
+          "id": "50000000-0000-4000-8000-000000000001"
+        }
+      },
+      "headers": {
+        "Idempotency-Key": "0975ce49-8753-4dfa-95ab-2d241ffc8c48"
+      },
+      "expected_status": 200,
+      "body": {
+        "reason": "Bệnh nhân chưa có mặt",
+        "version": 1
+      },
+      "operation_id": "skipTicket",
+      "access": "DOCTOR sở hữu/RECEPTIONIST",
+      "implementation_gaps": []
+    },
+    {
+      "name": "amendRecord",
+      "method": "POST",
+      "path": "/api/records/{id}/amendments",
+      "actor": "doctor",
+      "params": {
+        "path": {
+          "id": "50000000-0000-4000-8000-000000000001"
+        }
+      },
+      "headers": {
+        "Idempotency-Key": "dbd1cf8c-0ebd-4090-9f22-78ca62640d68"
+      },
+      "expected_status": 200,
+      "body": {
+        "version": 1,
+        "content": "Bổ sung mô phỏng",
+        "reason": "Bổ sung thông tin"
+      },
+      "operation_id": "amendRecord",
+      "access": "DOCTOR phụ trách; chỉ bản FINAL mới nhất",
+      "implementation_gaps": []
+    },
+    {
+      "name": "getSession",
+      "method": "GET",
+      "path": "/api/telehealth-sessions/{id}",
+      "actor": "patient",
+      "params": {
+        "path": {
+          "id": "50000000-0000-4000-8000-000000000001"
+        }
+      },
+      "headers": {},
+      "expected_status": 200,
+      "operation_id": "getSession",
+      "access": "PATIENT chủ lịch/DOCTOR phụ trách; đọc được ENDED/CANCELLED",
+      "implementation_gaps": []
+    },
+    {
+      "name": "updateConnection",
+      "method": "POST",
+      "path": "/api/telehealth-sessions/{id}/connection",
+      "actor": "doctor",
+      "params": {
+        "path": {
+          "id": "50000000-0000-4000-8000-000000000001"
+        }
+      },
+      "headers": {
+        "X-Room-Token": "SYNTHETIC-REPLACE-WITH-JOIN-RESPONSE"
+      },
+      "expected_status": 200,
+      "body": {
+        "version": 2,
+        "state": "RECONNECTING"
+      },
+      "operation_id": "updateConnection",
+      "access": "Người tham gia; JWT và token phòng của chính mình",
+      "implementation_gaps": []
+    },
+    {
+      "name": "endSession",
+      "method": "POST",
+      "path": "/api/telehealth-sessions/{id}/end",
+      "actor": "doctor",
+      "params": {
+        "path": {
+          "id": "50000000-0000-4000-8000-000000000001"
+        }
+      },
+      "headers": {
+        "Idempotency-Key": "cef933f4-be91-4935-aa6d-52fe79d88e0d"
+      },
+      "expected_status": 200,
+      "body": {
+        "version": 1
+      },
+      "operation_id": "endSession",
+      "access": "DOCTOR phụ trách",
+      "implementation_gaps": []
+    },
+    {
+      "name": "joinSession",
+      "method": "POST",
+      "path": "/api/telehealth-sessions/{id}/join",
+      "actor": "patient",
+      "params": {
+        "path": {
+          "id": "50000000-0000-4000-8000-000000000001"
+        }
+      },
+      "headers": {},
+      "expected_status": 200,
+      "body": {
+        "consent": true
+      },
+      "operation_id": "joinSession",
+      "access": "PATIENT chủ lịch/DOCTOR phụ trách",
+      "implementation_gaps": [
+        "BE-01"
+      ]
+    },
+    {
+      "name": "pollSignals",
+      "method": "GET",
+      "path": "/api/telehealth-sessions/{id}/signals",
+      "actor": "doctor",
+      "params": {
+        "path": {
+          "id": "50000000-0000-4000-8000-000000000001"
+        }
+      },
+      "headers": {
+        "X-Room-Token": "SYNTHETIC-REPLACE-WITH-JOIN-RESPONSE"
+      },
+      "expected_status": 200,
+      "operation_id": "pollSignals",
+      "access": "Người tham gia; JWT và token phòng của chính mình",
+      "implementation_gaps": []
+    },
+    {
+      "name": "sendSignal",
+      "method": "POST",
+      "path": "/api/telehealth-sessions/{id}/signals",
+      "actor": "patient",
+      "params": {
+        "path": {
+          "id": "50000000-0000-4000-8000-000000000001"
+        }
+      },
+      "headers": {
+        "X-Room-Token": "SYNTHETIC-REPLACE-WITH-JOIN-RESPONSE"
+      },
+      "expected_status": 200,
+      "body": {
+        "kind": "ICE",
+        "payload": "{\"v\": 1, \"negotiationId\": \"820f2136-0bd6-49aa-b4e9-c3cbda0c6a23\", \"control\": \"restart\"}"
+      },
+      "operation_id": "sendSignal",
+      "access": "Người tham gia; JWT và token phòng của chính mình",
+      "implementation_gaps": []
+    },
+    {
+      "name": "startSession",
+      "method": "POST",
+      "path": "/api/telehealth-sessions/{id}/start",
+      "actor": "doctor",
+      "params": {
+        "path": {
+          "id": "50000000-0000-4000-8000-000000000001"
+        }
+      },
+      "headers": {
+        "Idempotency-Key": "bb5ad6d5-09ff-4c18-96f4-a2580f09ca07"
+      },
+      "expected_status": 200,
+      "body": {
+        "version": 1
+      },
+      "operation_id": "startSession",
+      "access": "DOCTOR phụ trách",
+      "implementation_gaps": []
+    },
+    {
+      "name": "deleteTimeOff",
+      "method": "DELETE",
+      "path": "/api/time-off/{id}",
+      "actor": "doctor",
+      "params": {
+        "path": {
+          "id": "50000000-0000-4000-8000-000000000001"
+        }
+      },
+      "headers": {},
+      "expected_status": 204,
+      "operation_id": "deleteTimeOff",
+      "access": "DOCTOR sở hữu/ADMINISTRATOR; tương lai",
+      "implementation_gaps": []
+    },
+    {
+      "name": "listUsers",
+      "method": "GET",
+      "path": "/api/users",
+      "actor": "admin",
+      "params": {},
+      "headers": {},
+      "expected_status": 200,
+      "operation_id": "listUsers",
+      "access": "ADMINISTRATOR",
+      "implementation_gaps": []
+    }
+  ],
+  "note": "STATIC SCHEMA EXAMPLES, NOT RUN. Date 2030-01-08 illustrates payloads only; generate actual future date with backend_demo.py. IDs outside accounts.json are placeholders, not imported data."
+}

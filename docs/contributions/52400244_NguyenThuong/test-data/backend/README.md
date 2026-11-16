@@ -1,96 +1,41 @@
-# Dữ liệu và demo cho backend tuần 3–4
+# Bộ demo theo hợp đồng BE–FE 1.0.0
 
-Nguồn được ghim tại [source.json](source.json): `main@b10e096`. [openapi.snapshot.json](openapi.snapshot.json) là bản contract đã có trong Git của backend, không phải kết quả API vừa chạy ở workspace này. Đối chiếu quy tắc nghiệp vụ từ controller/service và migration V1; OpenAPI không mô tả đủ mọi điều kiện nghiệp vụ.
+Đối chiếu ngày 17/11/2026: `docs/api/openapi.yaml` (46 thao tác/38 đường dẫn), BE `main@a04dcb1`, migration V1/V2 và DemoData.java. [source.json](source.json) lưu SHA/hash chuẩn hóa LF. Snapshot chỉ thêm `/api` vào path và đổi server thành origin, không sửa schema; đây không phải kết quả vừa gọi `/v3/api-docs`.
 
-## 1. Chuẩn bị clone có backend
+## Dữ liệu chuẩn
 
-Workspace này đã được thay bằng clone thật của `main@b10e096`, trên nhánh local `docs/52400244-demo-data`, kèm phần đóng góp và bản sửa. Có thể chạy từ root workspace hiện tại; không cần clone lại. Phần đóng góp đã được push tại mốc `f9193d9`; chưa xác nhận merge hoặc nghiệm thu. Đoạn lệnh dưới đây dành cho clone khác trên máy mới.
+[accounts.json](accounts.json) có admin, doctor, patient, patient2, receptionist, auditor. Chỉ user/catalog seed có ID biết trước; lấy `doctorId`/`patientId` bằng `/api/me/profile`, không suy từ userId. Seed chỉ có 1 bác sĩ/1 chuyên khoa; không dùng UUID của fixtures thiết kế.
 
-```powershell
-git clone https://github.com/Samie32/SE-project.git SE-project-integration
-cd SE-project-integration
-git switch docs/52400244-demo-data
-git merge origin/main
-```
+[request-examples.json](request-examples.json) gồm 47 ví dụ schema cho 46 thao tác, vì availability có IN_PERSON/REMOTE. Ngày 2030-01-08 chỉ minh họa schema. UUID ngoài account/catalog là placeholder, chưa phải dữ liệu được tạo. `expected_status` là kỳ vọng khi hợp lệ, không phải kết quả thực tế; `access`/`implementation_gaps` giữ quy tắc quyền và chênh lệch baseline.
 
-Giải quyết xung đột nếu Git báo có, rồi copy **thư mục đóng góp 52400244 đã sửa** vào cùng đường dẫn của clone. Xem `tracking/how-to-merge.md`. Backend/migration/môi trường giữ theo main. Sau đó dùng lệnh của backend (Docker Desktop Linux containers phải đang chạy):
+JSON dùng camelCase, ADMINISTRATOR/REMOTE, version mới 0. Không gửi ADMIN, TELEHEALTH, patient_id, participationConfirmed, dosage hoặc timestamp từ bộ cũ. Luôn đọc version mới trước lệnh tiếp theo.
 
-```powershell
-./scripts/setup-local.ps1
-docker compose up -d --build
-docker compose ps
-python scripts/smoke.py
-```
+## Môi trường
 
-`setup-local.ps1` tạo cấu hình và mật khẩu demo local. Không commit `.env` hay realm runtime. `scripts/smoke.py` là kiểm tra runtime **của backend**, tự đăng nhập OIDC, kiểm JWT/quyền, đặt/đổi/hủy, Mailpit và xuất OpenAPI. Script có tác dụng tạo/hủy lịch và lưu audit; chỉ chạy trên môi trường demo.
+Dùng setup và Compose theo README root trên môi trường demo. Không chạy lại setup/reset volume khi có dữ liệu cần giữ. FE cổng 5173, BE 8080/api, Keycloak 8180, Mailpit 8025. Mật khẩu lấy từ .env local, không commit.
 
-## 2. Tài khoản và mapping
+Profile demo tạo lịch từ ngày mai trong 7 ngày tiếp theo, bỏ Chủ nhật: 08:00–12:00 IN_PERSON, 13:00–17:00 REMOTE, slot 20 phút. Trước khi POST availability, GET kiểm tra overlap; không tạo trùng khung đã seed.
 
-[accounts.json](accounts.json) đối chiếu `DemoData.java` và `infra/keycloak/realm-template.json`:
-
-| Account | Vai trò nội bộ | Dùng cho |
-| --- | --- | --- |
-| admin | ADMINISTRATOR | Danh mục, lịch làm việc/nghỉ, quyền, notification jobs |
-| doctor | DOCTOR | Lịch làm việc/nghỉ của chính mình, lịch được gán |
-| patient / patient2 | PATIENT | Tự đặt/đổi/hủy, danh sách lịch của mình |
-| receptionist | RECEPTIONIST | Danh sách lịch và notification jobs |
-| auditor | AUDITOR | Có tài khoản, chưa có endpoint tra cứu audit |
-
-Seed chỉ có **một bác sĩ / một chuyên khoa**. Không cần nhập 16 nhóm fixtures để chạy demo tuần 3–4. `/api/me` trả ID tài khoản nội bộ; role từ DB, không cấp quyền bằng role claim JWT. Với account mới, backend tự tạo PATIENT. Muốn thêm bác sĩ thứ hai: tạo account trong IdP → account gọi `/api/me` → admin dùng `userId` thực tế trong `POST /api/doctors` với `specialtyIds` hợp lệ. API tạo doctor tự thêm role DOCTOR; không cấp DOCTOR trước khi có profile.
-
-Backend tự sinh slot qua availability và sinh lịch qua booking. Không gửi `patientId`, `doctorId`, status, snapshot thời gian hoặc UUID fixture trong request đặt lịch. Body chỉ có `slotId`.
-
-## 3. Sinh bộ request của 52400244
-
-Từ root clone đã copy bản sửa:
+## Sinh và dùng request
 
 ```powershell
-python -m pip install -r docs/contributions/52400244_NguyenThuong/tools/requirements-contract.txt
 python docs/contributions/52400244_NguyenThuong/tools/backend_demo.py --check
 python docs/contributions/52400244_NguyenThuong/tools/backend_demo.py
 ```
 
-Mặc định chọn ngày mai theo UTC+7, bỏ Chủ nhật. Có thể dùng `--date YYYY-MM-DD` với ngày tương lai thứ Hai–thứ Bảy. Tạo availability trực tiếp 13:00–14:00 và REMOTE 14:00–15:00, bước 20 phút, tránh seed mặc định 08:00–12:00. Nếu DB đã có availability chồng nhau, GET lịch hiện tại trước; 409 không đồng nghĩa môi trường sạch hoặc có thể tự ghi đè.
+Chỉ kiểm/sinh file, không tự đăng nhập, gửi request hoặc nạp DB. Đầu ra trong `test-data/generated/backend-YYYY-MM-DD/` bị gitignore. Sinh lại tạo key mới: không dùng file mới retry thao tác timeout chưa rõ kết quả. Retry giữ file/key/body cũ; đổi nội dung phải đổi key.
 
-- `test-data/generated/backend-YYYY-MM-DD/requests.json`: **18 thao tác API riêng biệt, 19 ví dụ** (hai mode availability). UUID slot/appointment và user mới trong catalog là **mẫu schema**, không phải ID đã seed. Không chạy nguyên catalog như một batch.
-- `demo.http`: luồng nhỏ chạy bằng VS Code REST Client: kiểm danh tính/danh mục → availability → slot trống → đặt → replay → đổi → hủy → xem lịch/thông báo. ID slot, ID lịch và version lấy từ phản hồi trước. File dùng `CLINIC_ADMIN_TOKEN`, `CLINIC_PATIENT_TOKEN` từ môi trường của **tiến trình VS Code**.
+- `requests.json`: đủ schema/tham số/header cho 46 API, không phải chuỗi giao dịch để chạy hàng loạt.
+- `demo.http`: đặt/đổi/hủy ngày tương lai, slot/version từ response. Cần >=2 slot trống, CONFIRMED và còn >=2 giờ cho đổi/hủy. Replay book giữ key/body.
+- `clinical.http`: truyền CLINIC_IN_PERSON_APPOINTMENT_ID của lịch CONFIRMED. Đến [T−15,T+15) mới check-in. Chỉ tiếp tục nếu next trả đúng lịch. Có CALLED/IN_SERVICE khác thì xử lý đúng ca trước. Record mới version=0; draft cũ phải đọc version hiện tại. Đơn chỉ chứa placeholder phi y tế.
+- `telehealth.http`: truyền CLINIC_REMOTE_APPOINTMENT_ID đúng patient/doctor. Prepare/join [T−10,T+15), start [T,T+15). Token phòng 5 phút và vẫn cần JWT. ACTIVE/RECONNECTING có thể join lại ngoài cửa sổ ban đầu. End không tự hoàn tất encounter.
 
-Để lấy token local mà không lưu mật khẩu trong file (chạy PowerShell riêng; đọc mật khẩu DEMO_PASSWORD local và nhập vào prompt):
+Token lấy từ environment của REST Client: CLINIC_ADMIN_TOKEN, CLINIC_PATIENT_TOKEN, CLINIC_DOCTOR_TOKEN, CLINIC_RECEPTIONIST_TOKEN. Không lưu token thật trong HTTP/report. Token hết hạn cần gia hạn theo môi trường test.
 
-```powershell
-$demoCredential = Get-Credential -UserName 'demo' -Message 'Nhập DEMO_PASSWORD của môi trường local'
-$demoTokenUrl = 'http://localhost:8180/realms/clinic/protocol/openid-connect/token'
-$demoTokens = @{}
-foreach ($demoUser in @('admin','patient')) {
-    $demoForm = @{
-        grant_type = 'password'
-        client_id = 'clinic-local-cli'
-        username = $demoUser
-        password = $demoCredential.GetNetworkCredential().Password
-    }
-    $demoTokens[$demoUser] = (Invoke-RestMethod -Method Post -Uri $demoTokenUrl -Body $demoForm).access_token
-}
-$env:CLINIC_ADMIN_TOKEN = $demoTokens['admin']
-$env:CLINIC_PATIENT_TOKEN = $demoTokens['patient']
-$demoForm.Clear()
-$demoTokens.Clear()
-Remove-Variable demoCredential
-```
+Booking tương lai không tự đáp ứng check-in/start sát giờ. Đặt trước slot ngày demo và chờ đúng thời điểm; không sửa đồng hồ OS/DB. Nếu thiếu điều kiện ghi NOT_RUN/BLOCKED và lý do.
 
-Đóng toàn bộ VS Code trước, rồi mở lại từ PowerShell đã đặt biến để VS Code nhận được môi trường mới. Không in token, không copy token vào file tracked. Token hết hạn thì lấy lại và khởi động lại tiến trình VS Code. Client `clinic-local-cli` chỉ dành cho local; frontend dùng `clinic-web` và Authorization Code + PKCE.
+## Nghiệm thu
 
-Chạy từng request, kiểm HTTP và response trước khi tiếp tục. Cần ít nhất hai slot IN_PERSON còn trống trong kết quả `slots`. Đừng chạy lại `slots` giữa book/replay/đổi: chỉ số mảng có thể thay đổi. Các thao tác mới dùng khóa mới bằng cách sinh lại bundle; gửi lại do lỗi mạng phải giữ khóa và body cũ.
+Theo [runbook](../../demo/demo-runbook.md), [24 TC](traceability.csv) và BE-01…04. Queue rỗng chuẩn 204 có thể còn 404 ở baseline. Quyền đọc lịch lễ tân, danh mục auditor và audit từ chối vào phòng còn backlog.
 
-Kỳ vọng: book CONFIRMED/version 0, replay cùng lịch và cùng response, đổi version tăng, hủy CANCELLED với version tiếp tục tăng. Booking/đổi/hủy hiện trả HTTP 200. Hạn đổi/hủy: lịch CONFIRMED, còn ít nhất 2 giờ. Lấy version response, không dùng version cố định của catalog.
-
-Sau demo, hủy lịch đã tạo nếu luồng dừng giữa chừng bằng ID/version mới nhất ở danh sách lịch. Availability, lịch đã hủy, audit và outbox còn trong DB demo; không có API xóa/reset và công cụ không tự xóa dữ liệu.
-
-## 4. Kiểm tra khi backend đổi
-
-```powershell
-python docs/contributions/52400244_NguyenThuong/tools/backend_demo.py --check --spec docs/api/openapi.json
-```
-
-Tham số `--spec` kiểm thêm bộ request với bản JSON backend trong clone. Snapshot luôn giữ SHA/hash nguồn để có thể truy vết. Các lệnh trên kiểm schema và tham số; không xác nhận HTTP, quyền, transaction, Mailpit, race condition hoặc 24 TC đã đạt.
-
-Phản hồi lỗi triển khai dùng ProblemDetail: validation DTO 400; thiếu/sai token 401; sai role 403; lịch người khác không được phép đổi/hủy trả 404; trùng lịch/stale/hạn đổi 409; nghiệp vụ thời gian 422. Không dựa vào `code/message/correlationId` của contract thiết kế để đọc lỗi runtime.
+HTTP lifecycle/signaling không chứng minh video/audio. FE đã có WebRTC; cần mở hai người dùng để kiểm media/end/cleanup rồi kiểm hai mạng/TURN theo docs/webrtc-client.md. Không gửi SDP giả để tuyên bố media thật. Runtime bộ đóng góp này vẫn NOT_RUN tới khi có log/ảnh gắn SHA.

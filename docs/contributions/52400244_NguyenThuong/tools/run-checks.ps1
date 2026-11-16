@@ -8,7 +8,7 @@ try {
         @{Label='Fixture validator'; Args=@((Join-Path $PSScriptRoot 'validate_demo.py'))},
         @{Label='Unittest'; Args=@('-m','unittest','discover','-s',$PSScriptRoot,'-p','test_*.py','-v')},
         @{Label='Design OpenAPI catalog'; Args=@((Join-Path $PSScriptRoot 'validate_contract.py'))},
-        @{Label='Implemented backend contract'; Args=@((Join-Path $PSScriptRoot 'backend_demo.py'),'--check')}
+        @{Label='Normative backend contract 1.0.0'; Args=@((Join-Path $PSScriptRoot 'backend_demo.py'),'--check')}
     )
     foreach ($check in $checks) {
         Write-Host ("=== " + $check.Label + " ===")

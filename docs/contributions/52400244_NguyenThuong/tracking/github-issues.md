@@ -1,5 +1,7 @@
 # Issues đề xuất để ghi nhận đóng góp 52400244
 
+**17/11/2026:** các đề xuất bên dưới thuộc bộ thiết kế 0.1 lịch sử. Bộ hiện tại là `test-data/backend/`, 46 thao tác theo hợp đồng 1.0.0; trạng thái công cụ tại report/backend-validation.md. Chưa tự tạo/gửi Issue hoặc PR trong đợt này.
+
 Đã push phần đóng góp tại f9193d9. Chưa có Issue/PR được liên kết làm bằng chứng trong gói; không suy ra đã merge hoặc nghiệm thu. Các mục bên dưới là đề xuất, chưa tạo trên GitHub.
 
 1. **[SE][DATA] Mock patient/doctor/specialty and schedule fixtures**. Acceptance: có UUID, 2 BN/2 BS/2 CK/5 role; lịch không chồng; UTC hợp lệ; validator PASS.

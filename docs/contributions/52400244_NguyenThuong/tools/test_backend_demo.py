@@ -39,7 +39,7 @@ class BackendDemoTests(unittest.TestCase):
     def test_payload_uses_runtime_names_modes_and_zero_version(self):
         rows = {r['name']: r for r in self.bundle()['operations']}
         self.assertEqual(rows['availability']['body'], {
-            'startAt': '2026-11-10T06:00:00Z', 'endAt': '2026-11-10T07:00:00Z',
+            'startAt': '2026-11-10T01:00:00Z', 'endAt': '2026-11-10T02:00:00Z',
             'slotMinutes': 20, 'mode': 'IN_PERSON'})
         self.assertEqual(rows['remoteAvailability']['body']['mode'], 'REMOTE')
         self.assertEqual(rows['reschedule']['body']['version'], 0)
@@ -60,7 +60,7 @@ class BackendDemoTests(unittest.TestCase):
     def test_check_reports_contract_coverage_and_example_counts(self):
         result, output = self.run_check(self.bundle())
         self.assertEqual(result, 0)
-        self.assertIn('18/18 operations covered; 19 request examples', output)
+        self.assertIn('46/46 operations covered; 47 request examples', output)
         self.assertIn('NOT a live API/MySQL test', output)
 
     def test_removing_duplicate_example_preserves_operation_coverage(self):
@@ -69,7 +69,7 @@ class BackendDemoTests(unittest.TestCase):
         self.assertEqual(demo.validate_bundle(bundle), [])
         result, output = self.run_check(bundle)
         self.assertEqual(result, 0)
-        self.assertIn('18/18 operations covered; 18 request examples', output)
+        self.assertIn('46/46 operations covered; 46 request examples', output)
 
     def test_missing_operation_never_reports_pass(self):
         bundle = self.bundle()
@@ -91,10 +91,10 @@ class BackendDemoTests(unittest.TestCase):
             self.assertNotIn('PASS:', output)
             bundle = copy.deepcopy(self.bundle())
             bundle['operations'].append({'name': 'newOperation', 'method': 'GET',
-                'path': '/api/review-placeholder', 'params': {}, 'headers': {}})
+                'path': '/api/review-placeholder', 'actor': 'patient', 'params': {}, 'headers': {}})
             result, output = self.run_check(bundle, spec_path)
             self.assertEqual(result, 0)
-            self.assertIn('19/19 operations covered; 20 request examples', output)
+        self.assertIn('47/47 operations covered; 48 request examples', output)
 
     def test_contract_detects_old_field_enum_role_and_missing_header(self):
         for name, mutate in (

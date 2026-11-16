@@ -1,14 +1,13 @@
 {
   "openapi": "3.1.0",
   "info": {
-    "title": "Clinic scheduling API",
-    "description": "Week 3-4: authentication, catalog, availability and appointments",
-    "version": "0.1.0"
+    "title": "ClinicCare BE–FE Integration Contract",
+    "version": "1.0.0",
+    "description": "Hợp đồng tích hợp chốt ngày 16/11/2026. Đây là chuẩn BE/FE phải tuân thủ, không phải tuyên bố backend đã đạt mọi điều kiện. Xem integration-contract.md và integration-backlog.md. openapi.json là snapshot sinh từ backend, không phải nguồn chuẩn thay thế YAML này."
   },
   "servers": [
     {
-      "url": "http://localhost:8080",
-      "description": "Generated server url"
+      "url": "http://localhost:8080"
     }
   ],
   "security": [
@@ -17,12 +16,173 @@
     }
   ],
   "paths": {
-    "/api/users/{id}/roles": {
-      "put": {
+    "/api/appointments": {
+      "get": {
         "tags": [
-          "auth-controller"
+          "M04"
         ],
-        "operationId": "roles",
+        "operationId": "listAppointments",
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 20
+            }
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "default": 0
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Thành công",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Mã liên kết request/audit; baseline có thể thiếu trên lỗi security filter.",
+                "schema": {
+                  "type": "string",
+                  "format": "uuid"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/AppointmentView"
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          },
+          "422": {
+            "$ref": "#/components/responses/Unprocessable"
+          },
+          "503": {
+            "$ref": "#/components/responses/Unavailable"
+          }
+        },
+        "summary": "listAppointments",
+        "description": "Quyền mục tiêu: PATIENT của mình/DOCTOR được gán/RECEPTIONIST/ADMINISTRATOR. Xem integration-contract.md cho cửa sổ thời gian, giao dịch và phân quyền tài nguyên.",
+        "x-requirements": [
+          "FR-02",
+          "FR-08"
+        ],
+        "x-access": "PATIENT của mình/DOCTOR được gán/RECEPTIONIST/ADMINISTRATOR"
+      },
+      "post": {
+        "tags": [
+          "M04"
+        ],
+        "operationId": "bookAppointment",
+        "parameters": [
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128,
+              "pattern": "^[A-Za-z0-9._:-]+$"
+            },
+            "description": "Bắt buộc; giữ nguyên khi retry cùng thao tác/payload trong 24 giờ."
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Booking"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Thành công",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Mã liên kết request/audit; baseline có thể thiếu trên lỗi security filter.",
+                "schema": {
+                  "type": "string",
+                  "format": "uuid"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppointmentView"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          },
+          "422": {
+            "$ref": "#/components/responses/Unprocessable"
+          },
+          "503": {
+            "$ref": "#/components/responses/Unavailable"
+          }
+        },
+        "summary": "bookAppointment",
+        "description": "Quyền mục tiêu: PATIENT tự đặt. Xem integration-contract.md cho cửa sổ thời gian, giao dịch và phân quyền tài nguyên.",
+        "x-requirements": [
+          "FR-08"
+        ],
+        "x-access": "PATIENT tự đặt"
+      }
+    },
+    "/api/appointments/{id}": {
+      "get": {
+        "tags": [
+          "M04"
+        ],
+        "operationId": "getAppointment",
         "parameters": [
           {
             "name": "id",
@@ -34,34 +194,91 @@
             }
           }
         ],
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/Roles"
+        "responses": {
+          "200": {
+            "description": "Thành công",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Mã liên kết request/audit; baseline có thể thiếu trên lỗi security filter.",
+                "schema": {
+                  "type": "string",
+                  "format": "uuid"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppointmentDetail"
+                }
               }
             }
           },
-          "required": true
-        },
-        "responses": {
-          "200": {
-            "description": "OK"
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          },
+          "422": {
+            "$ref": "#/components/responses/Unprocessable"
+          },
+          "503": {
+            "$ref": "#/components/responses/Unavailable"
           }
-        }
+        },
+        "summary": "getAppointment",
+        "description": "Quyền mục tiêu: Chủ lịch/DOCTOR được gán/RECEPTIONIST/ADMINISTRATOR. Xem integration-contract.md cho cửa sổ thời gian, giao dịch và phân quyền tài nguyên.",
+        "x-requirements": [
+          "FR-02",
+          "FR-11"
+        ],
+        "x-access": "Chủ lịch/DOCTOR được gán/RECEPTIONIST/ADMINISTRATOR"
       }
     },
-    "/api/me/contact": {
-      "put": {
+    "/api/appointments/{id}/cancel": {
+      "post": {
         "tags": [
-          "auth-controller"
+          "M04"
         ],
-        "operationId": "contact",
+        "operationId": "cancelAppointment",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128,
+              "pattern": "^[A-Za-z0-9._:-]+$"
+            },
+            "description": "Bắt buộc; giữ nguyên khi retry cùng thao tác/payload trong 24 giờ."
+          }
+        ],
         "requestBody": {
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/Contact"
+                "$ref": "#/components/schemas/Cancel"
               }
             }
           },
@@ -69,17 +286,704 @@
         },
         "responses": {
           "200": {
-            "description": "OK"
+            "description": "Thành công",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Mã liên kết request/audit; baseline có thể thiếu trên lỗi security filter.",
+                "schema": {
+                  "type": "string",
+                  "format": "uuid"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppointmentView"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          },
+          "422": {
+            "$ref": "#/components/responses/Unprocessable"
+          },
+          "503": {
+            "$ref": "#/components/responses/Unavailable"
           }
-        }
+        },
+        "summary": "cancelAppointment",
+        "description": "Quyền mục tiêu: PATIENT chủ lịch. Xem integration-contract.md cho cửa sổ thời gian, giao dịch và phân quyền tài nguyên.",
+        "x-requirements": [
+          "FR-10"
+        ],
+        "x-access": "PATIENT chủ lịch"
+      }
+    },
+    "/api/appointments/{id}/check-in": {
+      "post": {
+        "tags": [
+          "M08"
+        ],
+        "operationId": "checkIn",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128,
+              "pattern": "^[A-Za-z0-9._:-]+$"
+            },
+            "description": "Bắt buộc; giữ nguyên khi retry cùng thao tác/payload trong 24 giờ."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Thành công",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Mã liên kết request/audit; baseline có thể thiếu trên lỗi security filter.",
+                "schema": {
+                  "type": "string",
+                  "format": "uuid"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/QueueTicket"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          },
+          "422": {
+            "$ref": "#/components/responses/Unprocessable"
+          },
+          "503": {
+            "$ref": "#/components/responses/Unavailable"
+          }
+        },
+        "summary": "checkIn",
+        "description": "Quyền mục tiêu: RECEPTIONIST. Xem integration-contract.md cho cửa sổ thời gian, giao dịch và phân quyền tài nguyên.",
+        "x-requirements": [
+          "FR-19"
+        ],
+        "x-access": "RECEPTIONIST"
+      }
+    },
+    "/api/appointments/{id}/progress": {
+      "post": {
+        "tags": [
+          "M04"
+        ],
+        "operationId": "progressAppointment",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128,
+              "pattern": "^[A-Za-z0-9._:-]+$"
+            },
+            "description": "Bắt buộc; giữ nguyên khi retry cùng thao tác/payload trong 24 giờ."
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Progress"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Thành công",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Mã liên kết request/audit; baseline có thể thiếu trên lỗi security filter.",
+                "schema": {
+                  "type": "string",
+                  "format": "uuid"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppointmentDetail"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          },
+          "422": {
+            "$ref": "#/components/responses/Unprocessable"
+          },
+          "503": {
+            "$ref": "#/components/responses/Unavailable"
+          }
+        },
+        "summary": "progressAppointment",
+        "description": "Quyền mục tiêu: DOCTOR được gán; NO_SHOW trực tiếp: RECEPTIONIST. Xem integration-contract.md cho cửa sổ thời gian, giao dịch và phân quyền tài nguyên.",
+        "x-requirements": [
+          "FR-11"
+        ],
+        "x-access": "DOCTOR được gán; NO_SHOW trực tiếp: RECEPTIONIST"
+      }
+    },
+    "/api/appointments/{id}/reschedule": {
+      "post": {
+        "tags": [
+          "M04"
+        ],
+        "operationId": "rescheduleAppointment",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128,
+              "pattern": "^[A-Za-z0-9._:-]+$"
+            },
+            "description": "Bắt buộc; giữ nguyên khi retry cùng thao tác/payload trong 24 giờ."
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Reschedule"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Thành công",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Mã liên kết request/audit; baseline có thể thiếu trên lỗi security filter.",
+                "schema": {
+                  "type": "string",
+                  "format": "uuid"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppointmentView"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          },
+          "422": {
+            "$ref": "#/components/responses/Unprocessable"
+          },
+          "503": {
+            "$ref": "#/components/responses/Unavailable"
+          }
+        },
+        "summary": "rescheduleAppointment",
+        "description": "Quyền mục tiêu: PATIENT chủ lịch. Xem integration-contract.md cho cửa sổ thời gian, giao dịch và phân quyền tài nguyên.",
+        "x-requirements": [
+          "FR-09"
+        ],
+        "x-access": "PATIENT chủ lịch"
+      }
+    },
+    "/api/appointments/{id}/telehealth-session": {
+      "post": {
+        "tags": [
+          "M09"
+        ],
+        "operationId": "prepareSession",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128,
+              "pattern": "^[A-Za-z0-9._:-]+$"
+            },
+            "description": "Bắt buộc; giữ nguyên khi retry cùng thao tác/payload trong 24 giờ."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Thành công",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Mã liên kết request/audit; baseline có thể thiếu trên lỗi security filter.",
+                "schema": {
+                  "type": "string",
+                  "format": "uuid"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TelehealthSession"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          },
+          "422": {
+            "$ref": "#/components/responses/Unprocessable"
+          },
+          "503": {
+            "$ref": "#/components/responses/Unavailable"
+          }
+        },
+        "summary": "prepareSession",
+        "description": "Quyền mục tiêu: PATIENT chủ lịch/DOCTOR phụ trách. Xem integration-contract.md cho cửa sổ thời gian, giao dịch và phân quyền tài nguyên. Prepare một lần khi vào phòng; không dùng để poll. ENDED/CANCELLED trả 409.",
+        "x-requirements": [
+          "FR-22"
+        ],
+        "x-access": "PATIENT chủ lịch/DOCTOR phụ trách"
+      }
+    },
+    "/api/audit-events": {
+      "get": {
+        "tags": [
+          "M07"
+        ],
+        "operationId": "listAuditEvents",
+        "parameters": [
+          {
+            "name": "from",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "date-time"
+            }
+          },
+          {
+            "name": "to",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "date-time"
+            }
+          },
+          {
+            "name": "actorId",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "resourceId",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 20
+            }
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "default": 0
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Thành công",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Mã liên kết request/audit; baseline có thể thiếu trên lỗi security filter.",
+                "schema": {
+                  "type": "string",
+                  "format": "uuid"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/AuditEvent"
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          },
+          "422": {
+            "$ref": "#/components/responses/Unprocessable"
+          },
+          "503": {
+            "$ref": "#/components/responses/Unavailable"
+          }
+        },
+        "summary": "listAuditEvents",
+        "description": "Quyền mục tiêu: AUDITOR. Xem integration-contract.md cho cửa sổ thời gian, giao dịch và phân quyền tài nguyên.",
+        "x-requirements": [
+          "FR-17",
+          "FR-18"
+        ],
+        "x-access": "AUDITOR",
+        "x-implementation-gaps": [
+          "BE-01"
+        ]
+      }
+    },
+    "/api/availability/{id}": {
+      "delete": {
+        "tags": [
+          "M03"
+        ],
+        "operationId": "deleteAvailability",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Xóa thành công; không có body",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Mã liên kết request/audit; baseline có thể thiếu trên lỗi security filter.",
+                "schema": {
+                  "type": "string",
+                  "format": "uuid"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          },
+          "422": {
+            "$ref": "#/components/responses/Unprocessable"
+          },
+          "503": {
+            "$ref": "#/components/responses/Unavailable"
+          }
+        },
+        "summary": "deleteAvailability",
+        "description": "Quyền mục tiêu: DOCTOR sở hữu/ADMINISTRATOR; tương lai, chưa có lịch sử hẹn. Xem integration-contract.md cho cửa sổ thời gian, giao dịch và phân quyền tài nguyên.",
+        "x-requirements": [
+          "FR-05"
+        ],
+        "x-access": "DOCTOR sở hữu/ADMINISTRATOR; tương lai, chưa có lịch sử hẹn"
+      }
+    },
+    "/api/doctors": {
+      "get": {
+        "tags": [
+          "M02"
+        ],
+        "operationId": "listDoctors",
+        "responses": {
+          "200": {
+            "description": "Thành công",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Mã liên kết request/audit; baseline có thể thiếu trên lỗi security filter.",
+                "schema": {
+                  "type": "string",
+                  "format": "uuid"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/DoctorRow"
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          },
+          "422": {
+            "$ref": "#/components/responses/Unprocessable"
+          },
+          "503": {
+            "$ref": "#/components/responses/Unavailable"
+          }
+        },
+        "summary": "listDoctors",
+        "description": "Quyền mục tiêu: PATIENT/DOCTOR/RECEPTIONIST/ADMINISTRATOR. Xem integration-contract.md cho cửa sổ thời gian, giao dịch và phân quyền tài nguyên.",
+        "x-requirements": [
+          "FR-02",
+          "FR-03"
+        ],
+        "x-access": "PATIENT/DOCTOR/RECEPTIONIST/ADMINISTRATOR",
+        "x-implementation-gaps": [
+          "BE-03"
+        ]
+      },
+      "post": {
+        "tags": [
+          "M02"
+        ],
+        "operationId": "createDoctor",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Doctor"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Thành công",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Mã liên kết request/audit; baseline có thể thiếu trên lỗi security filter.",
+                "schema": {
+                  "type": "string",
+                  "format": "uuid"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DoctorView"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          },
+          "422": {
+            "$ref": "#/components/responses/Unprocessable"
+          },
+          "503": {
+            "$ref": "#/components/responses/Unavailable"
+          }
+        },
+        "summary": "createDoctor",
+        "description": "Quyền mục tiêu: ADMINISTRATOR. Xem integration-contract.md cho cửa sổ thời gian, giao dịch và phân quyền tài nguyên.",
+        "x-requirements": [
+          "FR-03"
+        ],
+        "x-access": "ADMINISTRATOR"
       }
     },
     "/api/doctors/{id}": {
       "put": {
         "tags": [
-          "catalog-controller"
+          "M02"
         ],
-        "operationId": "update",
+        "operationId": "updateDoctor",
         "parameters": [
           {
             "name": "id",
@@ -103,190 +1007,61 @@
         },
         "responses": {
           "200": {
-            "description": "OK",
-            "content": {
-              "*/*": {
+            "description": "Thành công",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Mã liên kết request/audit; baseline có thể thiếu trên lỗi security filter.",
                 "schema": {
-                  "type": "object"
+                  "type": "string",
+                  "format": "uuid"
                 }
               }
-            }
-          }
-        }
-      }
-    },
-    "/api/specialties": {
-      "get": {
-        "tags": [
-          "catalog-controller"
-        ],
-        "operationId": "specialties",
-        "responses": {
-          "200": {
-            "description": "OK",
+            },
             "content": {
-              "*/*": {
+              "application/json": {
                 "schema": {
-                  "type": "object"
+                  "$ref": "#/components/schemas/DoctorView"
                 }
-              }
-            }
-          }
-        }
-      },
-      "post": {
-        "tags": [
-          "catalog-controller"
-        ],
-        "operationId": "specialty",
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/Specialty"
               }
             }
           },
-          "required": true
-        },
-        "responses": {
-          "200": {
-            "description": "OK",
-            "content": {
-              "*/*": {
-                "schema": {
-                  "type": "object"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/doctors": {
-      "get": {
-        "tags": [
-          "catalog-controller"
-        ],
-        "operationId": "doctors",
-        "responses": {
-          "200": {
-            "description": "OK",
-            "content": {
-              "*/*": {
-                "schema": {
-                  "type": "object"
-                }
-              }
-            }
-          }
-        }
-      },
-      "post": {
-        "tags": [
-          "catalog-controller"
-        ],
-        "operationId": "doctor",
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/Doctor"
-              }
-            }
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
           },
-          "required": true
-        },
-        "responses": {
-          "200": {
-            "description": "OK",
-            "content": {
-              "*/*": {
-                "schema": {
-                  "type": "object"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/doctors/{id}/time-off": {
-      "get": {
-        "tags": [
-          "schedule-controller"
-        ],
-        "operationId": "timeOff",
-        "parameters": [
-          {
-            "name": "id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "format": "uuid"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "OK",
-            "content": {
-              "*/*": {
-                "schema": {
-                  "type": "object"
-                }
-              }
-            }
-          }
-        }
-      },
-      "post": {
-        "tags": [
-          "schedule-controller"
-        ],
-        "operationId": "timeOff_1",
-        "parameters": [
-          {
-            "name": "id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "format": "uuid"
-            }
-          }
-        ],
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/TimeOff"
-              }
-            }
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
           },
-          "required": true
-        },
-        "responses": {
-          "200": {
-            "description": "OK",
-            "content": {
-              "*/*": {
-                "schema": {
-                  "type": "object"
-                }
-              }
-            }
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          },
+          "422": {
+            "$ref": "#/components/responses/Unprocessable"
+          },
+          "503": {
+            "$ref": "#/components/responses/Unavailable"
           }
-        }
+        },
+        "summary": "updateDoctor",
+        "description": "Quyền mục tiêu: ADMINISTRATOR. Xem integration-contract.md cho cửa sổ thời gian, giao dịch và phân quyền tài nguyên.",
+        "x-requirements": [
+          "FR-03",
+          "FR-04"
+        ],
+        "x-access": "ADMINISTRATOR"
       }
     },
     "/api/doctors/{id}/availability": {
       "get": {
         "tags": [
-          "schedule-controller"
+          "M03"
         ],
-        "operationId": "availability",
+        "operationId": "listAvailability",
         "parameters": [
           {
             "name": "id",
@@ -300,22 +1075,65 @@
         ],
         "responses": {
           "200": {
-            "description": "OK",
-            "content": {
-              "*/*": {
+            "description": "Thành công",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Mã liên kết request/audit; baseline có thể thiếu trên lỗi security filter.",
                 "schema": {
-                  "type": "object"
+                  "type": "string",
+                  "format": "uuid"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/AvailabilityView"
+                  }
                 }
               }
             }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          },
+          "422": {
+            "$ref": "#/components/responses/Unprocessable"
+          },
+          "503": {
+            "$ref": "#/components/responses/Unavailable"
           }
-        }
+        },
+        "summary": "listAvailability",
+        "description": "Quyền mục tiêu: DOCTOR sở hữu/RECEPTIONIST/ADMINISTRATOR. Xem integration-contract.md cho cửa sổ thời gian, giao dịch và phân quyền tài nguyên.",
+        "x-requirements": [
+          "FR-02",
+          "FR-05"
+        ],
+        "x-access": "DOCTOR sở hữu/RECEPTIONIST/ADMINISTRATOR",
+        "x-implementation-gaps": [
+          "BE-02"
+        ]
       },
       "post": {
         "tags": [
-          "schedule-controller"
+          "M03"
         ],
-        "operationId": "availability_1",
+        "operationId": "createAvailability",
         "parameters": [
           {
             "name": "id",
@@ -339,32 +1157,956 @@
         },
         "responses": {
           "200": {
-            "description": "OK",
-            "content": {
-              "*/*": {
+            "description": "Thành công",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Mã liên kết request/audit; baseline có thể thiếu trên lỗi security filter.",
                 "schema": {
-                  "type": "object"
+                  "type": "string",
+                  "format": "uuid"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AvailabilityView"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          },
+          "422": {
+            "$ref": "#/components/responses/Unprocessable"
+          },
+          "503": {
+            "$ref": "#/components/responses/Unavailable"
+          }
+        },
+        "summary": "createAvailability",
+        "description": "Quyền mục tiêu: DOCTOR sở hữu/ADMINISTRATOR. Xem integration-contract.md cho cửa sổ thời gian, giao dịch và phân quyền tài nguyên.",
+        "x-requirements": [
+          "FR-05"
+        ],
+        "x-access": "DOCTOR sở hữu/ADMINISTRATOR"
+      }
+    },
+    "/api/doctors/{id}/queue": {
+      "get": {
+        "tags": [
+          "M08"
+        ],
+        "operationId": "getDoctorQueue",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "date",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "date"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Thành công",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Mã liên kết request/audit; baseline có thể thiếu trên lỗi security filter.",
+                "schema": {
+                  "type": "string",
+                  "format": "uuid"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/QueueTicket"
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          },
+          "422": {
+            "$ref": "#/components/responses/Unprocessable"
+          },
+          "503": {
+            "$ref": "#/components/responses/Unavailable"
+          }
+        },
+        "summary": "getDoctorQueue",
+        "description": "Quyền mục tiêu: DOCTOR sở hữu/RECEPTIONIST. Xem integration-contract.md cho cửa sổ thời gian, giao dịch và phân quyền tài nguyên. date bắt buộc, ngày Asia/Ho_Chi_Minh; trả mọi trạng thái, FE tự lọc. Không có GET /queue-tickets.",
+        "x-requirements": [
+          "FR-02",
+          "FR-20"
+        ],
+        "x-access": "DOCTOR sở hữu/RECEPTIONIST"
+      }
+    },
+    "/api/doctors/{id}/queue/next": {
+      "post": {
+        "tags": [
+          "M08"
+        ],
+        "operationId": "callNext",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "date",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "date"
+            }
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128,
+              "pattern": "^[A-Za-z0-9._:-]+$"
+            },
+            "description": "Bắt buộc; giữ nguyên khi retry cùng thao tác/payload trong 24 giờ."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Thành công",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Mã liên kết request/audit; baseline có thể thiếu trên lỗi security filter.",
+                "schema": {
+                  "type": "string",
+                  "format": "uuid"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/QueueTicket"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          },
+          "422": {
+            "$ref": "#/components/responses/Unprocessable"
+          },
+          "503": {
+            "$ref": "#/components/responses/Unavailable"
+          },
+          "204": {
+            "description": "Hàng hợp lệ không còn WAITING; không có body. Mục tiêu BE-04, baseline hiện trả 404.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Mã liên kết request/audit; baseline có thể thiếu trên lỗi security filter.",
+                "schema": {
+                  "type": "string",
+                  "format": "uuid"
                 }
               }
             }
           }
-        }
+        },
+        "summary": "callNext",
+        "description": "Quyền mục tiêu: DOCTOR sở hữu/RECEPTIONIST. Xem integration-contract.md cho cửa sổ thời gian, giao dịch và phân quyền tài nguyên. Không tạo phiếu mới. Nếu còn CALLED/IN_SERVICE trả 409; nếu không có WAITING trả 204 (BE-04 cần triển khai).",
+        "x-requirements": [
+          "FR-20"
+        ],
+        "x-access": "DOCTOR sở hữu/RECEPTIONIST",
+        "x-implementation-gaps": [
+          "BE-04"
+        ]
       }
     },
-    "/api/appointments": {
+    "/api/doctors/{id}/time-off": {
       "get": {
         "tags": [
-          "appointment-controller"
+          "M03"
         ],
-        "operationId": "list",
+        "operationId": "listTimeOff",
         "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Thành công",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Mã liên kết request/audit; baseline có thể thiếu trên lỗi security filter.",
+                "schema": {
+                  "type": "string",
+                  "format": "uuid"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/TimeOffView"
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          },
+          "422": {
+            "$ref": "#/components/responses/Unprocessable"
+          },
+          "503": {
+            "$ref": "#/components/responses/Unavailable"
+          }
+        },
+        "summary": "listTimeOff",
+        "description": "Quyền mục tiêu: DOCTOR sở hữu/RECEPTIONIST/ADMINISTRATOR. Xem integration-contract.md cho cửa sổ thời gian, giao dịch và phân quyền tài nguyên.",
+        "x-requirements": [
+          "FR-02",
+          "FR-06"
+        ],
+        "x-access": "DOCTOR sở hữu/RECEPTIONIST/ADMINISTRATOR",
+        "x-implementation-gaps": [
+          "BE-02"
+        ]
+      },
+      "post": {
+        "tags": [
+          "M03"
+        ],
+        "operationId": "createTimeOff",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TimeOff"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Thành công",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Mã liên kết request/audit; baseline có thể thiếu trên lỗi security filter.",
+                "schema": {
+                  "type": "string",
+                  "format": "uuid"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TimeOffView"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          },
+          "422": {
+            "$ref": "#/components/responses/Unprocessable"
+          },
+          "503": {
+            "$ref": "#/components/responses/Unavailable"
+          }
+        },
+        "summary": "createTimeOff",
+        "description": "Quyền mục tiêu: DOCTOR sở hữu/ADMINISTRATOR. Xem integration-contract.md cho cửa sổ thời gian, giao dịch và phân quyền tài nguyên.",
+        "x-requirements": [
+          "FR-06"
+        ],
+        "x-access": "DOCTOR sở hữu/ADMINISTRATOR"
+      }
+    },
+    "/api/encounters/{id}/prescriptions": {
+      "get": {
+        "tags": [
+          "M05"
+        ],
+        "operationId": "listEncounterPrescriptions",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Thành công",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Mã liên kết request/audit; baseline có thể thiếu trên lỗi security filter.",
+                "schema": {
+                  "type": "string",
+                  "format": "uuid"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/Prescription"
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          },
+          "422": {
+            "$ref": "#/components/responses/Unprocessable"
+          },
+          "503": {
+            "$ref": "#/components/responses/Unavailable"
+          }
+        },
+        "summary": "listEncounterPrescriptions",
+        "description": "Quyền mục tiêu: PATIENT chỉ ISSUED/DOCTOR phụ trách đọc cả DRAFT. Xem integration-contract.md cho cửa sổ thời gian, giao dịch và phân quyền tài nguyên.",
+        "x-requirements": [
+          "FR-12",
+          "FR-14"
+        ],
+        "x-access": "PATIENT chỉ ISSUED/DOCTOR phụ trách đọc cả DRAFT"
+      },
+      "post": {
+        "tags": [
+          "M05"
+        ],
+        "operationId": "createPrescription",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128,
+              "pattern": "^[A-Za-z0-9._:-]+$"
+            },
+            "description": "Bắt buộc; giữ nguyên khi retry cùng thao tác/payload trong 24 giờ."
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PrescriptionInput"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Thành công",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Mã liên kết request/audit; baseline có thể thiếu trên lỗi security filter.",
+                "schema": {
+                  "type": "string",
+                  "format": "uuid"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Prescription"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          },
+          "422": {
+            "$ref": "#/components/responses/Unprocessable"
+          },
+          "503": {
+            "$ref": "#/components/responses/Unavailable"
+          }
+        },
+        "summary": "createPrescription",
+        "description": "Quyền mục tiêu: DOCTOR phụ trách. Xem integration-contract.md cho cửa sổ thời gian, giao dịch và phân quyền tài nguyên.",
+        "x-requirements": [
+          "FR-14"
+        ],
+        "x-access": "DOCTOR phụ trách"
+      }
+    },
+    "/api/encounters/{id}/record": {
+      "get": {
+        "tags": [
+          "M05"
+        ],
+        "operationId": "getEncounterRecord",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Thành công",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Mã liên kết request/audit; baseline có thể thiếu trên lỗi security filter.",
+                "schema": {
+                  "type": "string",
+                  "format": "uuid"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MedicalRecord"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          },
+          "422": {
+            "$ref": "#/components/responses/Unprocessable"
+          },
+          "503": {
+            "$ref": "#/components/responses/Unavailable"
+          }
+        },
+        "summary": "getEncounterRecord",
+        "description": "Quyền mục tiêu: PATIENT chỉ FINAL/DOCTOR phụ trách đọc DRAFT và FINAL. Xem integration-contract.md cho cửa sổ thời gian, giao dịch và phân quyền tài nguyên. Chưa có bản ghi hoặc bệnh nhân chỉ có DRAFT trả 404; FE bác sĩ hiển thị form mới version=0 khi chưa có bản ghi.",
+        "x-requirements": [
+          "FR-12"
+        ],
+        "x-access": "PATIENT chỉ FINAL/DOCTOR phụ trách đọc DRAFT và FINAL"
+      },
+      "put": {
+        "tags": [
+          "M05"
+        ],
+        "operationId": "saveRecord",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128,
+              "pattern": "^[A-Za-z0-9._:-]+$"
+            },
+            "description": "Bắt buộc; giữ nguyên khi retry cùng thao tác/payload trong 24 giờ."
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RecordInput"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Thành công",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Mã liên kết request/audit; baseline có thể thiếu trên lỗi security filter.",
+                "schema": {
+                  "type": "string",
+                  "format": "uuid"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MedicalRecord"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          },
+          "422": {
+            "$ref": "#/components/responses/Unprocessable"
+          },
+          "503": {
+            "$ref": "#/components/responses/Unavailable"
+          }
+        },
+        "summary": "saveRecord",
+        "description": "Quyền mục tiêu: DOCTOR phụ trách. Xem integration-contract.md cho cửa sổ thời gian, giao dịch và phân quyền tài nguyên.",
+        "x-requirements": [
+          "FR-13"
+        ],
+        "x-access": "DOCTOR phụ trách"
+      }
+    },
+    "/api/me": {
+      "get": {
+        "tags": [
+          "M01"
+        ],
+        "operationId": "getMe",
+        "responses": {
+          "200": {
+            "description": "Thành công",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Mã liên kết request/audit; baseline có thể thiếu trên lỗi security filter.",
+                "schema": {
+                  "type": "string",
+                  "format": "uuid"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Identity"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          },
+          "422": {
+            "$ref": "#/components/responses/Unprocessable"
+          },
+          "503": {
+            "$ref": "#/components/responses/Unavailable"
+          }
+        },
+        "summary": "getMe",
+        "description": "Quyền mục tiêu: Đã đăng nhập. Xem integration-contract.md cho cửa sổ thời gian, giao dịch và phân quyền tài nguyên.",
+        "x-requirements": [
+          "FR-01",
+          "FR-02"
+        ],
+        "x-access": "Đã đăng nhập"
+      }
+    },
+    "/api/me/contact": {
+      "put": {
+        "tags": [
+          "M01"
+        ],
+        "operationId": "updateMyContact",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Contact"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Thành công; HTTP 200, body rỗng (PUT contact/roles).",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Mã liên kết request/audit; baseline có thể thiếu trên lỗi security filter.",
+                "schema": {
+                  "type": "string",
+                  "format": "uuid"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          },
+          "422": {
+            "$ref": "#/components/responses/Unprocessable"
+          },
+          "503": {
+            "$ref": "#/components/responses/Unavailable"
+          }
+        },
+        "summary": "updateMyContact",
+        "description": "Quyền mục tiêu: Chủ tài khoản. Xem integration-contract.md cho cửa sổ thời gian, giao dịch và phân quyền tài nguyên.",
+        "x-requirements": [
+          "FR-01",
+          "FR-17"
+        ],
+        "x-access": "Chủ tài khoản"
+      }
+    },
+    "/api/me/profile": {
+      "get": {
+        "tags": [
+          "M01"
+        ],
+        "operationId": "getMyProfile",
+        "responses": {
+          "200": {
+            "description": "Thành công",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Mã liên kết request/audit; baseline có thể thiếu trên lỗi security filter.",
+                "schema": {
+                  "type": "string",
+                  "format": "uuid"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UserProfile"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          },
+          "422": {
+            "$ref": "#/components/responses/Unprocessable"
+          },
+          "503": {
+            "$ref": "#/components/responses/Unavailable"
+          }
+        },
+        "summary": "getMyProfile",
+        "description": "Quyền mục tiêu: Chủ tài khoản. Xem integration-contract.md cho cửa sổ thời gian, giao dịch và phân quyền tài nguyên.",
+        "x-requirements": [
+          "FR-01",
+          "FR-02"
+        ],
+        "x-access": "Chủ tài khoản"
+      }
+    },
+    "/api/notification-jobs": {
+      "get": {
+        "tags": [
+          "M06"
+        ],
+        "operationId": "listNotificationJobs",
+        "responses": {
+          "200": {
+            "description": "Thành công",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Mã liên kết request/audit; baseline có thể thiếu trên lỗi security filter.",
+                "schema": {
+                  "type": "string",
+                  "format": "uuid"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/NotificationJob"
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          },
+          "422": {
+            "$ref": "#/components/responses/Unprocessable"
+          },
+          "503": {
+            "$ref": "#/components/responses/Unavailable"
+          }
+        },
+        "summary": "listNotificationJobs",
+        "description": "Quyền mục tiêu: RECEPTIONIST/ADMINISTRATOR. Xem integration-contract.md cho cửa sổ thời gian, giao dịch và phân quyền tài nguyên.",
+        "x-requirements": [
+          "FR-15",
+          "FR-16"
+        ],
+        "x-access": "RECEPTIONIST/ADMINISTRATOR"
+      }
+    },
+    "/api/patients/{id}/prescriptions": {
+      "get": {
+        "tags": [
+          "M05"
+        ],
+        "operationId": "listPatientPrescriptions",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
           {
             "name": "limit",
             "in": "query",
             "required": false,
             "schema": {
               "type": "integer",
-              "format": "int32",
+              "minimum": 1,
+              "maximum": 100,
               "default": 20
             }
           },
@@ -374,69 +2116,162 @@
             "required": false,
             "schema": {
               "type": "integer",
-              "format": "int32",
+              "minimum": 0,
               "default": 0
             }
           }
         ],
         "responses": {
           "200": {
-            "description": "OK",
-            "content": {
-              "*/*": {
+            "description": "Thành công",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Mã liên kết request/audit; baseline có thể thiếu trên lỗi security filter.",
                 "schema": {
-                  "type": "object"
+                  "type": "string",
+                  "format": "uuid"
                 }
               }
-            }
-          }
-        }
-      },
-      "post": {
-        "tags": [
-          "appointment-controller"
-        ],
-        "operationId": "book",
-        "parameters": [
-          {
-            "name": "Idempotency-Key",
-            "in": "header",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/Booking"
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/Prescription"
+                  }
+                }
               }
             }
           },
-          "required": true
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          },
+          "422": {
+            "$ref": "#/components/responses/Unprocessable"
+          },
+          "503": {
+            "$ref": "#/components/responses/Unavailable"
+          }
         },
+        "summary": "listPatientPrescriptions",
+        "description": "Quyền mục tiêu: PATIENT của mình/DOCTOR có quan hệ điều trị; chỉ ISSUED. Xem integration-contract.md cho cửa sổ thời gian, giao dịch và phân quyền tài nguyên. History chỉ FINAL/ISSUED. Không dùng để mở lại bản nháp của encounter hiện tại.",
+        "x-requirements": [
+          "FR-12",
+          "FR-14"
+        ],
+        "x-access": "PATIENT của mình/DOCTOR có quan hệ điều trị; chỉ ISSUED"
+      }
+    },
+    "/api/patients/{id}/records": {
+      "get": {
+        "tags": [
+          "M05"
+        ],
+        "operationId": "listPatientRecords",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 20
+            }
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "default": 0
+            }
+          }
+        ],
         "responses": {
           "200": {
-            "description": "OK",
-            "content": {
-              "*/*": {
+            "description": "Thành công",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Mã liên kết request/audit; baseline có thể thiếu trên lỗi security filter.",
                 "schema": {
-                  "type": "object"
+                  "type": "string",
+                  "format": "uuid"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/MedicalRecord"
+                  }
                 }
               }
             }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          },
+          "422": {
+            "$ref": "#/components/responses/Unprocessable"
+          },
+          "503": {
+            "$ref": "#/components/responses/Unavailable"
           }
-        }
+        },
+        "summary": "listPatientRecords",
+        "description": "Quyền mục tiêu: PATIENT của mình/DOCTOR có quan hệ điều trị. Xem integration-contract.md cho cửa sổ thời gian, giao dịch và phân quyền tài nguyên. History chỉ FINAL/ISSUED. Không dùng để mở lại bản nháp của encounter hiện tại.",
+        "x-requirements": [
+          "FR-12"
+        ],
+        "x-access": "PATIENT của mình/DOCTOR có quan hệ điều trị"
       }
     },
-    "/api/appointments/{id}/reschedule": {
-      "post": {
+    "/api/prescriptions/{id}": {
+      "put": {
         "tags": [
-          "appointment-controller"
+          "M05"
         ],
-        "operationId": "reschedule",
+        "operationId": "updatePrescription",
         "parameters": [
           {
             "name": "id",
@@ -452,15 +2287,19 @@
             "in": "header",
             "required": true,
             "schema": {
-              "type": "string"
-            }
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128,
+              "pattern": "^[A-Za-z0-9._:-]+$"
+            },
+            "description": "Bắt buộc; giữ nguyên khi retry cùng thao tác/payload trong 24 giờ."
           }
         ],
         "requestBody": {
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/Reschedule"
+                "$ref": "#/components/schemas/PrescriptionUpdate"
               }
             }
           },
@@ -468,24 +2307,60 @@
         },
         "responses": {
           "200": {
-            "description": "OK",
-            "content": {
-              "*/*": {
+            "description": "Thành công",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Mã liên kết request/audit; baseline có thể thiếu trên lỗi security filter.",
                 "schema": {
-                  "type": "object"
+                  "type": "string",
+                  "format": "uuid"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Prescription"
                 }
               }
             }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          },
+          "422": {
+            "$ref": "#/components/responses/Unprocessable"
+          },
+          "503": {
+            "$ref": "#/components/responses/Unavailable"
           }
-        }
+        },
+        "summary": "updatePrescription",
+        "description": "Quyền mục tiêu: DOCTOR phụ trách; chỉ DRAFT. Xem integration-contract.md cho cửa sổ thời gian, giao dịch và phân quyền tài nguyên.",
+        "x-requirements": [
+          "FR-14"
+        ],
+        "x-access": "DOCTOR phụ trách; chỉ DRAFT"
       }
     },
-    "/api/appointments/{id}/cancel": {
+    "/api/prescriptions/{id}/issue": {
       "post": {
         "tags": [
-          "appointment-controller"
+          "M05"
         ],
-        "operationId": "cancel",
+        "operationId": "issuePrescription",
         "parameters": [
           {
             "name": "id",
@@ -501,15 +2376,19 @@
             "in": "header",
             "required": true,
             "schema": {
-              "type": "string"
-            }
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128,
+              "pattern": "^[A-Za-z0-9._:-]+$"
+            },
+            "description": "Bắt buộc; giữ nguyên khi retry cùng thao tác/payload trong 24 giờ."
           }
         ],
         "requestBody": {
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/Cancel"
+                "$ref": "#/components/schemas/Version"
               }
             }
           },
@@ -517,24 +2396,238 @@
         },
         "responses": {
           "200": {
-            "description": "OK",
-            "content": {
-              "*/*": {
+            "description": "Thành công",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Mã liên kết request/audit; baseline có thể thiếu trên lỗi security filter.",
                 "schema": {
-                  "type": "object"
+                  "type": "string",
+                  "format": "uuid"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Prescription"
                 }
               }
             }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          },
+          "422": {
+            "$ref": "#/components/responses/Unprocessable"
+          },
+          "503": {
+            "$ref": "#/components/responses/Unavailable"
           }
-        }
+        },
+        "summary": "issuePrescription",
+        "description": "Quyền mục tiêu: DOCTOR phụ trách; ít nhất 1 thuốc đủ 5 trường. Xem integration-contract.md cho cửa sổ thời gian, giao dịch và phân quyền tài nguyên.",
+        "x-requirements": [
+          "FR-14"
+        ],
+        "x-access": "DOCTOR phụ trách; ít nhất 1 thuốc đủ 5 trường"
+      }
+    },
+    "/api/queue-tickets/{id}/skip": {
+      "post": {
+        "tags": [
+          "M08"
+        ],
+        "operationId": "skipTicket",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128,
+              "pattern": "^[A-Za-z0-9._:-]+$"
+            },
+            "description": "Bắt buộc; giữ nguyên khi retry cùng thao tác/payload trong 24 giờ."
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Skip"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Thành công",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Mã liên kết request/audit; baseline có thể thiếu trên lỗi security filter.",
+                "schema": {
+                  "type": "string",
+                  "format": "uuid"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/QueueTicket"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          },
+          "422": {
+            "$ref": "#/components/responses/Unprocessable"
+          },
+          "503": {
+            "$ref": "#/components/responses/Unavailable"
+          }
+        },
+        "summary": "skipTicket",
+        "description": "Quyền mục tiêu: DOCTOR sở hữu/RECEPTIONIST. Xem integration-contract.md cho cửa sổ thời gian, giao dịch và phân quyền tài nguyên.",
+        "x-requirements": [
+          "FR-21"
+        ],
+        "x-access": "DOCTOR sở hữu/RECEPTIONIST"
+      }
+    },
+    "/api/records/{id}/amendments": {
+      "post": {
+        "tags": [
+          "M05"
+        ],
+        "operationId": "amendRecord",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128,
+              "pattern": "^[A-Za-z0-9._:-]+$"
+            },
+            "description": "Bắt buộc; giữ nguyên khi retry cùng thao tác/payload trong 24 giờ."
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Amendment"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Thành công",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Mã liên kết request/audit; baseline có thể thiếu trên lỗi security filter.",
+                "schema": {
+                  "type": "string",
+                  "format": "uuid"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MedicalRecord"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          },
+          "422": {
+            "$ref": "#/components/responses/Unprocessable"
+          },
+          "503": {
+            "$ref": "#/components/responses/Unavailable"
+          }
+        },
+        "summary": "amendRecord",
+        "description": "Quyền mục tiêu: DOCTOR phụ trách; chỉ bản FINAL mới nhất. Xem integration-contract.md cho cửa sổ thời gian, giao dịch và phân quyền tài nguyên.",
+        "x-requirements": [
+          "FR-13"
+        ],
+        "x-access": "DOCTOR phụ trách; chỉ bản FINAL mới nhất"
       }
     },
     "/api/slots": {
       "get": {
         "tags": [
-          "schedule-controller"
+          "M03"
         ],
-        "operationId": "slots",
+        "operationId": "listSlots",
         "parameters": [
           {
             "name": "date",
@@ -568,134 +2661,2144 @@
             "in": "query",
             "required": false,
             "schema": {
-              "type": "string"
+              "$ref": "#/components/schemas/AppointmentMode"
             }
           }
         ],
         "responses": {
           "200": {
-            "description": "OK",
-            "content": {
-              "*/*": {
+            "description": "Thành công",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Mã liên kết request/audit; baseline có thể thiếu trên lỗi security filter.",
                 "schema": {
-                  "type": "object"
+                  "type": "string",
+                  "format": "uuid"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/SlotView"
+                  }
                 }
               }
             }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          },
+          "422": {
+            "$ref": "#/components/responses/Unprocessable"
+          },
+          "503": {
+            "$ref": "#/components/responses/Unavailable"
           }
-        }
+        },
+        "summary": "listSlots",
+        "description": "Quyền mục tiêu: PATIENT/DOCTOR/RECEPTIONIST/ADMINISTRATOR. Xem integration-contract.md cho cửa sổ thời gian, giao dịch và phân quyền tài nguyên.",
+        "x-requirements": [
+          "FR-02",
+          "FR-07"
+        ],
+        "x-access": "PATIENT/DOCTOR/RECEPTIONIST/ADMINISTRATOR",
+        "x-implementation-gaps": [
+          "BE-03"
+        ]
       }
     },
-    "/api/notification-jobs": {
+    "/api/specialties": {
       "get": {
         "tags": [
-          "notification-controller"
+          "M02"
         ],
-        "operationId": "list_1",
+        "operationId": "listSpecialties",
         "responses": {
           "200": {
-            "description": "OK",
-            "content": {
-              "*/*": {
+            "description": "Thành công",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Mã liên kết request/audit; baseline có thể thiếu trên lỗi security filter.",
                 "schema": {
-                  "type": "object"
+                  "type": "string",
+                  "format": "uuid"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/SpecialtyView"
+                  }
                 }
               }
             }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          },
+          "422": {
+            "$ref": "#/components/responses/Unprocessable"
+          },
+          "503": {
+            "$ref": "#/components/responses/Unavailable"
           }
-        }
+        },
+        "summary": "listSpecialties",
+        "description": "Quyền mục tiêu: PATIENT/DOCTOR/RECEPTIONIST/ADMINISTRATOR. Xem integration-contract.md cho cửa sổ thời gian, giao dịch và phân quyền tài nguyên.",
+        "x-requirements": [
+          "FR-02",
+          "FR-03"
+        ],
+        "x-access": "PATIENT/DOCTOR/RECEPTIONIST/ADMINISTRATOR",
+        "x-implementation-gaps": [
+          "BE-03"
+        ]
+      },
+      "post": {
+        "tags": [
+          "M02"
+        ],
+        "operationId": "createSpecialty",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Specialty"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Thành công",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Mã liên kết request/audit; baseline có thể thiếu trên lỗi security filter.",
+                "schema": {
+                  "type": "string",
+                  "format": "uuid"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SpecialtyView"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          },
+          "422": {
+            "$ref": "#/components/responses/Unprocessable"
+          },
+          "503": {
+            "$ref": "#/components/responses/Unavailable"
+          }
+        },
+        "summary": "createSpecialty",
+        "description": "Quyền mục tiêu: ADMINISTRATOR. Xem integration-contract.md cho cửa sổ thời gian, giao dịch và phân quyền tài nguyên.",
+        "x-requirements": [
+          "FR-03"
+        ],
+        "x-access": "ADMINISTRATOR"
       }
     },
-    "/api/me": {
+    "/api/telehealth-sessions/{id}": {
       "get": {
         "tags": [
-          "auth-controller"
+          "M09"
         ],
-        "operationId": "me",
+        "operationId": "getSession",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
         "responses": {
           "200": {
-            "description": "OK",
-            "content": {
-              "*/*": {
+            "description": "Thành công",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Mã liên kết request/audit; baseline có thể thiếu trên lỗi security filter.",
                 "schema": {
-                  "$ref": "#/components/schemas/Actor"
+                  "type": "string",
+                  "format": "uuid"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TelehealthSession"
                 }
               }
             }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          },
+          "422": {
+            "$ref": "#/components/responses/Unprocessable"
+          },
+          "503": {
+            "$ref": "#/components/responses/Unavailable"
           }
-        }
+        },
+        "summary": "getSession",
+        "description": "Quyền mục tiêu: PATIENT chủ lịch/DOCTOR phụ trách; đọc được ENDED/CANCELLED. Xem integration-contract.md cho cửa sổ thời gian, giao dịch và phân quyền tài nguyên. Dùng để poll trạng thái, kể cả sau khi kết thúc.",
+        "x-requirements": [
+          "FR-22",
+          "FR-24"
+        ],
+        "x-access": "PATIENT chủ lịch/DOCTOR phụ trách; đọc được ENDED/CANCELLED"
+      }
+    },
+    "/api/telehealth-sessions/{id}/connection": {
+      "post": {
+        "tags": [
+          "M09"
+        ],
+        "operationId": "updateConnection",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "X-Room-Token",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Connection"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Thành công",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Mã liên kết request/audit; baseline có thể thiếu trên lỗi security filter.",
+                "schema": {
+                  "type": "string",
+                  "format": "uuid"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TelehealthSession"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          },
+          "422": {
+            "$ref": "#/components/responses/Unprocessable"
+          },
+          "503": {
+            "$ref": "#/components/responses/Unavailable"
+          }
+        },
+        "summary": "updateConnection",
+        "description": "Quyền mục tiêu: Người tham gia; JWT và token phòng của chính mình. Xem integration-contract.md cho cửa sổ thời gian, giao dịch và phân quyền tài nguyên.",
+        "x-requirements": [
+          "FR-24"
+        ],
+        "x-access": "Người tham gia; JWT và token phòng của chính mình"
+      }
+    },
+    "/api/telehealth-sessions/{id}/end": {
+      "post": {
+        "tags": [
+          "M09"
+        ],
+        "operationId": "endSession",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128,
+              "pattern": "^[A-Za-z0-9._:-]+$"
+            },
+            "description": "Bắt buộc; giữ nguyên khi retry cùng thao tác/payload trong 24 giờ."
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Version"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Thành công",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Mã liên kết request/audit; baseline có thể thiếu trên lỗi security filter.",
+                "schema": {
+                  "type": "string",
+                  "format": "uuid"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TelehealthSession"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          },
+          "422": {
+            "$ref": "#/components/responses/Unprocessable"
+          },
+          "503": {
+            "$ref": "#/components/responses/Unavailable"
+          }
+        },
+        "summary": "endSession",
+        "description": "Quyền mục tiêu: DOCTOR phụ trách. Xem integration-contract.md cho cửa sổ thời gian, giao dịch và phân quyền tài nguyên.",
+        "x-requirements": [
+          "FR-24"
+        ],
+        "x-access": "DOCTOR phụ trách"
+      }
+    },
+    "/api/telehealth-sessions/{id}/join": {
+      "post": {
+        "tags": [
+          "M09"
+        ],
+        "operationId": "joinSession",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Join"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Thành công",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Mã liên kết request/audit; baseline có thể thiếu trên lỗi security filter.",
+                "schema": {
+                  "type": "string",
+                  "format": "uuid"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JoinToken"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          },
+          "422": {
+            "$ref": "#/components/responses/Unprocessable"
+          },
+          "503": {
+            "$ref": "#/components/responses/Unavailable"
+          }
+        },
+        "summary": "joinSession",
+        "description": "Quyền mục tiêu: PATIENT chủ lịch/DOCTOR phụ trách. Xem integration-contract.md cho cửa sổ thời gian, giao dịch và phân quyền tài nguyên.",
+        "x-requirements": [
+          "FR-23"
+        ],
+        "x-access": "PATIENT chủ lịch/DOCTOR phụ trách",
+        "x-implementation-gaps": [
+          "BE-01"
+        ]
+      }
+    },
+    "/api/telehealth-sessions/{id}/signals": {
+      "get": {
+        "tags": [
+          "M09"
+        ],
+        "operationId": "pollSignals",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "X-Room-Token",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            }
+          },
+          {
+            "name": "after",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int64",
+              "minimum": 0,
+              "default": 0
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Thành công",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Mã liên kết request/audit; baseline có thể thiếu trên lỗi security filter.",
+                "schema": {
+                  "type": "string",
+                  "format": "uuid"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/SignalMessage"
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          },
+          "422": {
+            "$ref": "#/components/responses/Unprocessable"
+          },
+          "503": {
+            "$ref": "#/components/responses/Unavailable"
+          }
+        },
+        "summary": "pollSignals",
+        "description": "Quyền mục tiêu: Người tham gia; JWT và token phòng của chính mình. Xem integration-contract.md cho cửa sổ thời gian, giao dịch và phân quyền tài nguyên. Tối đa 100 message phía đối diện còn hạn 5 phút; lần sau dùng after bằng id cuối nhận. [] khi chưa có message.",
+        "x-requirements": [
+          "FR-23",
+          "FR-24"
+        ],
+        "x-access": "Người tham gia; JWT và token phòng của chính mình"
+      },
+      "post": {
+        "tags": [
+          "M09"
+        ],
+        "operationId": "sendSignal",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "X-Room-Token",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Signal"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Thành công",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Mã liên kết request/audit; baseline có thể thiếu trên lỗi security filter.",
+                "schema": {
+                  "type": "string",
+                  "format": "uuid"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SignalAccepted"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          },
+          "422": {
+            "$ref": "#/components/responses/Unprocessable"
+          },
+          "429": {
+            "$ref": "#/components/responses/RateLimited"
+          },
+          "503": {
+            "$ref": "#/components/responses/Unavailable"
+          }
+        },
+        "summary": "sendSignal",
+        "description": "Quyền mục tiêu: Người tham gia; JWT và token phòng của chính mình. Xem integration-contract.md cho cửa sổ thời gian, giao dịch và phân quyền tài nguyên. Payload tối đa 65536 ký tự; 300 message/người/phòng/phút; 429 khi vượt giới hạn.",
+        "x-requirements": [
+          "FR-23",
+          "FR-24"
+        ],
+        "x-access": "Người tham gia; JWT và token phòng của chính mình"
+      }
+    },
+    "/api/telehealth-sessions/{id}/start": {
+      "post": {
+        "tags": [
+          "M09"
+        ],
+        "operationId": "startSession",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128,
+              "pattern": "^[A-Za-z0-9._:-]+$"
+            },
+            "description": "Bắt buộc; giữ nguyên khi retry cùng thao tác/payload trong 24 giờ."
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Version"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Thành công",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Mã liên kết request/audit; baseline có thể thiếu trên lỗi security filter.",
+                "schema": {
+                  "type": "string",
+                  "format": "uuid"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TelehealthSession"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          },
+          "422": {
+            "$ref": "#/components/responses/Unprocessable"
+          },
+          "503": {
+            "$ref": "#/components/responses/Unavailable"
+          }
+        },
+        "summary": "startSession",
+        "description": "Quyền mục tiêu: DOCTOR phụ trách. Xem integration-contract.md cho cửa sổ thời gian, giao dịch và phân quyền tài nguyên.",
+        "x-requirements": [
+          "FR-23"
+        ],
+        "x-access": "DOCTOR phụ trách"
+      }
+    },
+    "/api/time-off/{id}": {
+      "delete": {
+        "tags": [
+          "M03"
+        ],
+        "operationId": "deleteTimeOff",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Xóa thành công; không có body",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Mã liên kết request/audit; baseline có thể thiếu trên lỗi security filter.",
+                "schema": {
+                  "type": "string",
+                  "format": "uuid"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          },
+          "422": {
+            "$ref": "#/components/responses/Unprocessable"
+          },
+          "503": {
+            "$ref": "#/components/responses/Unavailable"
+          }
+        },
+        "summary": "deleteTimeOff",
+        "description": "Quyền mục tiêu: DOCTOR sở hữu/ADMINISTRATOR; tương lai. Xem integration-contract.md cho cửa sổ thời gian, giao dịch và phân quyền tài nguyên.",
+        "x-requirements": [
+          "FR-06"
+        ],
+        "x-access": "DOCTOR sở hữu/ADMINISTRATOR; tương lai"
+      }
+    },
+    "/api/users": {
+      "get": {
+        "tags": [
+          "M01"
+        ],
+        "operationId": "listUsers",
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 20
+            }
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "default": 0
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Thành công",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Mã liên kết request/audit; baseline có thể thiếu trên lỗi security filter.",
+                "schema": {
+                  "type": "string",
+                  "format": "uuid"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/UserSummary"
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          },
+          "422": {
+            "$ref": "#/components/responses/Unprocessable"
+          },
+          "503": {
+            "$ref": "#/components/responses/Unavailable"
+          }
+        },
+        "summary": "listUsers",
+        "description": "Quyền mục tiêu: ADMINISTRATOR. Xem integration-contract.md cho cửa sổ thời gian, giao dịch và phân quyền tài nguyên.",
+        "x-requirements": [
+          "FR-02"
+        ],
+        "x-access": "ADMINISTRATOR"
+      }
+    },
+    "/api/users/{id}/roles": {
+      "put": {
+        "tags": [
+          "M01"
+        ],
+        "operationId": "setRoles",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Roles"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Thành công; HTTP 200, body rỗng (PUT contact/roles).",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Mã liên kết request/audit; baseline có thể thiếu trên lỗi security filter.",
+                "schema": {
+                  "type": "string",
+                  "format": "uuid"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          },
+          "422": {
+            "$ref": "#/components/responses/Unprocessable"
+          },
+          "503": {
+            "$ref": "#/components/responses/Unavailable"
+          }
+        },
+        "summary": "setRoles",
+        "description": "Quyền mục tiêu: ADMINISTRATOR; không tự đổi quyền. Xem integration-contract.md cho cửa sổ thời gian, giao dịch và phân quyền tài nguyên.",
+        "x-requirements": [
+          "FR-02",
+          "FR-17"
+        ],
+        "x-access": "ADMINISTRATOR; không tự đổi quyền"
       }
     }
   },
   "components": {
     "schemas": {
+      "Role": {
+        "type": "string",
+        "enum": [
+          "PATIENT",
+          "DOCTOR",
+          "RECEPTIONIST",
+          "ADMINISTRATOR",
+          "AUDITOR"
+        ]
+      },
+      "AppointmentMode": {
+        "type": "string",
+        "enum": [
+          "IN_PERSON",
+          "REMOTE"
+        ]
+      },
+      "AppointmentStatus": {
+        "type": "string",
+        "enum": [
+          "CONFIRMED",
+          "CHECKED_IN",
+          "IN_PROGRESS",
+          "COMPLETED",
+          "CANCELLED",
+          "NO_SHOW"
+        ]
+      },
+      "QueueStatus": {
+        "type": "string",
+        "enum": [
+          "WAITING",
+          "CALLED",
+          "IN_SERVICE",
+          "DONE"
+        ]
+      },
+      "SessionStatus": {
+        "type": "string",
+        "enum": [
+          "CREATED",
+          "WAITING",
+          "ACTIVE",
+          "RECONNECTING",
+          "ENDED",
+          "CANCELLED"
+        ]
+      },
+      "DbBoolean": {
+        "oneOf": [
+          {
+            "type": "boolean"
+          },
+          {
+            "type": "integer",
+            "enum": [
+              0,
+              1
+            ]
+          }
+        ],
+        "description": "Chuẩn hóa ở adapter FE thành boolean. Không dùng Boolean(\"0\")."
+      },
+      "Identity": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "roles": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Role"
+            },
+            "uniqueItems": true
+          }
+        },
+        "required": [
+          "id",
+          "roles"
+        ],
+        "example": {
+          "id": "00000000-0000-4000-8000-000000000001",
+          "roles": [
+            "PATIENT"
+          ]
+        }
+      },
+      "UserProfile": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "displayName": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 255,
+            "pattern": "\\S"
+          },
+          "active": {
+            "$ref": "#/components/schemas/DbBoolean"
+          },
+          "roles": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Role"
+            },
+            "uniqueItems": true
+          },
+          "patientId": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid"
+          },
+          "doctorId": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid"
+          }
+        },
+        "required": [
+          "id",
+          "displayName",
+          "active",
+          "roles",
+          "patientId",
+          "doctorId"
+        ],
+        "example": {
+          "id": "00000000-0000-4000-8000-000000000001",
+          "displayName": "Bệnh nhân mô phỏng",
+          "active": true,
+          "roles": [
+            "PATIENT"
+          ],
+          "patientId": "00000000-0000-4000-8000-000000000001",
+          "doctorId": null
+        }
+      },
+      "UserSummary": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "displayName": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 255,
+            "pattern": "\\S"
+          },
+          "active": {
+            "$ref": "#/components/schemas/DbBoolean"
+          },
+          "roles": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Role"
+            },
+            "uniqueItems": true
+          }
+        },
+        "required": [
+          "id",
+          "displayName",
+          "active",
+          "roles"
+        ]
+      },
+      "SpecialtyView": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 255,
+            "pattern": "\\S"
+          },
+          "active": {
+            "$ref": "#/components/schemas/DbBoolean"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "active"
+        ],
+        "example": {
+          "id": "00000000-0000-4000-8000-000000000001",
+          "name": "Nội tổng quát",
+          "active": true
+        }
+      },
+      "DoctorRow": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "active": {
+            "$ref": "#/components/schemas/DbBoolean"
+          },
+          "displayName": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 255,
+            "pattern": "\\S"
+          },
+          "specialtyId": {
+            "type": "string",
+            "format": "uuid"
+          }
+        },
+        "required": [
+          "id",
+          "active",
+          "displayName",
+          "specialtyId"
+        ],
+        "description": "GET /doctors trả một dòng trên mỗi chuyên khoa; FE nhóm theo id. Không có userId trong danh sách."
+      },
+      "DoctorView": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "userId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "active": {
+            "$ref": "#/components/schemas/DbBoolean"
+          }
+        },
+        "required": [
+          "id",
+          "userId",
+          "active"
+        ],
+        "description": "Response tạo/sửa bác sĩ là bản ghi doctor, không phải DoctorRow của danh sách."
+      },
+      "AvailabilityView": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "doctorId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "startAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "endAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "slotMinutes": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 540
+          },
+          "mode": {
+            "$ref": "#/components/schemas/AppointmentMode"
+          }
+        },
+        "required": [
+          "id",
+          "doctorId",
+          "startAt",
+          "endAt",
+          "slotMinutes",
+          "mode"
+        ]
+      },
+      "TimeOffView": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "doctorId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "startAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "endAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "id",
+          "doctorId",
+          "startAt",
+          "endAt"
+        ]
+      },
+      "SlotView": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "availabilityId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "doctorId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "startAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "endAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "mode": {
+            "$ref": "#/components/schemas/AppointmentMode"
+          }
+        },
+        "required": [
+          "id",
+          "availabilityId",
+          "doctorId",
+          "startAt",
+          "endAt",
+          "mode"
+        ]
+      },
+      "AppointmentView": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "patientId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "doctorId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "slotId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "startAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "endAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "mode": {
+            "$ref": "#/components/schemas/AppointmentMode"
+          },
+          "status": {
+            "$ref": "#/components/schemas/AppointmentStatus"
+          },
+          "version": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "cancellationReason": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "maxLength": 1000
+          }
+        },
+        "required": [
+          "id",
+          "patientId",
+          "doctorId",
+          "slotId",
+          "startAt",
+          "endAt",
+          "mode",
+          "status",
+          "version",
+          "cancellationReason"
+        ],
+        "example": {
+          "id": "00000000-0000-4000-8000-000000000001",
+          "patientId": "00000000-0000-4000-8000-000000000001",
+          "doctorId": "00000000-0000-4000-8000-000000000002",
+          "slotId": "00000000-0000-4000-8000-000000000002",
+          "startAt": "2030-01-08T02:00:00Z",
+          "endAt": "2030-01-08T02:20:00Z",
+          "mode": "IN_PERSON",
+          "status": "CONFIRMED",
+          "version": 0,
+          "cancellationReason": null
+        },
+        "description": "Danh sách và đặt/đổi/hủy không cam kết encounterId. Không suy ra encounterId từ appointmentId."
+      },
+      "AppointmentDetail": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "patientId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "doctorId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "slotId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "startAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "endAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "mode": {
+            "$ref": "#/components/schemas/AppointmentMode"
+          },
+          "status": {
+            "$ref": "#/components/schemas/AppointmentStatus"
+          },
+          "version": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "cancellationReason": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "maxLength": 1000
+          },
+          "encounterId": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid"
+          }
+        },
+        "required": [
+          "id",
+          "patientId",
+          "doctorId",
+          "slotId",
+          "startAt",
+          "endAt",
+          "mode",
+          "status",
+          "version",
+          "cancellationReason",
+          "encounterId"
+        ],
+        "example": {
+          "id": "00000000-0000-4000-8000-000000000001",
+          "patientId": "00000000-0000-4000-8000-000000000001",
+          "doctorId": "00000000-0000-4000-8000-000000000002",
+          "slotId": "00000000-0000-4000-8000-000000000002",
+          "startAt": "2030-01-08T02:00:00Z",
+          "endAt": "2030-01-08T02:20:00Z",
+          "mode": "IN_PERSON",
+          "status": "CONFIRMED",
+          "version": 0,
+          "cancellationReason": null,
+          "encounterId": null
+        },
+        "description": "GET detail và progress trả encounterId; null trước khi bắt đầu khám."
+      },
+      "QueueTicket": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "appointmentId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "doctorId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "queueDate": {
+            "type": "string",
+            "format": "date"
+          },
+          "position": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "status": {
+            "$ref": "#/components/schemas/QueueStatus"
+          },
+          "version": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "skipReason": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "maxLength": 1000
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "patientId": {
+            "type": "string",
+            "format": "uuid"
+          }
+        },
+        "required": [
+          "id",
+          "appointmentId",
+          "doctorId",
+          "queueDate",
+          "position",
+          "status",
+          "version",
+          "skipReason",
+          "createdAt"
+        ],
+        "example": {
+          "id": "00000000-0000-4000-8000-000000000001",
+          "appointmentId": "00000000-0000-4000-8000-000000000002",
+          "doctorId": "00000000-0000-4000-8000-000000000002",
+          "queueDate": "2030-01-08",
+          "position": 1,
+          "status": "WAITING",
+          "version": 0,
+          "skipReason": null,
+          "createdAt": "2030-01-08T02:00:00Z"
+        },
+        "description": "patientId chỉ có trong GET queue. createdAt là lúc check-in; không có checkedInAt. version phải dùng khi skip."
+      },
+      "MedicalRecord": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "encounterId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "version": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "DRAFT",
+              "FINAL"
+            ]
+          },
+          "content": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 100000,
+            "pattern": "\\S"
+          },
+          "supersedesId": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid"
+          },
+          "amendmentReason": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "maxLength": 1000
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "patientId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "doctorId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "startAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "id",
+          "encounterId",
+          "version",
+          "status",
+          "content",
+          "supersedesId",
+          "amendmentReason",
+          "createdAt"
+        ],
+        "example": {
+          "id": "00000000-0000-4000-8000-000000000001",
+          "encounterId": "00000000-0000-4000-8000-000000000002",
+          "version": 1,
+          "status": "DRAFT",
+          "content": "Dữ liệu khám mô phỏng",
+          "supersedesId": null,
+          "amendmentReason": null,
+          "createdAt": "2030-01-08T02:00:00Z"
+        },
+        "description": "content là chuỗi opaque. FE có thể serialize JSON riêng nhưng BE không suy diễn triệu chứng/chẩn đoán/liều dùng."
+      },
+      "PrescriptionItem": {
+        "type": "object",
+        "properties": {
+          "medicineName": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 1000,
+            "pattern": "\\S"
+          },
+          "doseText": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 1000,
+            "pattern": "\\S"
+          },
+          "route": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 1000,
+            "pattern": "\\S"
+          },
+          "frequency": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 1000,
+            "pattern": "\\S"
+          },
+          "durationText": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 1000,
+            "pattern": "\\S"
+          }
+        },
+        "required": [
+          "medicineName",
+          "doseText",
+          "route",
+          "frequency",
+          "durationText"
+        ],
+        "example": {
+          "medicineName": "Thuốc mô phỏng",
+          "doseText": "Liều mô phỏng do bác sĩ nhập",
+          "route": "Đường dùng mô phỏng",
+          "frequency": "Tần suất mô phỏng",
+          "durationText": "Thời gian dùng mô phỏng"
+        }
+      },
+      "Prescription": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "encounterId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "version": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "DRAFT",
+              "ISSUED"
+            ]
+          },
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PrescriptionItem"
+            },
+            "maxItems": 100
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "issuedAt": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "patientId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "doctorId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "startAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "id",
+          "encounterId",
+          "version",
+          "status",
+          "items",
+          "createdAt",
+          "issuedAt"
+        ],
+        "example": {
+          "id": "00000000-0000-4000-8000-000000000001",
+          "encounterId": "00000000-0000-4000-8000-000000000002",
+          "version": 0,
+          "status": "DRAFT",
+          "items": [],
+          "createdAt": "2030-01-08T02:00:00Z",
+          "issuedAt": null
+        },
+        "description": "DRAFT có thể rỗng; ISSUE yêu cầu ít nhất một item đủ 5 trường. Danh sách lịch sử chỉ có ISSUED."
+      },
+      "TelehealthSession": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "appointmentId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "status": {
+            "$ref": "#/components/schemas/SessionStatus"
+          },
+          "version": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "patientConsentedAt": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "endedAt": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "id",
+          "appointmentId",
+          "status",
+          "version",
+          "patientConsentedAt",
+          "endedAt"
+        ],
+        "example": {
+          "id": "00000000-0000-4000-8000-000000000001",
+          "appointmentId": "00000000-0000-4000-8000-000000000002",
+          "status": "CREATED",
+          "version": 0,
+          "patientConsentedAt": null,
+          "endedAt": null
+        }
+      },
+      "JoinToken": {
+        "type": "object",
+        "properties": {
+          "sessionId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "token": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128
+          },
+          "expiresAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "signalingUrl": {
+            "type": "string",
+            "pattern": "^/api/telehealth-sessions/[^/]+/signals$"
+          }
+        },
+        "required": [
+          "sessionId",
+          "token",
+          "expiresAt",
+          "signalingUrl"
+        ],
+        "example": {
+          "sessionId": "00000000-0000-4000-8000-000000000001",
+          "token": "synthetic-example-not-a-real-token",
+          "expiresAt": "2030-01-08T02:05:00Z",
+          "signalingUrl": "/api/telehealth-sessions/00000000-0000-4000-8000-000000000001/signals"
+        },
+        "description": "Token phòng chỉ sống trong bộ nhớ; không phải JWT đăng nhập. signalingUrl đã có /api, không nối prefix hai lần."
+      },
+      "SignalMessage": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 1
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "OFFER",
+              "ANSWER",
+              "ICE"
+            ]
+          },
+          "payload": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 65536,
+            "pattern": "\\S"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "id",
+          "kind",
+          "payload",
+          "createdAt"
+        ]
+      },
+      "SignalAccepted": {
+        "type": "object",
+        "properties": {
+          "accepted": {
+            "type": "boolean",
+            "const": true
+          }
+        },
+        "required": [
+          "accepted"
+        ],
+        "example": {
+          "accepted": true
+        }
+      },
+      "NotificationJob": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "appointmentId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "eventType": {
+            "type": "string",
+            "enum": [
+              "BOOKED",
+              "RESCHEDULED",
+              "CANCELLED",
+              "REMINDER"
+            ]
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "PENDING",
+              "PROCESSING",
+              "SENT",
+              "SKIPPED",
+              "FAILED"
+            ]
+          },
+          "attempts": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "lastError": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "dueAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "id",
+          "appointmentId",
+          "eventType",
+          "status",
+          "attempts",
+          "lastError",
+          "dueAt"
+        ]
+      },
+      "AuditEvent": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "actorId": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid"
+          },
+          "actorType": {
+            "type": "string",
+            "enum": [
+              "USER",
+              "SYSTEM"
+            ]
+          },
+          "actorLabel": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "action": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 64,
+            "pattern": "\\S"
+          },
+          "resourceId": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128,
+            "pattern": "\\S"
+          },
+          "result": {
+            "type": "string",
+            "enum": [
+              "SUCCESS",
+              "DENIED",
+              "FAILURE"
+            ]
+          },
+          "correlationId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "id",
+          "actorId",
+          "actorType",
+          "actorLabel",
+          "action",
+          "resourceId",
+          "result",
+          "correlationId",
+          "createdAt"
+        ],
+        "example": {
+          "id": "00000000-0000-4000-8000-000000000001",
+          "actorId": null,
+          "actorType": "SYSTEM",
+          "actorLabel": "clinic-background-worker",
+          "action": "NOTIFICATION_SENT",
+          "resourceId": "00000000-0000-4000-8000-000000000002",
+          "result": "SUCCESS",
+          "correlationId": "00000000-0000-4000-8000-000000000002",
+          "createdAt": "2030-01-08T02:00:00Z"
+        },
+        "description": "createdAt là tên chuẩn, không có timestamp. DENIED/FAILURE là giá trị mục tiêu; baseline chỉ ghi SUCCESS (BE-01)."
+      },
+      "ProblemDetail": {
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": "string",
+            "format": "uri"
+          },
+          "title": {
+            "type": "string"
+          },
+          "status": {
+            "type": "integer",
+            "minimum": 400,
+            "maximum": 599
+          },
+          "detail": {
+            "type": "string"
+          },
+          "instance": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "type",
+          "title",
+          "status"
+        ],
+        "example": {
+          "type": "about:blank",
+          "title": "Conflict",
+          "status": 409,
+          "detail": "Stale version",
+          "instance": "/api/appointments/example/progress"
+        },
+        "description": "Không có code/message/correlationId trong body chuẩn. Lấy mã liên kết từ X-Request-Id. 401/403 ở security filter có thể có body rỗng."
+      },
       "Roles": {
         "type": "object",
         "properties": {
           "roles": {
             "type": "array",
             "items": {
-              "type": "string"
+              "$ref": "#/components/schemas/Role"
             },
-            "minItems": 1,
-            "uniqueItems": true
+            "uniqueItems": true,
+            "minItems": 1
           }
         },
         "required": [
           "roles"
-        ]
+        ],
+        "example": {
+          "roles": [
+            "PATIENT"
+          ]
+        }
       },
       "Contact": {
         "type": "object",
         "properties": {
           "email": {
             "type": "string",
-            "format": "email",
+            "minLength": 1,
             "maxLength": 254,
-            "minLength": 0
+            "pattern": "\\S",
+            "format": "email"
           }
         },
         "required": [
           "email"
-        ]
-      },
-      "UpdateDoctor": {
-        "type": "object",
-        "properties": {
-          "active": {
-            "type": "boolean"
-          },
-          "displayName": {
-            "type": "string",
-            "maxLength": 255,
-            "minLength": 0
-          },
-          "specialtyIds": {
-            "type": "array",
-            "items": {
-              "type": "string",
-              "format": "uuid"
-            },
-            "minItems": 1
-          }
-        },
-        "required": [
-          "displayName",
-          "specialtyIds"
-        ]
+        ],
+        "example": {
+          "email": "patient@example.test"
+        }
       },
       "Specialty": {
         "type": "object",
         "properties": {
           "name": {
             "type": "string",
+            "minLength": 1,
             "maxLength": 255,
-            "minLength": 0
+            "pattern": "\\S"
           }
         },
         "required": [
           "name"
-        ]
+        ],
+        "example": {
+          "name": "Nội tổng quát"
+        }
       },
       "Doctor": {
         "type": "object",
@@ -714,26 +4817,50 @@
           }
         },
         "required": [
-          "specialtyIds",
-          "userId"
-        ]
+          "userId",
+          "specialtyIds"
+        ],
+        "example": {
+          "userId": "00000000-0000-4000-8000-000000000001",
+          "specialtyIds": [
+            "00000000-0000-4000-8000-000000000002"
+          ]
+        }
       },
-      "TimeOff": {
+      "UpdateDoctor": {
         "type": "object",
         "properties": {
-          "startAt": {
-            "type": "string",
-            "format": "date-time"
+          "active": {
+            "type": "boolean",
+            "default": false
           },
-          "endAt": {
+          "displayName": {
             "type": "string",
-            "format": "date-time"
+            "minLength": 1,
+            "maxLength": 255,
+            "pattern": "\\S"
+          },
+          "specialtyIds": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "minItems": 1
           }
         },
         "required": [
-          "endAt",
-          "startAt"
-        ]
+          "displayName",
+          "specialtyIds"
+        ],
+        "example": {
+          "active": true,
+          "displayName": "Bác sĩ mô phỏng",
+          "specialtyIds": [
+            "00000000-0000-4000-8000-000000000002"
+          ]
+        },
+        "description": "FE luôn gửi active rõ ràng; Java primitive mặc định false nếu bỏ trường."
       },
       "Availability": {
         "type": "object",
@@ -748,20 +4875,46 @@
           },
           "slotMinutes": {
             "type": "integer",
-            "format": "int32",
-            "maximum": 540,
-            "minimum": 1
+            "minimum": 1,
+            "maximum": 540
           },
           "mode": {
-            "type": "string",
-            "pattern": "IN_PERSON|REMOTE"
+            "$ref": "#/components/schemas/AppointmentMode"
           }
         },
         "required": [
+          "startAt",
           "endAt",
-          "mode",
-          "startAt"
-        ]
+          "slotMinutes",
+          "mode"
+        ],
+        "example": {
+          "startAt": "2030-01-08T02:00:00Z",
+          "endAt": "2030-01-08T02:20:00Z",
+          "slotMinutes": 20,
+          "mode": "IN_PERSON"
+        }
+      },
+      "TimeOff": {
+        "type": "object",
+        "properties": {
+          "startAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "endAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "startAt",
+          "endAt"
+        ],
+        "example": {
+          "startAt": "2030-01-08T02:00:00Z",
+          "endAt": "2030-01-08T02:20:00Z"
+        }
       },
       "Booking": {
         "type": "object",
@@ -773,7 +4926,10 @@
         },
         "required": [
           "slotId"
-        ]
+        ],
+        "example": {
+          "slotId": "00000000-0000-4000-8000-000000000001"
+        }
       },
       "Reschedule": {
         "type": "object",
@@ -784,47 +4940,289 @@
           },
           "version": {
             "type": "integer",
-            "format": "int32",
             "minimum": 0
           }
         },
         "required": [
           "slotId",
           "version"
-        ]
+        ],
+        "example": {
+          "slotId": "00000000-0000-4000-8000-000000000001",
+          "version": 0
+        }
       },
       "Cancel": {
         "type": "object",
         "properties": {
           "reason": {
             "type": "string",
+            "minLength": 1,
             "maxLength": 1000,
-            "minLength": 0
+            "pattern": "\\S"
           },
           "version": {
             "type": "integer",
-            "format": "int32",
             "minimum": 0
           }
         },
         "required": [
           "reason",
           "version"
-        ]
+        ],
+        "example": {
+          "reason": "Thay đổi kế hoạch mô phỏng",
+          "version": 0
+        }
       },
-      "Actor": {
+      "Progress": {
         "type": "object",
         "properties": {
-          "id": {
-            "type": "string"
+          "targetStatus": {
+            "type": "string",
+            "enum": [
+              "IN_PROGRESS",
+              "COMPLETED",
+              "NO_SHOW"
+            ]
           },
-          "roles": {
+          "version": {
+            "type": "integer",
+            "minimum": 0
+          }
+        },
+        "required": [
+          "targetStatus",
+          "version"
+        ],
+        "example": {
+          "targetStatus": "IN_PROGRESS",
+          "version": 1
+        }
+      },
+      "Skip": {
+        "type": "object",
+        "properties": {
+          "reason": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 1000,
+            "pattern": "\\S"
+          },
+          "version": {
+            "type": "integer",
+            "minimum": 0
+          }
+        },
+        "required": [
+          "reason",
+          "version"
+        ],
+        "example": {
+          "reason": "Bệnh nhân chưa có mặt",
+          "version": 1
+        }
+      },
+      "RecordInput": {
+        "type": "object",
+        "properties": {
+          "version": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "content": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 100000,
+            "pattern": "\\S"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "DRAFT",
+              "FINAL"
+            ]
+          }
+        },
+        "required": [
+          "version",
+          "content",
+          "status"
+        ],
+        "example": {
+          "version": 0,
+          "content": "Bản nháp mô phỏng",
+          "status": "DRAFT"
+        }
+      },
+      "Amendment": {
+        "type": "object",
+        "properties": {
+          "version": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "content": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 100000,
+            "pattern": "\\S"
+          },
+          "reason": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 1000,
+            "pattern": "\\S"
+          }
+        },
+        "required": [
+          "version",
+          "content",
+          "reason"
+        ],
+        "example": {
+          "version": 1,
+          "content": "Bổ sung mô phỏng",
+          "reason": "Bổ sung thông tin"
+        }
+      },
+      "PrescriptionInput": {
+        "type": "object",
+        "properties": {
+          "items": {
             "type": "array",
             "items": {
-              "type": "string"
+              "$ref": "#/components/schemas/PrescriptionItem"
             },
-            "uniqueItems": true
+            "maxItems": 100
           }
+        },
+        "required": [
+          "items"
+        ],
+        "example": {
+          "items": [
+            {
+              "medicineName": "Thuốc mô phỏng",
+              "doseText": "Liều mô phỏng do bác sĩ nhập",
+              "route": "Đường dùng mô phỏng",
+              "frequency": "Tần suất mô phỏng",
+              "durationText": "Thời gian dùng mô phỏng"
+            }
+          ]
+        }
+      },
+      "PrescriptionUpdate": {
+        "type": "object",
+        "properties": {
+          "version": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PrescriptionItem"
+            },
+            "maxItems": 100
+          }
+        },
+        "required": [
+          "version",
+          "items"
+        ],
+        "example": {
+          "version": 0,
+          "items": [
+            {
+              "medicineName": "Thuốc mô phỏng",
+              "doseText": "Liều mô phỏng do bác sĩ nhập",
+              "route": "Đường dùng mô phỏng",
+              "frequency": "Tần suất mô phỏng",
+              "durationText": "Thời gian dùng mô phỏng"
+            }
+          ]
+        }
+      },
+      "Version": {
+        "type": "object",
+        "properties": {
+          "version": {
+            "type": "integer",
+            "minimum": 0
+          }
+        },
+        "required": [
+          "version"
+        ],
+        "example": {
+          "version": 1
+        }
+      },
+      "Join": {
+        "type": "object",
+        "properties": {
+          "consent": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "consent"
+        ],
+        "example": {
+          "consent": true
+        },
+        "description": "Bệnh nhân phải gửi true. Bác sĩ có thể gửi false sau khi đã start. participationConfirmed không phải trường hợp đồng."
+      },
+      "Connection": {
+        "type": "object",
+        "properties": {
+          "version": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "state": {
+            "type": "string",
+            "enum": [
+              "ACTIVE",
+              "RECONNECTING"
+            ]
+          }
+        },
+        "required": [
+          "version",
+          "state"
+        ],
+        "example": {
+          "version": 2,
+          "state": "RECONNECTING"
+        }
+      },
+      "Signal": {
+        "type": "object",
+        "properties": {
+          "kind": {
+            "type": "string",
+            "enum": [
+              "OFFER",
+              "ANSWER",
+              "ICE"
+            ]
+          },
+          "payload": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 65536,
+            "pattern": "\\S"
+          }
+        },
+        "required": [
+          "kind",
+          "payload"
+        ],
+        "example": {
+          "kind": "ICE",
+          "payload": "{\"candidate\":\"synthetic-example\"}"
         }
       }
     },
@@ -832,8 +5230,161 @@
       "bearerAuth": {
         "type": "http",
         "scheme": "bearer",
-        "bearerFormat": "JWT"
+        "bearerFormat": "JWT",
+        "description": "OIDC issuer realm clinic; audience clinic-api. Quyền lấy từ database."
+      }
+    },
+    "responses": {
+      "BadRequest": {
+        "description": "Thiếu/sai header, kiểu dữ liệu, query hoặc body",
+        "headers": {
+          "X-Request-Id": {
+            "description": "Mã liên kết request/audit; baseline có thể thiếu trên lỗi security filter.",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        },
+        "content": {
+          "application/problem+json": {
+            "schema": {
+              "$ref": "#/components/schemas/ProblemDetail"
+            }
+          }
+        }
+      },
+      "Unauthorized": {
+        "description": "JWT thiếu, sai issuer/audience/chữ ký hoặc hết hạn",
+        "headers": {
+          "X-Request-Id": {
+            "description": "Mã liên kết request/audit; baseline có thể thiếu trên lỗi security filter.",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        }
+      },
+      "Forbidden": {
+        "description": "Thiếu quyền hoặc token phòng không hợp lệ",
+        "headers": {
+          "X-Request-Id": {
+            "description": "Mã liên kết request/audit; baseline có thể thiếu trên lỗi security filter.",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        }
+      },
+      "NotFound": {
+        "description": "Không tồn tại hoặc không được phép biết tài nguyên",
+        "headers": {
+          "X-Request-Id": {
+            "description": "Mã liên kết request/audit; baseline có thể thiếu trên lỗi security filter.",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        },
+        "content": {
+          "application/problem+json": {
+            "schema": {
+              "$ref": "#/components/schemas/ProblemDetail"
+            }
+          }
+        }
+      },
+      "Conflict": {
+        "description": "Sai trạng thái, version cũ, quá hạn hoặc xung đột",
+        "headers": {
+          "X-Request-Id": {
+            "description": "Mã liên kết request/audit; baseline có thể thiếu trên lỗi security filter.",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        },
+        "content": {
+          "application/problem+json": {
+            "schema": {
+              "$ref": "#/components/schemas/ProblemDetail"
+            }
+          }
+        }
+      },
+      "Unprocessable": {
+        "description": "Không đáp ứng quy tắc nghiệp vụ",
+        "headers": {
+          "X-Request-Id": {
+            "description": "Mã liên kết request/audit; baseline có thể thiếu trên lỗi security filter.",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        },
+        "content": {
+          "application/problem+json": {
+            "schema": {
+              "$ref": "#/components/schemas/ProblemDetail"
+            }
+          }
+        }
+      },
+      "RateLimited": {
+        "description": "Vượt giới hạn signaling",
+        "headers": {
+          "X-Request-Id": {
+            "description": "Mã liên kết request/audit; baseline có thể thiếu trên lỗi security filter.",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        },
+        "content": {
+          "application/problem+json": {
+            "schema": {
+              "$ref": "#/components/schemas/ProblemDetail"
+            }
+          }
+        }
+      },
+      "Unavailable": {
+        "description": "Storage/audit không khả dụng",
+        "headers": {
+          "X-Request-Id": {
+            "description": "Mã liên kết request/audit; baseline có thể thiếu trên lỗi security filter.",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        },
+        "content": {
+          "application/problem+json": {
+            "schema": {
+              "$ref": "#/components/schemas/ProblemDetail"
+            }
+          }
+        }
       }
     }
-  }
+  },
+  "x-contract-date": "2026-11-16",
+  "x-baseline-main-commit": "a04dcb159007ef35daadfdb67f835576f0a05a7b",
+  "x-release-blockers": [
+    "BE-01",
+    "BE-02",
+    "BE-03",
+    "BE-04",
+    "FE-API",
+    "FE-CLINICAL",
+    "FE-WEBRTC",
+    "E2E"
+  ]
 }

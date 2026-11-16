@@ -2,6 +2,8 @@
 
 **Lưu ý:** Các ô còn trống có nghĩa là **chưa nhận được chứng cứ**, không phải thành viên không làm.
 
+**Cập nhật 17/11/2026:** bảng bên dưới là phiếu thu thập lịch sử, không phải đánh giá trạng thái code hiện tại. Đã có FE gộp tại `frontend/`, BE V1/V2 và media client tại `98a02e1`; bằng chứng FE cục bộ ghi trong `docs/frontend-unified.md` (41 test FE, 2 bài native WebRTC Chromium). Không gán thay đổi tích hợp cho một thành viên khi chưa đối chiếu tác giả. Bộ dữ liệu hiện tại phủ hợp đồng 1.0.0; kết quả riêng tại [backend-validation.md](backend-validation.md). E2E BE/Keycloak/MySQL thật và TURN chưa được nghiệm thu trong đợt này. Các ô “Chờ triển khai” cũ chỉ phản ánh thời điểm ghi nhận.
+
 | Phần báo cáo | Người cung cấp | Minh chứng bắt buộc | Vị trí/URL minh chứng | Trạng thái |
 | --- | --- | --- | --- | --- |
 | SRS, quy trình, BR, UML | Vòng Kỷ Phong / Nguyễn Thường (xác minh Git) | Tài liệu cùng nguồn commit | `docs/requirements`, `docs/design` | Có tài liệu, chưa kiểm công cá nhân |

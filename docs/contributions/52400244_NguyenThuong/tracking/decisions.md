@@ -1,5 +1,9 @@
 # Nhật ký quyết định / điểm cần xác nhận
 
+## D-2026-11-17: chuẩn dữ liệu hiện tại
+
+Dùng hợp đồng 1.0.0 `docs/api/openapi.yaml` (46 API), ADMINISTRATOR/REMOTE, camelCase; BE a04dcb1, FE/media 98a02e1. `test-data/backend/` là bộ hiện tại; fixtures/api-examples/scenarios và các quyết định bên dưới là thiết kế 0.1 lịch sử. YAML trong bảng cũ nay phải hiểu là `docs/api/archive/openapi-design-0.1.yaml`. Không nhập UUID/enum thiết kế vào BE. Không sửa log cũ hoặc dùng chúng chứng minh runtime mới. Ngày generator không thay điều kiện check-in/start; credentials lấy từ môi trường. BE-01…04 vẫn mở.
+
 ## D-2026-11-04: đối chiếu backend thực thi
 
 Các quyết định dưới đây vốn theo thiết kế. Với backend `main@b10e096`, dùng `ADMINISTRATOR`, `IN_PERSON/REMOTE`, prefix `/api`, ProblemDetail, version mới 0. Có code tuần 3–4; chỉ workspace ZIP là thiếu backend. Bộ `test-data/backend/` và `tracking/backend-alignment.md` ghi mapping/nguồn cụ thể. Giữ fixtures `ADMIN/TELEHEALTH` để chuẩn bị phần chưa triển khai; không import thẳng.

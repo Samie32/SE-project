@@ -1,5 +1,13 @@
 # Changelog v3 – 52400244 Nguyễn Thường
 
+## Cập nhật 17/11/2026 — hợp đồng 1.0.0
+
+- Chuẩn hóa snapshot/hash và 47 ví dụ cho 46 API; kiểm nested schema, header, actor và tham số ngoài contract.
+- Generator thêm clinical.http và telehealth.http; file đặt lịch không POST lại availability trùng seed. Giữ ID/version từ response và key retry.
+- Viết lại hướng dẫn, runbook và bàn giao; truy vết 24 TC theo BE V1/V2 và FE media hiện tại. Runtime chưa chạy vẫn NOT_RUN; BE-01…04 chưa sửa.
+- Giữ fixtures/catalog thiết kế 0.1 và log cũ có nhãn lịch sử. Không import/reset DB hoặc tạo báo cáo/slide DOCX/PPTX.
+- Kết quả kiểm tra mới: xem report/backend-validation.md. Các mục bên dưới giữ theo thời điểm ban đầu.
+
 ## Phạm vi thực hiện
 
 - **Đã làm:** bổ sung audit READ, kiểm chứng tham chiếu và trạng thái, hoàn thiện API request examples theo 30 operationId, bao gồm không-body; tích hợp contract checks vào PowerShell; ngăn Python caches xuất hiện trong Git; liên kết docs README; cải thiện rebase ngày demo; soạn nội dung báo cáo chương 1–3 và đề cương slide bằng Markdown.

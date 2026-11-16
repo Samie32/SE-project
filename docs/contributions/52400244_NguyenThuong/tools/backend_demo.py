@@ -1,13 +1,16 @@
-"""Sinh request backend tuần 3–4. Không nạp fixtures, gửi HTTP hay lưu secrets."""
+"""Sinh request theo hợp đồng 1.0.0. Không nạp fixtures, gửi HTTP hay lưu secrets."""
 import argparse
 import hashlib
 import json
 from datetime import date, datetime, time, timedelta, timezone
 from pathlib import Path
 from uuid import uuid4
+from demo_http import render_clinical_http, render_telehealth_http
 
 BASE = Path(__file__).resolve().parent.parent
 PROFILE = BASE / 'test-data' / 'backend'
+ROOT = BASE.parents[2]
+NORMATIVE = ROOT / 'docs' / 'api' / 'openapi.yaml'
 VN = timezone(timedelta(hours=7))
 DOCTOR = '20000000-0000-0000-0000-000000000001'
 SPECIALTY = '10000000-0000-0000-0000-000000000001'
@@ -64,9 +67,9 @@ def build_bundle(day, now):
         'active': True, 'displayName': 'Doctor Demo', 'specialtyIds': [SPECIALTY]}, params=doctor_path)
     add('availabilityList', 'GET', '/api/doctors/{id}/availability', params=doctor_path)
     add('availability', 'POST', '/api/doctors/{id}/availability', body={
-        'startAt': stamp(13), 'endAt': stamp(14), 'slotMinutes': 20, 'mode': 'IN_PERSON'}, params=doctor_path)
+        'startAt': stamp(8), 'endAt': stamp(9), 'slotMinutes': 20, 'mode': 'IN_PERSON'}, params=doctor_path)
     add('remoteAvailability', 'POST', '/api/doctors/{id}/availability', body={
-        'startAt': stamp(14), 'endAt': stamp(15), 'slotMinutes': 20, 'mode': 'REMOTE'}, params=doctor_path)
+        'startAt': stamp(13), 'endAt': stamp(14), 'slotMinutes': 20, 'mode': 'REMOTE'}, params=doctor_path)
     add('timeOffList', 'GET', '/api/doctors/{id}/time-off', params=doctor_path)
     add('timeOff', 'POST', '/api/doctors/{id}/time-off', body={
         'startAt': stamp(16), 'endAt': stamp(17)}, params=doctor_path)
@@ -80,9 +83,77 @@ def build_bundle(day, now):
     add('cancel', 'POST', '/api/appointments/{id}/cancel', 'patient',
         {'reason': 'Demo 52400244 completed', 'version': 1}, appointment_path, {'Idempotency-Key': str(uuid4())})
     add('notifications', 'GET', '/api/notification-jobs')
-    return {'backend_commit': 'b10e0960a6a48225b5c26af60c737dbd1c37968f',
+    complete_operations(operations, day)
+    return {'backend_commit': 'a04dcb159007ef35daadfdb67f835576f0a05a7b',
+            'contract_version': '1.0.0', 'source': 'docs/api/openapi.yaml',
             'date': day.isoformat(), 'operations': operations,
             'note': 'Schema examples only; sample slot/appointment/new-user UUIDs are NOT seeded IDs.'}
+
+
+def complete_operations(rows, day):
+    """Add standalone schema examples; these are not an executable transaction sequence."""
+    import copy
+    spec, ops = load_contract()
+    seen = {(r['method'], r['path']) for r in rows}
+    actors = {'checkIn': 'receptionist', 'getDoctorQueue': 'doctor', 'callNext': 'doctor',
+              'skipTicket': 'doctor', 'listAuditEvents': 'auditor', 'listUsers': 'admin',
+              'getMyProfile': 'patient', 'getAppointment': 'patient',
+              'listPatientRecords': 'patient', 'listPatientPrescriptions': 'patient',
+              'getSession': 'patient', 'prepareSession': 'patient', 'joinSession': 'patient',
+              'sendSignal': 'patient'}
+    for (method, path), op in ops.items():
+        if (method, path) not in seen:
+            name = op['operationId']
+            row = {'name': name, 'method': method, 'path': path,
+                   'actor': actors.get(name, 'doctor'), 'params': {}, 'headers': {},
+                   'expected_status': 200 if '200' in op['responses'] else 204}
+            for param in op.get('parameters', []):
+                if not param.get('required'):
+                    continue
+                key, location = param['name'], param['in']
+                if key == 'Idempotency-Key': value = str(uuid4())
+                elif key == 'X-Room-Token': value = 'SYNTHETIC-REPLACE-WITH-JOIN-RESPONSE'
+                elif key == 'date': value = day.isoformat()
+                elif '/doctors/' in path: value = DOCTOR
+                elif '/patients/' in path: value = PATIENT
+                elif '/appointments/' in path: value = SAMPLE_APPOINTMENT
+                else: value = '50000000-0000-4000-8000-000000000001'
+                target = row['headers'] if location == 'header' else row['params'].setdefault(location, {})
+                target[key] = value
+            if 'requestBody' in op:
+                schema = op['requestBody']['content']['application/json']['schema']
+                if '$ref' in schema: schema = spec['components']['schemas'][schema['$ref'].split('/')[-1]]
+                row['body'] = copy.deepcopy(schema['example'])
+                if name == 'sendSignal':
+                    row['body'] = {'kind': 'ICE', 'payload': json.dumps({
+                        'v': 1, 'negotiationId': str(uuid4()), 'control': 'restart'})}
+            rows.append(row)
+    for row in rows:
+        op = ops[(row['method'], row['path'])]
+        row['operation_id'] = op['operationId']
+        row['access'] = op.get('x-access', '')
+        row['implementation_gaps'] = op.get('x-implementation-gaps', [])
+
+
+def normative_snapshot():
+    import yaml
+    spec = yaml.safe_load(NORMATIVE.read_text(encoding='utf-8'))
+    # Request paths include /api once; refs remain local to this document.
+    spec['paths'] = {'/api' + p: methods for p, methods in spec['paths'].items()}
+    spec['servers'] = [{'url': 'http://localhost:8080'}]
+    return spec
+
+
+def validate_source():
+    metadata = json.loads((PROFILE / 'source.json').read_text(encoding='utf-8'))
+    errors = []
+    if snapshot_digest(PROFILE / 'openapi.snapshot.json') != metadata['snapshot_sha256']:
+        errors.append('Snapshot hash không khớp source.json')
+    if snapshot_digest(NORMATIVE) != metadata['contract_sha256']:
+        errors.append('Hợp đồng chuẩn đã đổi; cập nhật snapshot và ví dụ sau review')
+    if load_contract()[0] != normative_snapshot():
+        errors.append('Snapshot khác hợp đồng chuẩn (ngoài phép đổi prefix /api)')
+    return errors
 
 
 def load_contract(spec_path=None):
@@ -100,18 +171,26 @@ def validate_bundle(bundle, spec_path=None):
     for row in bundle['operations']:
         key = (row['method'], row['path'])
         if key not in ops:
-            errors.append(f'Endpoint chưa triển khai: {key}')
+            errors.append(f'Endpoint ngoài hợp đồng đã chọn: {key}')
             continue
         seen.add(key)
         op = ops[key]
+        if row.get('actor') not in {'patient', 'doctor', 'receptionist', 'admin', 'auditor'}:
+            errors.append(f'{row["name"]}: actor không hợp lệ')
+        known = {(p['in'], p['name']) for p in op.get('parameters', [])}
+        for location, values in row.get('params', {}).items():
+            for name in values:
+                if (location, name) not in known:
+                    errors.append(f'{row["name"]}: tham số ngoài contract {location}/{name}')
         for param in op.get('parameters', []):
             values = row['headers'] if param['in'] == 'header' else row['params'].get(param['in'], {})
             value = values.get(param['name'])
             if param.get('required') and (value is None or value == ''):
                 errors.append(f'{row["name"]}: thiếu {param["in"]}/{param["name"]}')
             if value is not None:
+                document = {'components': spec['components'], 'value': param.get('schema', {}), '$ref': '#/value'}
                 errors.extend(f'{row["name"]}: {e.message}' for e in
-                              Draft202012Validator(param.get('schema', {}), format_checker=FormatChecker()).iter_errors(value))
+                              Draft202012Validator(document, format_checker=FormatChecker()).iter_errors(value))
         request = op.get('requestBody')
         if bool(request) != ('body' in row):
             errors.append(f'{row["name"]}: body không khớp contract')
@@ -122,8 +201,9 @@ def validate_bundle(bundle, spec_path=None):
                 schema = spec['components']['schemas'][schema['$ref'].split('/')[-1]]
             # Spring có thể bỏ qua field dư: chủ động chặn để tránh gửi nhầm patientId/mode_label.
             schema = dict(schema, additionalProperties=False)
+            document = {'components': spec['components'], 'value': schema, '$ref': '#/value'}
             errors.extend(f'{row["name"]}: {e.message}' for e in
-                          Draft202012Validator(schema, format_checker=FormatChecker()).iter_errors(row['body']))
+                          Draft202012Validator(document, format_checker=FormatChecker()).iter_errors(row['body']))
             body = row['body']
             if 'roles' in body and not set(body['roles']) <= ROLES:
                 errors.append(f'{row["name"]}: role sai backend')
@@ -142,7 +222,8 @@ def render_http(bundle):
         '# VS Code REST Client: chạy từng request theo thứ tự trong môi trường local demo.',
         '# Kiểm /me, /doctors, /specialties trước: ID phải khớp accounts.json.',
         '# Cần ít nhất 2 slot IN_PERSON trống; version/ID lấy từ response.',
-        '# Nếu POST availability trả 409 khi chạy lại, kiểm GET availability trước khi bỏ qua.',
+        '# Profile demo seed lịch 08:00-12:00 IN_PERSON, 13:00-17:00 REMOTE cho 7 ngày tiếp theo (trừ CN).',
+        '# Không POST lại availability trùng seed. Nếu thiếu lịch, setup riêng sau khi kiểm tra overlap.',
         '@baseUrl = http://localhost:8080',
         '@adminToken = {{$processEnv CLINIC_ADMIN_TOKEN}}',
         '@patientToken = {{$processEnv CLINIC_PATIENT_TOKEN}}',
@@ -160,10 +241,6 @@ def render_http(bundle):
     emit('doctors', 'GET', '/api/doctors')
     emit('specialties', 'GET', '/api/specialties')
     emit('availabilityList', 'GET', f'/api/doctors/{DOCTOR}/availability', 'admin')
-    emit('availability', 'POST', f'/api/doctors/{DOCTOR}/availability', 'admin',
-         json.dumps(rows['availability']['body'], indent=2))
-    emit('remoteAvailability', 'POST', f'/api/doctors/{DOCTOR}/availability', 'admin',
-         json.dumps(rows['remoteAvailability']['body'], indent=2))
     emit('slots', 'GET', f'/api/slots?date={bundle["date"]}&doctorId={DOCTOR}&mode=IN_PERSON')
     booking = '{"slotId":"{{slots.response.body.$[0].id}}"}'
     emit('book', 'POST', '/api/appointments', body=booking, key=rows['book']['headers']['Idempotency-Key'])
@@ -187,11 +264,8 @@ def main():
     args = parser.parse_args()
     now = datetime.now(timezone.utc)
     bundle = build_bundle(args.date or next_day(now), now)
-    metadata = json.loads((PROFILE / 'source.json').read_text(encoding='utf-8'))
-    digest = snapshot_digest(PROFILE / 'openapi.snapshot.json')
-    if digest != metadata['snapshot_sha256']:
-        raise ValueError('Snapshot bị thay đổi, cần cập nhật source.json sau khi đối chiếu backend')
-    errors = validate_bundle(bundle, args.spec)
+    catalog = json.loads((PROFILE / 'request-examples.json').read_text(encoding='utf-8'))
+    errors = validate_source() + validate_bundle(bundle, args.spec) + validate_bundle(catalog)
     if errors:
         print('\n'.join(errors))
         return 1
@@ -205,6 +279,8 @@ def main():
         output.mkdir(parents=True, exist_ok=True)
         (output / 'requests.json').write_text(json.dumps(bundle, ensure_ascii=False, indent=2) + '\n', encoding='utf-8')
         (output / 'demo.http').write_text(render_http(bundle), encoding='utf-8')
+        (output / 'clinical.http').write_text(render_clinical_http(bundle), encoding='utf-8')
+        (output / 'telehealth.http').write_text(render_telehealth_http(bundle), encoding='utf-8')
         print('Generated:', output)
     return 0
 

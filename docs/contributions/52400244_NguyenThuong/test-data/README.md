@@ -1,6 +1,6 @@
 # Bộ dữ liệu trình diễn – manifest v2
 
-> **Backend tuần 3–4:** dùng [backend/README.md](backend/README.md) và `tools/backend_demo.py`. `fixtures/`, `api-examples/` và catalog 30 operations ở đây theo **thiết kế**, có `ADMIN/TELEHEALTH`; không gửi trực tiếp tới backend dùng `ADMINISTRATOR/REMOTE`. Clinical/queue/video chưa được triển khai trong main đã đối chiếu. Manifest tài khoản seed thực tế ở `backend/accounts.json`.
+> **Bản thiết kế 0.1 lưu để đối chiếu.** Bộ hiện tại là [backend/README.md](backend/README.md), hợp đồng 1.0.0 có 46 API. Các thư mục bên dưới giữ ADMIN/TELEHEALTH/snake_case, không gửi/import vào BE mới. Queue/clinical/signaling và FE WebRTC đã có; BE thật/TURN cần nghiệm thu riêng.
 
 Đây là **logical fixtures**, có thể xem trên Git và kiểm tra quan hệ mà **không** cần MySQL. Chúng KHÔNG phải request hợp lệ để POST nguyên tập vào API và KHÔNG phải seed SQL.
 

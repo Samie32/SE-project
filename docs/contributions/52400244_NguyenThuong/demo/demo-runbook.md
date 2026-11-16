@@ -1,81 +1,43 @@
-# Runbook demo – lập kế hoạch, KHÔNG phải kết quả chạy
+# Kịch bản demo 52400244 — 17/11/2026
 
-## Demo với backend hiện tại (main@b10e096, tuần 3–4)
+**Kế hoạch chạy, chưa phải biên bản nghiệm thu.** Chuẩn 1.0.0, BE a04dcb1, FE/media 98a02e1. Dùng `test-data/backend`, không dùng UUID/enum thiết kế 0.1.
 
-Ưu tiên luồng này khi demo bản backend đang có. Các luồng B/C và kiểm toán hồ sơ phía dưới là kế hoạch cho giai đoạn sau; chưa có endpoint thực thi.
+## Chuẩn bị
 
-1. Trong clone có main, chạy môi trường theo [hướng dẫn backend](../test-data/backend/README.md). Xác minh health, `/api/me`, danh mục và seed.
-2. Sinh request bằng `python docs/contributions/52400244_NguyenThuong/tools/backend_demo.py`; không cần rebase/import fixtures thiết kế.
-3. Chạy `demo.http` từng request. Tạo availability nếu chưa có; xem slot trống; patient đặt lịch; replay cùng khóa/body phải trả lại kết quả cũ; đổi dùng version từ book; hủy dùng version từ đổi.
-4. Kiểm danh sách lịch theo patient/doctor/receptionist; admin hoặc receptionist xem notification jobs. Email xác nhận qua Mailpit; chưa demo nhắc lịch -30 phút.
-5. Ghi status/body thực tế, SHA, ngày giờ, người chạy. Nếu dừng giữa luồng thì hủy lịch đã tạo bằng ID/version hiện tại. Availability/audit/outbox/lịch đã hủy vẫn được giữ.
+1. Chạy môi trường demo theo README root; xác nhận Keycloak/MySQL/BE/FE, V1/V2 và 6 account. Không reset volume có dữ liệu cần giữ.
+2. Kiểm /api/me/profile và danh mục bằng patient/doctor/admin. Auditor chỉ đọc audit. Ghi doctorId/patientId thực tế.
+3. Chạy `tools/run-checks.ps1`, sinh bằng `tools/backend_demo.py`. Đặt trước lịch IN_PERSON và REMOTE thuộc đúng người vào giờ demo; generated không chứa token thật.
+4. Đổi/hủy cần >=2 giờ; check-in [T−15,T+15), prepare/join [T−10,T+15), start [T,T+15). Không đổi đồng hồ hoặc insert SQL để vượt cửa sổ.
+5. Mở hai browser profile patient/doctor, kiểm quyền camera/micro. Khác mạng cần HTTPS/TURN theo docs/webrtc-client.md.
 
-HTTP 200 và status/version là kỳ vọng theo controller/service, chưa phải kết quả chạy tại workspace này. Không trình bày fixture clinical hoặc mockup video như chức năng đã hoàn thành.
+## A. Đặt, đổi, hủy và idempotency
 
-## BẮT BUỘC TRƯỚC NGÀY DEMO – TRÁNH DÙNG LỊCH QUÁ KHỨ
+Chạy `demo.http`: danh mục/lịch seed → slot → book → replay cùng key/body → reschedule bằng ID/version response → cancel bằng version mới → appointments/notification jobs/Mailpit. Không POST availability trùng seed. Race hai bệnh nhân đặt một slot dùng hai key: kỳ vọng một thành công/một 409; ghi kết quả thực tế, không suy từ validator.
 
-Fixtures lịch đặt mới ban đầu ngày **10–11/11/2026**. Khi buổi demo diễn ra sau mốc đó, **không được nạp thẳng lịch cũ vào kịch bản đặt lịch**.
+## B. Trực tiếp và clinical
 
-Từ thư mục gốc repository `SE-project/`, chạy:
+Chọn lịch IN_PERSON CONFIRMED đúng cửa sổ; dùng `clinical.http` hoặc FE, không thao tác đồng thời hai cách.
 
-```powershell
-python docs/contributions/52400244_NguyenThuong/tools/rebase_demo_dates.py --auto-next-business-day
-```
+1. Lễ tân check-in: WAITING; replay không tạo phiếu thứ hai.
+2. Bác sĩ queue theo ngày Việt Nam, next → CALLED. Nếu trả ca khác thì dừng, không start appointmentId đang dự định. Xử lý đúng ca CALLED/IN_SERVICE trước.
+3. GET appointment lấy version, progress IN_PROGRESS, GET detail lấy encounterId.
+4. DRAFT → GET current → FINAL bằng version mới; tạo đơn đủ 5 trường mô phỏng, issue. FINAL sửa qua amendment có reason/version, không ghi đè trực tiếp.
+5. GET appointment mới rồi COMPLETED. Không tự issue đơn; bệnh nhân chỉ xem FINAL/ISSUED. Kiểm stale version và truy cập bệnh nhân khác bằng tài khoản test.
 
-Hoặc chỉ định **ngày tương lai thứ Hai–thứ Sáu**:
+Nhánh bỏ lượt: ticket CALLED → skip reason/version → WAITING cuối hàng. Queue rỗng chuẩn 204; baseline BE-04 có thể còn 404, ghi FAIL và backlog.
 
-```powershell
-python docs/contributions/52400244_NguyenThuong/tools/rebase_demo_dates.py --base-date 2026-11-17
-```
+## C. Từ xa và media
 
-Đầu ra ở `docs/contributions/52400244_NguyenThuong/test-data/generated/YYYY-MM-DD/`, không ghi đè dữ liệu gốc. **Kiểm tra lại ngày lịch, múi giờ Asia/Ho_Chi_Minh, ngày nghỉ và reset database test trước khi chạy.** Thời gian đặt mới phải trong tương lai, còn check-in / join chỉ được thực hiện trong cửa sổ thời gian cho phép; muốn demo hai chức năng này cần đồng hồ thử nghiệm được nhóm cấu hình hoặc tạo lịch sát giờ hiện tại. **Rebase không tự biến các lịch mới thành lịch đang đủ điều kiện check-in.**
+Patient vào lịch REMOTE sát giờ, consent=true; doctor start từ giờ hẹn. `telehealth.http` kiểm vòng đời hoặc FE kiểm cuộc gọi. Không để script start/end đồng thời FE.
 
-## Điều kiện
+FE: video/audio hai phía, mute/unmute, camera bị từ chối vẫn audio, reconnect, leave/rejoin, token renewal. Doctor end phải làm patient đóng peer/thiết bị sau khi quan sát trạng thái. End không tự COMPLETED encounter: FINAL record rồi hoàn tất appointment riêng. Sau ENDED không join/signals được.
 
-- Backend, migration, IdP, frontend và provider mocks phải được các thành viên xác nhận chạy trên môi trường test. Nếu chưa có, **chỉ trình bày mô hình JSON và sơ đồ**.
-- Các mốc check-in, mở phòng từ xa phải gần giờ hiện tại trong môi trường test được cấu hình phù hợp; fixtures lịch sử dùng cho **xem hồ sơ**, không để check-in mới.
-- Dữ liệu thử là giả lập; không đưa token, bệnh án người thật hoặc mật khẩu lên slide/ảnh.
+Hai trình duyệt cùng máy không chứng minh TURN. Kiểm hai thiết bị/hai mạng, ép relay để xác nhận TURN; không đưa SDP/token/credential lên báo cáo. Thiếu hạ tầng ghi BLOCKED và điều kiện thiếu.
 
-## Luồng A – xem lịch và đặt lịch
+## D. Audit và lỗi
 
-| Bước | Vai trò | Dữ liệu | Kết quả kỳ vọng |
-| --- | --- | --- | --- |
-| 1 | PAT_A | `AV_A_FUT_S2` | Tra cứu slot trống của DOC_A |
-| 2 | PAT_A | `create_booking.json` | Lịch mới CONFIRMED, tránh slot đã đặt S1 |
-| 3 | PAT_B | cùng `AV_A_FUT_S2` | Trả xung đột 409 sau khi PAT_A thành công |
-| 4 | PAT_A | `change_booking.json` (phiên bản hiện tại) | Đổi sang S3 khi còn >=2h, nếu chưa bị đặt |
-| 5 | PAT_A | `cancel_booking.json` | Hủy lịch theo quy tắc nếu còn >=2h |
+Auditor đọc /audit-events theo createdAt, to exclusive. Kiểm request ID/action/resource. QA fault injection audit để kiểm fail-closed, sai quyền; không suy từ fixture. BE-01…04 vẫn mở.
 
-## Luồng B – hồ sơ và đơn thuốc LỊCH SỬ
+## Minh chứng
 
-1. DOC_A (được phân công) xem lịch APT_A_DONE, Encounter ENC_A_DONE và bản ghi MedicalRecord FINAL giả lập đã được backend mã hóa.
-2. Bác sĩ xem đơn `RX_A_ISSUED` đã phát hành; bệnh nhân PAT_A chỉ được xem đơn ISSUED của mình. Dữ liệu đơn chỉ có placeholder không phải khuyến cáo y tế.
-3. Với môi trường reset của TC-14, backend tạo Encounter IN_PROGRESS hợp lệ và thực hiện `create_prescription.json`, tiếp đến `issue_prescription.json`. Kiểm tra trường hợp `create_prescription_empty.json` không được phát hành; `create_prescription_missing_field.json` bị từ chối theo schema/validation.
-
-## Luồng C – khám từ xa
-
-1. Dùng AV_A_REMOTE_FUT_S1 tạo lịch từ xa phù hợp (ngày/giờ demo phải thay nếu đã qua).
-2. Bệnh nhân vào phòng chờ trong [-10,+15) phút; bác sĩ bắt đầu không sớm hơn giờ khám.
-3. Mô phỏng mất kết nối, nối lại trong phiên ACTIVE/RECONNECTING; kết thúc phiên không tự hoàn tất lần khám.
-4. Xác nhận không cấp token sau ENDED, chỉ kết thúc Encounter khi hồ sơ đã FINAL và phiên ENDED.
-
-## Bằng chứng cần thu
-
-- [ ] Build SHA, ngày giờ, URL môi trường test, người chạy.
-- [ ] Request/response đã được xóa token/PHI; nguồn fixture commit tương ứng.
-- [ ] Video/ảnh **ứng dụng chạy thật**, không lấy mockup làm bằng chứng code.
-- [ ] Kết quả `PASS/FAIL/BLOCKED/NOT RUN`, liên kết test report/bug/PR theo TC.
-- [ ] Tách rõ kiểm tra tĩnh fixtures với API integration thực tế.
-
-## Luồng kiểm toán bổ sung – TC-12 / TC-17
-
-1. Dùng `AUD_READ_A` trong `audit-events.json` để đối chiếu các trường `actor_id`, `action=READ_MEDICAL_RECORD`, `resource_id`, `timestamp`, `result` và `correlation_id`.
-2. Khi backend đã triển khai, bác sĩ được phân công mở hồ sơ hợp lệ. Chỉ ghi PASS nếu audit được **lưu thành công trước khi dữ liệu nhạy cảm được trả về**.
-3. Mock kho audit ghi thất bại và xác minh backend trả lỗi dịch vụ, không lộ hồ sơ (BR-16); kết quả phải ghi trong báo cáo QA, không thể suy ra từ fixture JSON.
-4. Kiểm tra tài khoản không được phân công không đọc được hồ sơ (AC-12). Nếu chính sách triển khai có ghi nhận cả truy cập bị từ chối thì đối chiếu thêm bản ghi lỗi; đặc tả không bắt buộc tạo sẵn audit DENIED trong fixture.
-
-## Tra cứu ví dụ API chính xác
-
-- `test-data/scenarios/api-catalog.json`: danh sách **tất cả** operationId; tham số path/query/header bắt buộc và body hợp lệ.
-- `test-data/scenarios/api-no-body.http`: các thao tác GET hoặc POST **không có request body** (check-in, queue/next, prepareSession).
-- `test-data/api-examples/*.json`: JSON request body, **không** phải response API. Những file `*_missing_field.json` là negative sample.
+Ghi SHA BE/FE/data, môi trường, thời gian Asia/Ho_Chi_Minh, người chạy, TC, expected/actual và PASS/FAIL/BLOCKED/NOT_RUN. Lưu response đã xóa token/PHI, ảnh thật và log. Không dùng mockup/JSON làm bằng chứng runtime. Giữ log 04/11 tách biệt đợt hiện tại.
