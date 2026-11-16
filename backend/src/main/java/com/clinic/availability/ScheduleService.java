@@ -117,20 +117,44 @@ public class ScheduleService {
         doctor);
   }
 
+  @Transactional
+  public void remove(Access.Actor actor, String id, boolean off) {
+    String table = off ? "time_off" : "availability";
+    var row = db.one("SELECT * FROM " + table + " WHERE id=?", id);
+    access.doctor(actor, row.get("doctorId").toString());
+    lockDoctor(row.get("doctorId").toString());
+    row = db.one("SELECT * FROM " + table + " WHERE id=? FOR UPDATE", id);
+    Problem.require(
+        Db.instant(row, "startAt").isAfter(clock.instant()), 409, "Past schedules are retained");
+    if (!off) {
+      Problem.require(
+          db.count(
+                  "SELECT COUNT(*) FROM appointment a JOIN slot s ON s.id=a.slot_id WHERE"
+                      + " s.availability_id=?",
+                  id)
+              == 0,
+          409,
+          "Availability with appointment history cannot be deleted");
+      db.update("DELETE FROM slot WHERE availability_id=?", id);
+    }
+    db.update("DELETE FROM " + table + " WHERE id=?", id);
+    audit.record(actor.id(), off ? "TIME_OFF_REMOVED" : "AVAILABILITY_REMOVED", id);
+  }
+
   public List<Map<String, Object>> slots(
       String doctor, LocalDate date, String mode, String specialty) {
     Instant start = date.atStartOfDay(ZONE).toInstant(),
         end = date.plusDays(1).atStartOfDay(ZONE).toInstant();
     return db.list(
         """
-        SELECT s.* FROM slot s JOIN doctor d ON d.id=s.doctor_id
-        WHERE d.active=TRUE AND s.start_at>=? AND s.start_at<? AND s.start_at>?
-        AND (? IS NULL OR s.doctor_id=?) AND (? IS NULL OR s.mode=?)
-        AND (? IS NULL OR EXISTS(SELECT 1 FROM doctor_specialty ds WHERE ds.doctor_id=s.doctor_id AND ds.specialty_id=?))
-        AND NOT EXISTS(SELECT 1 FROM time_off t WHERE t.doctor_id=s.doctor_id AND t.start_at<s.end_at AND t.end_at>s.start_at)
-        AND NOT EXISTS(SELECT 1 FROM appointment a WHERE a.doctor_id=s.doctor_id AND a.status IN ('CONFIRMED','CHECKED_IN','IN_PROGRESS') AND a.start_at<s.end_at AND a.end_at>s.start_at)
-        ORDER BY s.start_at,s.id LIMIT 500
-        """,
+SELECT s.* FROM slot s JOIN doctor d ON d.id=s.doctor_id
+WHERE d.active=TRUE AND s.start_at>=? AND s.start_at<? AND s.start_at>?
+AND (? IS NULL OR s.doctor_id=?) AND (? IS NULL OR s.mode=?)
+AND (? IS NULL OR EXISTS(SELECT 1 FROM doctor_specialty ds WHERE ds.doctor_id=s.doctor_id AND ds.specialty_id=?))
+AND NOT EXISTS(SELECT 1 FROM time_off t WHERE t.doctor_id=s.doctor_id AND t.start_at<s.end_at AND t.end_at>s.start_at)
+AND NOT EXISTS(SELECT 1 FROM appointment a WHERE a.doctor_id=s.doctor_id AND a.status IN ('CONFIRMED','CHECKED_IN','IN_PROGRESS') AND a.start_at<s.end_at AND a.end_at>s.start_at)
+ORDER BY s.start_at,s.id LIMIT 500
+""",
         start,
         end,
         clock.instant(),

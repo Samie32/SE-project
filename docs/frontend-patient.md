@@ -1,5 +1,7 @@
 # Frontend bệnh nhân — báo cáo thực hiện và hướng dẫn chạy
 
+> Backend đã bổ sung API bệnh án, đơn thuốc và signaling. Xem [hợp đồng tích hợp](backend-completion.md). Các màn hình chờ tích hợp trong báo cáo này vẫn cần nối với API; chưa có nghiệm thu video/audio đầu cuối.
+
 **Thành viên phụ trách:** Vũ Trần Khắc Thuận — MSSV 52400243.
 
 **Ngày cập nhật báo cáo:** 08/11/2026.

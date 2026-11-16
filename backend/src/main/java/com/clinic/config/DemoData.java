@@ -68,6 +68,19 @@ public class DemoData {
               start.plusSeconds(3600 * 4),
               20,
               "IN_PERSON");
+        Instant remote = day.atTime(13, 0).atZone(ScheduleService.ZONE).toInstant();
+        if (db.count(
+                "SELECT COUNT(*) FROM availability WHERE doctor_id=? AND start_at=?",
+                doctor,
+                remote)
+            == 0)
+          schedules.availability(
+              new Access.Actor("00000000-0000-0000-0000-000000000001", Set.of("ADMINISTRATOR")),
+              doctor,
+              remote,
+              remote.plusSeconds(3600 * 4),
+              20,
+              "REMOTE");
       }
     };
   }

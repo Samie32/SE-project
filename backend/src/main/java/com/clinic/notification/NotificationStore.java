@@ -68,14 +68,18 @@ public class NotificationStore {
     int attempts = ((Number) job.get("attempts")).intValue() + 1;
     int[] delays = {60, 300, 900};
     boolean terminal = attempts > delays.length;
-    db.update(
-        "UPDATE notification_job SET"
-            + " status=?,attempts=?,due_at=?,lease_until=NULL,last_error='SMTP_UNAVAILABLE' WHERE"
-            + " id=? AND lease_token=? AND status='PROCESSING'",
-        terminal ? "FAILED" : "PENDING",
-        attempts,
-        clock.instant().plusSeconds(terminal ? 0 : delays[attempts - 1]),
-        job.get("id"),
-        job.get("leaseToken"));
+    int changed =
+        db.update(
+            "UPDATE notification_job SET"
+                + " status=?,attempts=?,due_at=?,lease_until=NULL,last_error='SMTP_UNAVAILABLE'"
+                + " WHERE id=? AND lease_token=? AND status='PROCESSING'",
+            terminal ? "FAILED" : "PENDING",
+            attempts,
+            clock.instant().plusSeconds(terminal ? 0 : delays[attempts - 1]),
+            job.get("id"),
+            job.get("leaseToken"));
+    if (changed == 1)
+      audit.record(
+          null, terminal ? "NOTIFICATION_FAILED" : "NOTIFICATION_RETRY", job.get("id").toString());
   }
 }

@@ -32,6 +32,7 @@ public class Db {
             Object value = rs.getObject(i);
             if (value instanceof Timestamp t) value = t.toInstant().toString();
             if (value instanceof LocalDateTime t) value = t.toInstant(ZoneOffset.UTC).toString();
+            if (value instanceof java.sql.Date d) value = d.toLocalDate().toString();
             row.put(key, value);
           }
           return row;

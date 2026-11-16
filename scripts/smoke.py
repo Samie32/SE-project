@@ -23,9 +23,17 @@ def token(user):
     req=urllib.request.Request("http://localhost:8180/realms/clinic/protocol/openid-connect/token",data=payload)
     with urllib.request.urlopen(req,timeout=15) as response:return json.load(response)["access_token"]
 patient=token("patient");other=token("patient2");admin=token("admin")
+doctor=token("doctor");receptionist=token("receptionist");auditor=token("auditor")
 call("/actuator/health")
 call("/api/me",expected=401)
 assert call("/api/me",token=patient)["roles"]==["PATIENT"]
+profile=call("/api/me/profile",token=patient)
+assert profile["patientId"] and profile["doctorId"] is None
+assert call("/api/me/profile",token=doctor)["doctorId"]
+assert call("/api/users",token=admin)
+call("/api/users",token=patient,expected=403)
+call("/api/audit-events",token=admin,expected=403)
+assert call("/api/patients/"+profile["patientId"]+"/records",token=patient) is not None
 call("/api/me",token=patient[:-20]+"invalidsignature",expected=401)
 call("/api/specialties","POST",{"name":"Denied"},patient,expected=403)
 call("/api/me","OPTIONS",headers={"Origin":"http://localhost:5173","Access-Control-Request-Method":"GET","Access-Control-Request-Headers":"authorization"})
@@ -36,6 +44,13 @@ assert len(slots)>=3,"Need at least three free demo slots"
 key=str(uuid.uuid4())
 a=call("/api/appointments","POST",{"slotId":slots[0]["id"]},patient,key)
 try:
+    detail=call("/api/appointments/"+a["id"],token=patient)
+    assert detail["encounterId"] is None
+    call("/api/appointments/"+a["id"]+"/check-in","POST",token=patient,key=str(uuid.uuid4()),expected=403)
+    call("/api/appointments/"+a["id"]+"/check-in","POST",token=receptionist,key=str(uuid.uuid4()),expected=409)
+    call("/api/appointments/"+a["id"]+"/progress","POST",{"targetStatus":"IN_PROGRESS"},doctor,str(uuid.uuid4()),400)
+    events=call("/api/audit-events?resourceId="+a["id"],token=auditor)
+    assert events and all(e["resourceId"]==a["id"] for e in events)
     assert call("/api/appointments","POST",{"slotId":slots[0]["id"]},patient,key)==a
     call("/api/appointments","POST",{"slotId":slots[1]["id"]},patient,key,409)
     call("/api/appointments","POST",{"slotId":slots[0]["id"]},other,str(uuid.uuid4()),409)
@@ -54,6 +69,8 @@ with urllib.request.urlopen("http://localhost:8025/api/v1/messages") as response
     messages=json.load(response)
     assert messages["total"]>0,"Mailpit received no messages"
 spec=call("/v3/api-docs")
+assert "/api/telehealth-sessions/{id}/signals" in spec["paths"]
+assert "/api/encounters/{id}/record" in spec["paths"]
 out=root/"docs/api/openapi.json";out.parent.mkdir(parents=True,exist_ok=True)
 out.write_text(json.dumps(spec,indent=2,ensure_ascii=False)+"\n",encoding="utf-8")
-print("PASS: real OIDC login, JWT rejection, role/ownership checks, CORS, booking, replay, conflict, reschedule, cancellation, Mailpit and OpenAPI export.")
+print("PASS: real OIDC login, JWT rejection, role/ownership checks, profiles, audit search, clinical validation, check-in window, CORS, booking, replay, conflict, reschedule, cancellation, Mailpit and OpenAPI export.")

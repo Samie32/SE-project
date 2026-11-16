@@ -11,9 +11,10 @@ import org.springframework.context.annotation.Configuration;
 @OpenAPIDefinition(
     info =
         @Info(
-            title = "Clinic scheduling API",
-            version = "0.1.0",
-            description = "Week 3-4: authentication, catalog, availability and appointments"),
+            title = "Clinic care API",
+            version = "0.2.0",
+            description =
+                "Scheduling, clinical records, prescriptions, queue, notifications, audit and private WebRTC signaling"),
     security = @SecurityRequirement(name = "bearerAuth"))
 @SecurityScheme(
     name = "bearerAuth",

@@ -1,5 +1,7 @@
 # API tuần 3–4
 
+> API các phân hệ khám bệnh, hàng đợi, đơn thuốc, audit, nhắc lịch và signaling đã được bổ sung. Xem [hợp đồng tích hợp hiện tại](../backend-completion.md). OpenAPI JSON hiện phản ánh bản mới; nội dung tuần 3–4 dưới đây là tài liệu lịch sử.
+
 Base URL local: http://localhost:8080/api. Hợp đồng thực thi được sinh từ controller tại /v3/api-docs; [bản JSON](openapi.json) được xuất bằng scripts/smoke.py.
 
 ## Xác thực

@@ -33,8 +33,12 @@ Kế hoạch phân biệt công việc đã thực hiện với nhiệm vụ đ�
 | Lập kế hoạch dự án | Vòng Kỷ Phong | Phân công và kế hoạch tám tuần |
 | Backend tuần 3–4 | Vòng Kỷ Phong | M01–M04, migration MySQL, audit nền tảng và thông báo xác nhận |
 | Môi trường và kiểm thử backend tuần 3–4 | Vòng Kỷ Phong | Docker Compose, dữ liệu demo, Maven Wrapper, kiểm thử MySQL/JWT và cấu hình CI |
+| Backend nghiệp vụ tuần 5–6 | Vòng Kỷ Phong | M05: lần khám, bệnh án DRAFT/FINAL, bản bổ sung và đơn thuốc; M08: check-in, hàng đợi FIFO, gọi/bỏ lượt; đồng bộ trạng thái lịch hẹn, lần khám và phiếu chờ trong giao dịch |
+| Thông báo, bảo mật và kiểm toán bổ sung | Vòng Kỷ Phong | M06: nhắc lịch trước 30 phút, bỏ tác vụ cũ và retry; M07: tra cứu audit theo quyền, mã liên kết request, mã hóa dữ liệu lâm sàng và kết quả idempotency; bảo vệ bệnh án FINAL và đơn ISSUED khỏi sửa/xóa |
+| Backend phiên khám từ xa | Vòng Kỷ Phong | M09: tạo/tham gia/bắt đầu/kết thúc phiên, đồng ý tham gia, token 5 phút, thu hồi token và signaling WebRTC OFFER/ANSWER/ICE; hỗ trợ nối lại phiên. Chưa nghiệm thu video/audio đầu cuối và media/TURN |
+| Kiểm thử và bàn giao API backend bổ sung | Vòng Kỷ Phong | Build sạch đạt 49 test trên MySQL 8.4/Testcontainers và JWT; hai kiểm tra bổ sung về mốc nhắc lịch 30 phút và hợp đồng API đạt. Smoke test Keycloak → API → MySQL → Mailpit đạt; OpenAPI có 46 thao tác trên 38 đường dẫn. [Tài liệu bàn giao](backend-completion.md) |
 | Frontend bác sĩ tuần 3–4 | Nguyễn Huỳnh Anh Kiệt | Giao diện lịch làm việc/lịch nghỉ (M03), danh sách lịch hẹn (M04), phòng gọi CallingRoom dùng chung; cấu hình proxy và API service sẵn sàng tích hợp |
-| Frontend bệnh nhân và cổng dịch vụ | Vũ Trần Khắc Thuận | Giao diện ClinicCare; đăng nhập Keycloak; tổng quan, tra cứu và tích hợp API đặt/đổi/hủy lịch; đóng gói Docker và cấu hình CI. 18 test frontend, build và đăng nhập thật đạt. Hồ sơ/đơn thuốc và cuộc gọi từ xa chờ backend. [Chi tiết](frontend-patient.md) |
+| Frontend bệnh nhân và cổng dịch vụ | Vũ Trần Khắc Thuận | Giao diện ClinicCare; đăng nhập Keycloak; tổng quan, tra cứu và tích hợp API đặt/đổi/hủy lịch; đóng gói Docker và cấu hình CI. 18 test frontend, build và đăng nhập thật đạt. API hồ sơ/đơn thuốc và signaling đã được bổ sung; frontend chờ tích hợp và nghiệm thu cuộc gọi đầu cuối. [Chi tiết](frontend-patient.md) |
 | Giao diện Frontend Staff cho hệ thống Clinic Telehealth. Thiết lập môi trường và cấu hình đăng nhập Keycloak. Các chức năng giao diện dành cho quản trị viên, lễ tân và kiểm toán. | Nguyễn Hiếu Nhân | frontend/frontend_staff. Giao diện quản trị, lễ tân và kiểm toán|
 
 ## 4. Phân công giai đoạn triển khai
@@ -58,7 +62,7 @@ Kế hoạch phân biệt công việc đã thực hiện với nhiệm vụ đ�
 
 ## 5. Kế hoạch tám tuần
 
-Tuần 1–2 tương ứng với khối lượng phân tích và thiết kế hiện có do Vòng Kỷ Phong thực hiện. Chưa ghi nhận đóng góp của năm thành viên còn lại trong giai đoạn này. Từ tuần 3 là kế hoạch triển khai.
+Tuần 1–2 tương ứng với khối lượng phân tích và thiết kế hiện có; phân công và đóng góp của Vòng Kỷ Phong, Nguyễn Thường được ghi trong bảng dưới và mục 3. Từ tuần 3 là kế hoạch triển khai. Trạng thái hoàn thành thực tế được cập nhật riêng tại mục 7, không thay đổi các mốc kế hoạch ban đầu.
 
 | Tuần | Vòng Kỷ Phong | Vũ Trần Khắc Thuận | Nguyễn Huỳnh Anh Kiệt | Nguyễn Hiếu Nhân | Vũ Đức Thắng | Nguyễn Thường |
 |---|---|---|---|---|---|---|
@@ -80,6 +84,8 @@ Tuần 1–2 tương ứng với khối lượng phân tích và thiết kế hi
 | 3 | Tuần 5–6 | Khám trực tiếp/từ xa, hồ sơ, đơn thuốc, hàng đợi, thông báo và audit | Cả nhóm theo phạm vi phụ trách |
 | 4 | Tuần 7–8 | Kiểm thử, sửa lỗi, đóng gói, báo cáo và trình diễn | Cả nhóm theo phạm vi phụ trách |
 
+Đối chiếu cập nhật ngày 15/11/2026: phần backend nghiệp vụ của sprint 3 đã có API và kiểm thử; M09 mới hoàn thành vòng đời phiên, phân quyền và signaling. Chưa đánh dấu toàn bộ sprint 3 hoặc sprint 4 hoàn tất vì còn tích hợp frontend, media/TURN, kiểm thử toàn trình và các hạng mục bàn giao.
+
 Điều kiện bàn giao: các tiêu chí chấp nhận đạt; không còn lỗi cản trở luồng chính; kiểm thử chống trùng lịch và phân quyền đạt; độ bao phủ kiểm thử đơn vị logic nghiệp vụ tối thiểu 60%.
 
 ## 7. Theo dõi tiến độ thực tế
@@ -89,14 +95,37 @@ Tuần 1–2 tương ứng với khối lượng phân tích và thiết kế hi
 | Cấu trúc dự án, yêu cầu và quy tắc nghiệp vụ | Vòng Kỷ Phong | Tuần 1 | Đã có |
 | Mô hình, kiến trúc, dữ liệu và hợp đồng API | Vòng Kỷ Phong | Tuần 2 | Đã có tài liệu |
 | Đặc tả màn hình, kế hoạch kiểm thử và phân công | Vòng Kỷ Phong | Tuần 2 | Đã có tài liệu |
-| Backend của chín phân hệ | Vòng Kỷ Phong | Tuần 3–6 | Đã triển khai M01–M04 và nền tảng audit/thông báo; chức năng tuần 5–6 chưa triển khai |
-| Frontend bệnh nhân | Vũ Trần Khắc Thuận | Tuần 3–6 | Đã xây lại giao diện bệnh nhân ClinicCare, nối API bệnh nhân thuộc M01–M04 và cấu hình theme đăng nhập/đóng gói frontend. 18 test đạt; build production và image Docker đạt; form đăng nhập → PKCE → /api/me thật đạt. Hồ sơ/đơn thuốc/video chờ backend; chưa nghiệm thu toàn trình đặt/đổi/hủy qua UI với MySQL. Báo cáo cập nhật 08/11/2026, tổng hợp kiểm chứng 06/11/2026 |
+| Backend của chín phân hệ | Vòng Kỷ Phong | Tuần 3–6 | Cập nhật 15/11/2026: đã có API nghiệp vụ M01–M08, gồm tiến trình khám, hồ sơ/đơn thuốc, hàng đợi, nhắc lịch qua email và tra cứu audit. M09 đã có vòng đời phiên, token và signaling WebRTC; media/TURN, SMS thật và nghiệm thu cuộc gọi đầu cuối còn lại. [Chi tiết](backend-completion.md) |
+| Kiểm thử và hợp đồng API backend | Vòng Kỷ Phong | Tuần 3–8 | Build sạch đạt 49/49 test, không bỏ qua test; hai kiểm tra bổ sung về nhắc lịch đúng 30 phút và OpenAPI đạt. Smoke test OIDC thật, phân quyền, check-in, audit, đặt/đổi/hủy và email đạt. OpenAPI xuất lại: 46 thao tác, 38 đường dẫn; health UP và Swagger HTTP 200 tại lần kiểm tra 15/11/2026 |
+| Frontend bệnh nhân | Vũ Trần Khắc Thuận | Tuần 3–6 | Đã xây lại giao diện bệnh nhân ClinicCare, nối API bệnh nhân thuộc M01–M04 và cấu hình theme đăng nhập/đóng gói frontend. 18 test đạt; build production và image Docker đạt; form đăng nhập → PKCE → /api/me thật đạt. Hồ sơ/đơn thuốc chờ nối API đã có; video chờ tích hợp signaling/media và nghiệm thu đầu cuối. Chưa nghiệm thu toàn trình đặt/đổi/hủy qua UI với MySQL. Báo cáo frontend cập nhật 08/11/2026, tổng hợp kiểm chứng 06/11/2026; trạng thái phụ thuộc backend cập nhật 15/11/2026 |
 | Frontend bác sĩ | Nguyễn Huỳnh Anh Kiệt | Tuần 3–6 | Đã hoàn thành giao diện tuần 3–4 (lịch làm việc, lịch hẹn) và sẵn sàng tích hợp API; đã chuẩn bị trước tuần 5–6 |
 | Frontend lễ tân, quản trị và kiểm toán | Nguyễn Hiếu Nhân | Tuần 3–6 | Chưa triển khai |
-| Bộ kiểm thử tự động và kiểm thử hệ thống | Vũ Đức Thắng | Tuần 3–8 | Chưa thực thi |
-| MySQL, các môi trường, nạp dữ liệu, sao lưu/phục hồi, đóng gói và CI/CD | Vòng Kỷ Phong | Tuần 3–8 | Đã có MySQL, môi trường local/test, dữ liệu demo, đóng gói và cấu hình CI; CI trên GitHub và sao lưu/phục hồi chưa nghiệm thu |
+| Kiểm thử độc lập, toàn trình, tải và bảo mật hệ thống | Vũ Đức Thắng | Tuần 3–8 | Chưa ghi nhận kết quả kiểm thử độc lập của thành viên; bộ test backend do Vòng Kỷ Phong thực hiện được ghi riêng ở trên |
+| MySQL, các môi trường, nạp dữ liệu, sao lưu/phục hồi, đóng gói và CI/CD | Vòng Kỷ Phong | Tuần 3–8 | Đã có migration V1/V2, trigger bảo vệ dữ liệu, MySQL local/test và dữ liệu demo trực tiếp/từ xa; script run-backend tự khởi động MySQL/Keycloak/Mailpit. Build backend và smoke test local đạt; đã có cấu hình đóng gói/CI. CI trên GitHub, môi trường production và sao lưu/phục hồi chưa nghiệm thu |
 | Nội dung dữ liệu mô phỏng và tài liệu sử dụng | Nguyễn Thường | Tuần 3–8 | Chưa hoàn thành |
 | Báo cáo tổng hợp, slide và bàn giao | Nguyễn Thường tổng hợp; cả nhóm cung cấp nội dung | Tuần 7–8 | Chưa hoàn thành |
 
 Tiến độ thực tế được ghi nhận theo sản phẩm bàn giao và kết quả kiểm tra. Việc có kế hoạch hoặc tài liệu không đồng nghĩa với hoàn thành triển khai. Các thay đổi tiếp theo được ghi nhận cùng người thực hiện, kết quả và thời hạn điều chỉnh.
+
+## 8. Bàn giao backend của Vòng Kỷ Phong — cập nhật 15/11/2026
+
+**Thành viên:** Vòng Kỷ Phong — **MSSV 52400225**.
+
+| Sản phẩm / minh chứng | Vị trí |
+|---|---|
+| Mã nguồn backend và các phân hệ bổ sung | [backend/src/main/java/com/clinic](../backend/src/main/java/com/clinic) |
+| Migration cho hàng đợi, bệnh án, đơn thuốc và phiên từ xa | [V2__clinical.sql](../backend/src/main/resources/db/migration/V2__clinical.sql) |
+| Kiểm thử nghiệp vụ, đồng thời, quyền truy cập và rollback | [SchedulingIntegrationTest.java](../backend/src/test/java/com/clinic/SchedulingIntegrationTest.java) |
+| Kiểm thử JWT | [JwtValidationTest.java](../backend/src/test/java/com/clinic/config/JwtValidationTest.java) |
+| Kiểm tra tích hợp với Keycloak, API và Mailpit | [scripts/smoke.py](../scripts/smoke.py) |
+| Khởi động backend và hạ tầng local | [scripts/run-backend.ps1](../scripts/run-backend.ps1) |
+| Hợp đồng API thực thi và hướng dẫn tích hợp | [OpenAPI JSON](api/openapi.json), [backend-completion.md](backend-completion.md) |
+
+Các phần cần tiếp tục theo phân công:
+
+- **Vòng Kỷ Phong:** cấu hình/tích hợp media, STUN/TURN và dịch vụ SMS thật; bổ sung cơ chế đóng phòng/webhook nếu dùng nhà cung cấp media; kiểm chứng sao lưu/phục hồi, CI/CD và môi trường triển khai. Chưa xác nhận đạt ngưỡng coverage 60% chỉ từ số lượng test đã chạy.
+- **Các thành viên frontend:** nối API hồ sơ, đơn thuốc, hàng đợi, audit và phiên từ xa; cập nhật JWT, version, Idempotency-Key và payload theo hợp đồng; thay dữ liệu mock trong các luồng tích hợp.
+- **Vũ Đức Thắng phối hợp cả nhóm:** kiểm thử toàn trình qua giao diện, cuộc gọi hai trình duyệt, mất mạng/nối lại, tải, bảo mật và nghiệm thu các tiêu chí còn lại.
+
+Kết quả trên xác nhận phần backend và kiểm thử đã thực hiện; chưa xác nhận toàn hệ thống hoặc cuộc gọi video/audio đã hoàn tất đầu cuối.
 
