@@ -2,7 +2,7 @@ name: clinic-telehealth
 services:
   patient-frontend:
     build:
-      context: ./frontend/frontend_patient
+      context: ./frontend
       args:
         VITE_OIDC_AUTHORITY: ${PATIENT_OIDC_AUTHORITY:-http://localhost:8180/realms/clinic}
         VITE_OIDC_CLIENT_ID: ${PATIENT_OIDC_CLIENT_ID:-clinic-web}
