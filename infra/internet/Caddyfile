@@ -1,0 +1,18 @@
+{$APP_HOST} {
+	handle /api/webrtc/ice {
+		reverse_proxy ice-config:8090
+	}
+	handle {
+		reverse_proxy frontend:80
+	}
+}
+
+{$AUTH_HOST} {
+	@oidc path /realms/clinic /realms/clinic/* /resources/*
+	handle @oidc {
+		reverse_proxy keycloak:8080
+	}
+	handle {
+		respond 404
+	}
+}

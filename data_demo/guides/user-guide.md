@@ -17,8 +17,8 @@ Demo API: [mẫu request theo hợp đồng 1.0.0](../../docs/contributions/5240
 
 ## 1. Chuẩn bị
 
-1. Dùng `http://localhost:5173/` trên máy dựng demo local.
-2. Chọn tài khoản theo vai trò và lấy `DemoClinic`. Xem [bảng tài khoản, nguồn mật khẩu và cách nạp dữ liệu](../README.md#2-tài-khoản-và-mật-khẩu-demo).
+1. Dùng `http://localhost:5173/` trên máy dựng demo local, hoặc URL do người phụ trách môi trường Internet cấp.
+2. Chọn tài khoản theo vai trò và lấy mật khẩu từ người phụ trách máy demo. Xem [bảng tài khoản, nguồn mật khẩu và cách nạp dữ liệu](../README.md#2-tài-khoản-và-mật-khẩu-demo).
 3. Chuyển đổi thời gian trên giao diện theo Asia/Ho_Chi_Minh.
 
 ## 2. Người dùng bệnh nhân

@@ -25,6 +25,12 @@ Script khởi động hạ tầng và backend. Swagger: http://localhost:8080/sw
 
 [Mở data_demo](data_demo/README.md) để xem cách nạp dữ liệu dùng chung, lấy tài khoản theo vai trò và chạy kịch bản trình diễn.
 
+[Chạy nhanh bản demo trên Windows](chay-demo.cmd) sau khi mở Docker Desktop.
+
+## Triển khai trên VM Linux
+
+[Xem hướng dẫn HTTPS, TURN và nạp dữ liệu demo](docs/deploy-internet-demo.md).
+
 ## Tài liệu các giai đoạn trước
 
 - [Hướng dẫn chạy backend và môi trường local](docs/running.md).

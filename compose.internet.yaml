@@ -1,0 +1,96 @@
+name: clinic-telehealth-internet
+services:
+  frontend:
+    restart: unless-stopped
+    build:
+      args:
+        VITE_OIDC_AUTHORITY: https://${AUTH_HOST:?Set AUTH_HOST}/realms/clinic
+        VITE_OIDC_CLIENT_ID: clinic-web
+        VITE_WEBRTC_ICE_CONFIG_URL: /api/webrtc/ice
+    ports: !reset []
+  mysql:
+    restart: unless-stopped
+    ports: !reset []
+  mailpit:
+    restart: unless-stopped
+    ports: !reset []
+  backend:
+    restart: unless-stopped
+    ports: !reset []
+    environment:
+      OIDC_ISSUER: https://${AUTH_HOST:?Set AUTH_HOST}/realms/clinic
+      FRONTEND_ORIGIN: https://${APP_HOST:?Set APP_HOST}
+      DATA_ENCRYPTION_KEY: ${DATA_ENCRYPTION_KEY:?Run prepare-internet.py}
+  keycloak:
+    restart: unless-stopped
+    command: ["start", "--import-realm"]
+    ports: !reset []
+    environment:
+      KC_HOSTNAME: https://${AUTH_HOST:?Set AUTH_HOST}
+      KC_HTTP_ENABLED: "true"
+      KC_PROXY_HEADERS: xforwarded
+      KC_DB: dev-file
+    volumes: !override
+      - ./infra/runtime/internet/clinic-realm.json:/opt/keycloak/data/import/clinic-realm.json:ro
+      - ./infra/keycloak/themes/cliniccare:/opt/keycloak/themes/cliniccare:ro
+      - keycloak-data:/opt/keycloak/data
+  gateway:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    ports: ["80:80", "443:443"]
+    environment:
+      APP_HOST: ${APP_HOST:?Set APP_HOST}
+      AUTH_HOST: ${AUTH_HOST:?Set AUTH_HOST}
+    volumes:
+      - ./infra/internet/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+      - caddy-config:/config
+  turn:
+    image: coturn/coturn:4.7.0
+    restart: unless-stopped
+    network_mode: host
+    entrypoint: ["turnserver"]
+    command:
+      - -n
+      - --pidfile=/tmp/turnserver.pid
+      - --log-file=stdout
+      - --no-cli
+      - --fingerprint
+      - --use-auth-secret
+      - --static-auth-secret=${TURN_SHARED_SECRET:?Run prepare-internet.py}
+      - --realm=${APP_HOST:?Set APP_HOST}
+      - --listening-ip=${TURN_BIND_IP:?Set TURN_BIND_IP}
+      - --relay-ip=${TURN_BIND_IP:?Set TURN_BIND_IP}
+      - --external-ip=${TURN_PUBLIC_IP:?Set TURN_PUBLIC_IP}/${TURN_BIND_IP:?Set TURN_BIND_IP}
+      - --listening-port=3478
+      - --min-port=49160
+      - --max-port=49200
+      - --no-tls
+      - --no-dtls
+      - --no-tcp-relay
+      - --no-multicast-peers
+      - --denied-peer-ip=0.0.0.0-0.255.255.255
+      - --denied-peer-ip=10.0.0.0-10.255.255.255
+      - --denied-peer-ip=100.64.0.0-100.127.255.255
+      - --denied-peer-ip=127.0.0.0-127.255.255.255
+      - --denied-peer-ip=169.254.0.0-169.254.255.255
+      - --denied-peer-ip=172.16.0.0-172.31.255.255
+      - --denied-peer-ip=192.168.0.0-192.168.255.255
+      - --user-quota=4
+      - --total-quota=32
+  ice-config:
+    image: node:22-alpine
+    restart: unless-stopped
+    user: node
+    read_only: true
+    command: ["node", "/app/ice-config.mjs"]
+    environment:
+      TURN_SHARED_SECRET: ${TURN_SHARED_SECRET:?Run prepare-internet.py}
+      TURN_PUBLIC_IP: ${TURN_PUBLIC_IP:?Set TURN_PUBLIC_IP}
+      ICE_POLICY: ${ICE_POLICY:-all}
+    volumes:
+      - ./infra/internet/ice-config.mjs:/app/ice-config.mjs:ro
+volumes:
+  keycloak-data:
+  caddy-data:
+  caddy-config:

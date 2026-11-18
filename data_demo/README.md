@@ -4,6 +4,16 @@ Bộ dữ liệu dùng chung để cả nhóm trình diễn các vai trò trên 
 
 ## 1. Dựng và nạp dữ liệu
 
+**Chạy nhanh trên Windows.** Mở Docker Desktop rồi nhấp đúp [chay-demo.cmd](../chay-demo.cmd) ở thư mục gốc, hoặc chạy:
+
+```powershell
+.\chay-demo.cmd
+```
+
+File chuẩn bị cấu hình khi cần, khởi động FE, BE, Keycloak và MySQL trong project `clinic-telehealth-integration`, rồi nạp dữ liệu. Nó dùng lại container hiện có. Mở [http://localhost:5173/](http://localhost:5173/) khi thấy thông báo hoàn tất. Có thể truyền `--date YYYY-MM-DD` và `--clinical-at HH:MM` giống trình nạp.
+
+Sau khi sửa source, build lại image bằng `docker compose -p clinic-telehealth-integration up -d --build --wait frontend backend`.
+
 Trên Windows, khi project Docker `clinic-telehealth-integration` đang chạy, **nhấp đúp [nap-du-lieu.cmd](nap-du-lieu.cmd)**. File sẽ nạp các lịch mẫu tương lai và giữ cửa sổ mở để xem kết quả. Khi cần chọn ngày, gọi file từ terminal với `--date YYYY-MM-DD`. Khi cần nạp thêm một ca đã khám, xem điều kiện và tùy chọn `--clinical-at HH:MM` ở mục 4.
 
 ### Dựng môi trường lần đầu hoặc chạy bằng terminal
@@ -15,7 +25,7 @@ Cần Docker đang chạy và Python 3.10+. Từ thư mục gốc dự án:
 if (!(Test-Path .env) -or !(Test-Path infra/runtime/clinic-realm.json)) {
     powershell.exe -NoProfile -ExecutionPolicy Bypass -File scripts/setup-local.ps1
 }
-docker compose -p clinic-telehealth-integration up -d --build --wait backend frontend
+docker compose -p clinic-telehealth-integration up -d --build --wait backend
 
 $loader = 'data_demo/load_local_demo.py'
 python -B $loader           # In kế hoạch, chưa ghi dữ liệu
@@ -32,7 +42,7 @@ Mặc định chọn hai ngày làm việc kế tiếp theo giờ Việt Nam và
 
 ## 2. Tài khoản và mật khẩu demo
 
-Mở trang local và nhập **username** trong bảng. Các tài khoản demo local dùng chung mật khẩu mặc định **`DemoClinic`**. Để đổi, sửa **`DEMO_PASSWORD` trong `.env`** ở thư mục gốc rồi chạy lại `data_demo/nap-du-lieu.cmd`. Biến môi trường `DEMO_PASSWORD` của phiên chạy được ưu tiên nếu có. Trình nạp đồng bộ mật khẩu trong Keycloak cho cả tài khoản demo đã có. `KEYCLOAK_ADMIN_PASSWORD` là mật khẩu quản trị hạ tầng riêng.
+Mở trang local và nhập **username** trong bảng. Các tài khoản demo local dùng chung mật khẩu mặc định **`DemoClinic`**. Để đổi, sửa **`DEMO_PASSWORD` trong `.env`** ở thư mục gốc rồi chạy lại `chay-demo.cmd`. Biến môi trường `DEMO_PASSWORD` của phiên chạy được ưu tiên nếu có. Trình nạp đồng bộ mật khẩu trong Keycloak cho cả tài khoản demo đã có. `KEYCLOAK_ADMIN_PASSWORD` là mật khẩu quản trị hạ tầng riêng.
 
 | Username | Vai trò | Dùng để demo |
 | --- | --- | --- |
@@ -50,6 +60,16 @@ Mở trang local và nhập **username** trong bảng. Các tài khoản demo lo
 | `doctor` | Bác sĩ | Đối chiếu lịch hoặc dùng cho ca thử riêng. |
 | `patient` | Bệnh nhân | Đặt lịch mới trong luồng trình diễn. |
 | `patient2` | Bệnh nhân | Thử đặt cùng lượt hoặc kiểm tra quyền xem lịch của người khác. |
+
+Dùng phiên trình duyệt riêng cho mỗi vai trò. Khi trình diễn trên máy chủ Internet, dùng URL và tài khoản do người vận hành máy chủ cấp.
+
+Trên máy chủ Linux đã khởi động Internet Compose, chạy từ thư mục dự án:
+
+```bash
+sudo python3 -B data_demo/load_local_demo.py --internet --apply
+```
+
+Chế độ này dùng tài khoản quản trị demo và lễ tân hiện có để nạp dữ liệu. Các tài khoản bổ sung `patient3` và `doctor2` đến `doctor8` dùng chung mật khẩu do trình nạp sinh và lưu riêng tại `infra/runtime/internet/demo-seed-password`. Có thể đặt `DEMO_PASSWORD` trong `.env.internet` rồi chạy lại lệnh để đổi mật khẩu của các tài khoản bổ sung. Các tài khoản khởi tạo cùng realm giữ mật khẩu đang dùng. Cấu hình quản trị Keycloak được đọc trên máy chủ.
 
 ## 3. Dữ liệu có sẵn
 

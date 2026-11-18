@@ -1,10 +1,12 @@
-"""Load the team demo data into the isolated local Compose stack."""
+"""Load the team demo data into local or Internet Docker Compose."""
 
 import argparse
+from contextlib import contextmanager
 from datetime import date, datetime, time, timedelta, timezone
 import json
 import os
 from pathlib import Path
+import secrets
 import subprocess
 from time import monotonic, sleep
 from urllib.error import HTTPError, URLError
@@ -18,6 +20,8 @@ PROJECT = "clinic-telehealth-integration"
 VN = timezone(timedelta(hours=7))
 API = "http://127.0.0.1:8080/api"
 OIDC = "http://127.0.0.1:8180"
+OIDC_HEADERS = {}
+DEMO_CLIENT = {}
 KEYCLOAK_USERS_PATH = "/admin/realms/clinic/users"
 DOCTOR = "doctor2"
 PATIENT = "patient3"
@@ -58,6 +62,8 @@ class RequestFailed(RuntimeError):
 
 def request(base, path, method="GET", body=None, token=None, key=None, *, form=False):
     headers = {"Accept": "application/json"}
+    if base == OIDC:
+        headers.update(OIDC_HEADERS)
     data = None
     if token:
         headers["Authorization"] = f"Bearer {token}"
@@ -128,10 +134,63 @@ def wait_for_services():
 
 
 def login(user, password, *, realm="clinic", client="clinic-local-cli"):
+    client_settings = DEMO_CLIENT if client == "clinic-local-cli" and DEMO_CLIENT else {"client_id": client}
     return request(OIDC, f"/realms/{realm}/protocol/openid-connect/token", "POST", {
-        "grant_type": "password", "client_id": client, "username": user, "password": password,
+        "grant_type": "password", **client_settings, "username": user, "password": password,
     }, form=True)["access_token"]
 
+
+@contextmanager
+def internet_credentials():
+    global API, OIDC
+    env = read_env(ROOT / ".env.internet")
+    runtime = ROOT / "infra/runtime/internet"
+    realm = json.loads((runtime / "clinic-realm.json").read_text(encoding="utf-8"))
+    existing_passwords = {user["username"]: user["credentials"][0]["value"] for user in realm["users"]}
+    compose = ["docker", "compose", "--env-file", ".env.internet",
+               "-f", "compose.yaml", "-f", "compose.internet.yaml"]
+    container = subprocess.check_output(compose + ["ps", "-q", "keycloak"], cwd=ROOT, text=True).strip()
+    if not container:
+        raise RuntimeError("Start Internet Compose on this Linux host first.")
+    networks = json.loads(subprocess.check_output(
+        ["docker", "inspect", "--format", "{{json .NetworkSettings.Networks}}", container], text=True))
+    addresses = [network["IPAddress"] for network in networks.values() if network["IPAddress"]]
+    if len(addresses) != 1:
+        raise RuntimeError("Expected Keycloak on the Internet Compose bridge network.")
+    API = f"https://{env['APP_HOST']}/api"
+    OIDC = f"http://{addresses[0]}:8080"
+    OIDC_HEADERS.update({"X-Forwarded-Proto": "https", "X-Forwarded-Host": env["AUTH_HOST"],
+                         "X-Forwarded-Port": "443"})
+    admin = login("admin", env["KEYCLOAK_ADMIN_PASSWORD"], realm="master", client="admin-cli")
+    password = os.getenv("DEMO_PASSWORD") or env.get("DEMO_PASSWORD")
+    if not password:
+        password_path = runtime / "demo-seed-password"
+        try:
+            fd = os.open(password_path, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
+            with os.fdopen(fd, "w", encoding="utf-8") as file:
+                file.write(secrets.token_urlsafe(24) + "\n")
+        except FileExistsError:
+            pass
+        password = password_path.read_text(encoding="utf-8").strip()
+        if not password:
+            raise RuntimeError("The Internet demo seed password file is empty.")
+    client_path = "/admin/realms/clinic/clients"
+    client_id = f"clinic-demo-seed-{secrets.token_hex(8)}"
+    client_uuid = str(uuid5(NAMESPACE_URL, client_id))
+    client_secret = secrets.token_urlsafe(32)
+    web_client = next(client for client in realm["clients"] if client["clientId"] == "clinic-web")
+    request(OIDC, client_path, "POST", {
+        "id": client_uuid, "clientId": client_id, "enabled": True, "publicClient": False,
+        "secret": client_secret, "directAccessGrantsEnabled": True, "standardFlowEnabled": False,
+        "protocolMappers": web_client["protocolMappers"],
+    }, token=admin)
+    DEMO_CLIENT.update(client_id=client_id, client_secret=client_secret)
+    try:
+        tokens = {name: login(name, existing_passwords[name]) for name in ("admin", "receptionist")}
+        yield admin, tokens, password
+    finally:
+        DEMO_CLIENT.clear()
+        request(OIDC, f"{client_path}/{client_uuid}", "DELETE", token=admin)
 
 
 def keycloak_users(admin, username):
@@ -353,6 +412,7 @@ def load_clinical(admin, patient, doctor, receptionist, doctor_id, start):
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--apply", action="store_true", help="Write demo data to the selected demo stack.")
+    parser.add_argument("--internet", action="store_true", help="Use Internet Compose from its Linux host.")
     parser.add_argument("--date", type=date.fromisoformat, help="First future date (YYYY-MM-DD, Vietnam).")
     parser.add_argument("--clinical-at", help="Optional clinical example today at HH:MM Vietnam time.")
     args = parser.parse_args()
@@ -364,12 +424,18 @@ def main():
     clinical = at(today, args.clinical_at) if args.clinical_at else None
     if clinical and args.clinical_at != clinical.strftime("%H:%M"):
         parser.error("--clinical-at must use HH:MM.")
-    print(f"Project: {PROJECT}; dates: {first}, {second} (UTC+7)", flush=True)
+    project = "clinic-telehealth-internet" if args.internet else PROJECT
+    print(f"Project: {project}; dates: {first}, {second} (UTC+7)", flush=True)
     if not args.apply:
         print(f"Plan only: {2 + len(EXTRA_DOCTORS)} additional accounts, "
               f"{4 + 2 * len(EXTRA_DOCTORS)} shifts, 1 time-off and 4 future appointments.")
         if clinical:
             print(f"Optional completed clinical case today at {clinical:%H:%M} (UTC+7).")
+        return
+
+    if args.internet:
+        with internet_credentials() as (kc_admin, seeded_tokens, password):
+            load_data(kc_admin, seeded_tokens, password, first, second, clinical)
         return
 
     require_local_stack()
