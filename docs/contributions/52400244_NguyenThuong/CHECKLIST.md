@@ -1,4 +1,4 @@
-# Checklist bàn giao 52400244 — 17/11/2026
+# Checklist bàn giao 52400244 — cập nhật 18/11/2026
 
 Người phụ trách: **Nguyễn Thường — MSSV 52400244**. Phạm vi của đợt này: nội dung dữ liệu, công cụ hỗ trợ dữ liệu, hướng dẫn theo source, kịch bản demo và hợp đồng API được yêu cầu bổ sung. Không đánh dấu hoàn tất nạp DB, triển khai FE/BE hoặc kiểm thử độc lập của thành viên khác.
 
@@ -14,13 +14,22 @@ Người phụ trách: **Nguyễn Thường — MSSV 52400244**. Phạm vi của
 
 ## Chưa đánh dấu hoàn thành
 
-- [ ] Phối hợp BE xác minh nạp nội dung vào MySQL qua service/API và chạy demo theo giờ thực tế.
+- [ ] Phối hợp BE/QA chạy lại bộ demo trên môi trường bàn giao theo giờ thực tế.
 - [ ] Bổ sung ảnh UI thật, kết quả E2E cùng BE/QA; kiểm chứng lời hướng dẫn trên phiên bản được nghiệm thu.
 - [ ] Thu thập đầy đủ minh chứng từ cả nhóm và hoàn thành báo cáo tổng hợp DOCX.
 - [ ] Hoàn thành slide PPTX và rà soát bản xuất.
 - [ ] Chạy thử, tổ chức trình diễn và nghiệm thu demo toàn hệ thống.
 
-## Ranh giới của lần đưa lên main
+## Kiểm chứng bộ nạp local 18/11/2026
+
+- [x] Nạp bộ 52400244 qua API vào MySQL của project tích hợp riêng và đọc lại dữ liệu.
+- [x] Kiểm tra nạp lại cùng tham số, lịch giữ nguyên ID và không sinh lịch trùng. Xác nhận thời gian nghỉ chặn đúng lượt khám.
+- [x] Chạy luồng trực tiếp từ check-in đến hoàn tất qua API, xác nhận phiếu DONE, bệnh án FINAL, đơn ISSUED, thông báo đổi/hủy và audit.
+- [x] Bổ sung hướng dẫn cho cả nhóm từ dựng môi trường đến nạp dữ liệu, bảng tài khoản theo vai trò và nơi lấy mật khẩu demo local.
+- [x] Gom trình nạp, launcher Windows và hướng dẫn trình diễn ở `data_demo/` tại gốc dự án. [Cách nạp và kết quả local](../../../data_demo/README.md).
+- [ ] Nghiệm thu trên môi trường bàn giao, quay minh chứng UI và thử phiên video hai phía.
+
+## Ranh giới của lần đưa lên main ngày 17/11/2026
 
 - [x] Chỉ thay `docs/contributions/52400244_NguyenThuong/`, phần ghi nhận 52400244 trong `docs/project-plan.md`, `docs/api/`, script/test/dependency và workflow kiểm hợp đồng.
 - [x] Không đưa mã `frontend/`, `backend/`, migration, Compose, cấu hình môi trường, CI backend/frontend hoặc các plan WebRTC vào lần bàn giao này.

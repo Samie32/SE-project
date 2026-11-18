@@ -2,14 +2,20 @@
 
 Cập nhật **17/11/2026** theo [hợp đồng BE–FE 1.0.0](../../api/integration-contract.md), BE `main@a04dcb1`, FE/media `98a02e1`. Nhiệm vụ: dữ liệu mô phỏng, công cụ kiểm tra, hướng dẫn sử dụng, kịch bản demo và tổng hợp minh chứng. Đợt này không thay nghiệp vụ BE.
 
-## Chọn đúng bộ dữ liệu
+## Bắt đầu demo
 
-| Bộ | Mục đích | Cách sử dụng |
-|---|---|---|
-| [test-data/backend](test-data/backend/README.md) | Chuẩn API hiện tại: 46 thao tác, 47 ví dụ | Dùng cho demo BE; sinh ngày mới, lấy ID/version từ response |
-| `test-data/fixtures`, `api-examples`, `scenarios` | Thiết kế 0.1 lịch sử: 16 nhóm, 30 thao tác | Đối chiếu mô hình; có ADMIN/TELEHEALTH/snake_case, không gửi/import vào BE hiện tại |
-| [Demo runbook](demo/demo-runbook.md) | Đặt lịch, trực tiếp, clinical, từ xa, audit | Chạy từng bước, ghi kết quả thực tế |
-| [Báo cáo kiểm tra](report/backend-validation.md) | Bằng chứng static checks đợt này | Tách khỏi nghiệm thu HTTP/MySQL và TURN |
+1. [Dựng môi trường, nạp dữ liệu và lấy tài khoản](../../../data_demo/README.md).
+2. [Xem hướng dẫn thao tác theo vai trò](../../../data_demo/guides/user-guide.md).
+3. [Chạy kịch bản, ghi kết quả và minh chứng](../../../data_demo/guides/demo-runbook.md).
+
+Trên Windows, khi project tích hợp local đang chạy, mở [nap-du-lieu.cmd](../../../data_demo/nap-du-lieu.cmd) để nạp ngay dữ liệu demo.
+
+| Thư mục | Nội dung |
+| --- | --- |
+| [`data_demo/`](../../../data_demo/README.md) ở gốc repo | Trình nạp, hướng dẫn chạy, tài khoản, thao tác và kịch bản trình diễn. |
+| [`test-data/`](test-data/README.md) | Mẫu API hiện tại ở `backend/`, đầu ra sinh theo ngày ở `generated/` và dữ liệu thiết kế cũ ở `archive/design-0.1/`. |
+| `tools/` | Script sinh mẫu request và kiểm tra dữ liệu. |
+| `report/` và `tracking/` | Báo cáo, minh chứng và lịch sử bàn giao. |
 
 ## Sinh request đúng ngày demo
 
@@ -36,7 +42,7 @@ Validator fixtures/catalog thiết kế vẫn kiểm riêng bản 0.1 lưu trữ
 
 BE đã có queue/clinical/signaling/audit, migration V1/V2; FE gộp có WebRTC hai phía. Các ghi nhận 04/11 “chưa có API clinical/queue/video” chỉ còn giá trị lịch sử. [BE-01…04](../../api/integration-backlog.md), E2E Keycloak → FE → BE → MySQL và TURN qua hai mạng vẫn cần nghiệm thu.
 
-Seed chuẩn: 6 tài khoản, 2 bệnh nhân, 1 bác sĩ, 1 chuyên khoa. Profile demo tạo lịch 08:00–12:00 IN_PERSON, 13:00–17:00 REMOTE trong 7 ngày tiếp theo, bỏ Chủ nhật; không tạo sẵn appointment, hồ sơ hoặc đơn. Không ghi mật khẩu/token vào tài liệu hoặc commit.
+Seed chuẩn có 6 tài khoản, 2 bệnh nhân, 1 bác sĩ và 1 chuyên khoa. Profile demo tạo lịch 08:00–12:00 IN_PERSON và 13:00–17:00 REMOTE trong 7 ngày tiếp theo, bỏ Chủ nhật. [Bộ demo dùng chung](../../../data_demo/README.md) bổ sung danh mục, ca, thời gian nghỉ, lịch hẹn và ca đã khám qua API. Mật khẩu và token chỉ dùng trong môi trường chạy.
 
 Báo cáo/slide DOCX/PPTX do Nguyễn Thường tổng hợp; đợt này không tạo hoặc xác nhận các file đó. Xem [checklist bàn giao](CHECKLIST.md), [minh chứng kiểm tra](report/backend-validation.md) và [24 TC](test-data/backend/traceability.csv).
 

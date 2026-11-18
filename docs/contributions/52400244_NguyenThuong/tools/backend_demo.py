@@ -58,7 +58,7 @@ def build_bundle(day, now):
     add('setRoles', 'PUT', '/api/users/{id}/roles', body={'roles': ['PATIENT', 'RECEPTIONIST']},
         params={'path': {'id': '00000000-0000-0000-0000-000000000004'}})
     add('specialties', 'GET', '/api/specialties', 'patient')
-    add('createSpecialty', 'POST', '/api/specialties', body={'name': 'Demo 52400244 ' + str(uuid4())})
+    add('createSpecialty', 'POST', '/api/specialties', body={'name': 'Da liễu (thử API) ' + str(uuid4())})
     add('doctors', 'GET', '/api/doctors', 'patient')
     # userId phải lấy từ /me của một account IdP mới, chưa có doctor profile.
     add('createDoctor', 'POST', '/api/doctors', body={
@@ -81,7 +81,7 @@ def build_bundle(day, now):
     add('reschedule', 'POST', '/api/appointments/{id}/reschedule', 'patient',
         {'slotId': SAMPLE_SLOT, 'version': 0}, appointment_path, {'Idempotency-Key': str(uuid4())})
     add('cancel', 'POST', '/api/appointments/{id}/cancel', 'patient',
-        {'reason': 'Demo 52400244 completed', 'version': 1}, appointment_path, {'Idempotency-Key': str(uuid4())})
+        {'reason': 'Bệnh nhân bận và chủ động hủy lịch.', 'version': 1}, appointment_path, {'Idempotency-Key': str(uuid4())})
     add('notifications', 'GET', '/api/notification-jobs')
     complete_operations(operations, day)
     return {'backend_commit': 'a04dcb159007ef35daadfdb67f835576f0a05a7b',
@@ -249,7 +249,7 @@ def render_http(bundle):
          body='{"slotId":"{{slots.response.body.$[1].id}}","version":{{book.response.body.$.version}}}',
          key=rows['reschedule']['headers']['Idempotency-Key'])
     emit('cancel', 'POST', '/api/appointments/{{book.response.body.$.id}}/cancel',
-         body='{"reason":"Demo 52400244 completed","version":{{reschedule.response.body.$.version}}}',
+         body='{"reason":"Bệnh nhân bận và chủ động hủy lịch.","version":{{reschedule.response.body.$.version}}}',
          key=rows['cancel']['headers']['Idempotency-Key'])
     emit('appointments', 'GET', '/api/appointments?limit=20&offset=0')
     emit('notifications', 'GET', '/api/notification-jobs', 'admin')

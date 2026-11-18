@@ -76,7 +76,7 @@
       "headers": {},
       "expected_status": 200,
       "body": {
-        "name": "Demo 52400244 47dbcb63-8665-4a76-b4d9-ce2c0b38466b"
+        "name": "Da liễu (thử API) 47dbcb63-8665-4a76-b4d9-ce2c0b38466b"
       },
       "operation_id": "createSpecialty",
       "access": "ADMINISTRATOR",
@@ -328,7 +328,7 @@
       },
       "expected_status": 200,
       "body": {
-        "reason": "Demo 52400244 completed",
+        "reason": "Bệnh nhân bận và chủ động hủy lịch.",
         "version": 1
       },
       "operation_id": "cancelAppointment",

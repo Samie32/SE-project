@@ -105,7 +105,7 @@
       "path": "/appointments",
       "params": {
         "header": {
-          "Idempotency-Key": "demo-52400244"
+          "Idempotency-Key": "demo-request-key"
         }
       },
       "body_file": "create_booking.json"
@@ -119,7 +119,7 @@
           "appointmentId": "416557ab-61da-5730-a4f2-1cab4785cb2f"
         },
         "header": {
-          "Idempotency-Key": "demo-52400244"
+          "Idempotency-Key": "demo-request-key"
         }
       },
       "body_file": "change_booking.json"
@@ -133,7 +133,7 @@
           "appointmentId": "416557ab-61da-5730-a4f2-1cab4785cb2f"
         },
         "header": {
-          "Idempotency-Key": "demo-52400244"
+          "Idempotency-Key": "demo-request-key"
         }
       },
       "body_file": "cancel_booking.json"
@@ -202,7 +202,7 @@
           "prescriptionId": "7f40f0e3-228f-512b-8e37-310542642e18"
         },
         "header": {
-          "Idempotency-Key": "demo-52400244"
+          "Idempotency-Key": "demo-request-key"
         }
       },
       "body_file": "issue_prescription.json"
@@ -241,7 +241,7 @@
           "appointmentId": "416557ab-61da-5730-a4f2-1cab4785cb2f"
         },
         "header": {
-          "Idempotency-Key": "demo-52400244"
+          "Idempotency-Key": "demo-request-key"
         }
       },
       "body_file": null
@@ -255,7 +255,7 @@
           "doctorId": "def08225-35f3-511c-af7d-11f9ebe4c0e7"
         },
         "header": {
-          "Idempotency-Key": "demo-52400244"
+          "Idempotency-Key": "demo-request-key"
         }
       },
       "body_file": null
@@ -280,7 +280,7 @@
           "appointmentId": "416557ab-61da-5730-a4f2-1cab4785cb2f"
         },
         "header": {
-          "Idempotency-Key": "demo-52400244"
+          "Idempotency-Key": "demo-request-key"
         }
       },
       "body_file": null

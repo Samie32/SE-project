@@ -13,8 +13,9 @@ BASE=Path(__file__).resolve().parent.parent
 # Catalog/fixtures giai đoạn thiết kế gắn với bản 0.1, không phải hợp đồng 1.0.0.
 # Kiểm tra hợp đồng mới bằng scripts/check-api-contract.py.
 SPEC=ROOT/'docs/api/archive/openapi-design-0.1.yaml'
-CATALOG=BASE/'test-data/scenarios/api-catalog.json'
-EX=BASE/'test-data/api-examples'
+DESIGN_DATA=BASE/'test-data/archive/design-0.1'
+CATALOG=DESIGN_DATA/'scenarios/api-catalog.json'
+EX=DESIGN_DATA/'api-examples'
 
 def main():
     source=yaml.safe_load(SPEC.read_text(encoding='utf-8'))

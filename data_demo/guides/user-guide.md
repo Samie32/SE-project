@@ -11,14 +11,14 @@ Tham chiếu FE gộp http://localhost:5173 trên nhánh tích hợp `98a02e1`, 
 - Phòng từ xa có “Kiểm tra camera & micro”, “Tham gia phòng chờ”, “Bắt đầu phiên khám”, “Kết nối lại”, “Rời cuộc gọi”, “Kết thúc phiên”; bật/tắt camera/micro, audio-only. Autoplay bị chặn thì bấm “Bật âm thanh cuộc gọi”.
 - BE-01…04 và nghiệm thu Keycloak/BE/MySQL/TURN chưa hoàn tất; xem docs/api/integration-backlog.md. Cần chụp UI khi chạy thật.
 
-Demo API: [backend/README.md](../test-data/backend/README.md). UUID thiết kế không dùng đăng nhập realm local.
+Demo API: [mẫu request theo hợp đồng 1.0.0](../../docs/contributions/52400244_NguyenThuong/test-data/backend/README.md).
 
 **Áp dụng cho hệ thống phòng khám ngoại trú và khám từ xa.** Giao diện có thể thay đổi trong quá trình lập trình. Thay tên nút, đường dẫn, ảnh chụp bằng bản triển khai thật trước khi bàn giao.
 
 ## 1. Chuẩn bị
 
-1. Dùng đường dẫn môi trường demo do nhóm cung cấp (hiện chưa có URL đã xác minh).
-2. Đăng nhập với tài khoản **thử nghiệm theo vai trò**, qua IdP test; không sử dụng tài khoản thật.
+1. Dùng `http://localhost:5173/` trên máy dựng demo local, hoặc URL do người phụ trách môi trường Internet cấp.
+2. Chọn tài khoản theo vai trò và lấy mật khẩu từ người phụ trách máy demo. Xem [bảng tài khoản, nguồn mật khẩu và cách nạp dữ liệu](../README.md#2-tài-khoản-và-mật-khẩu-demo).
 3. Chuyển đổi thời gian trên giao diện theo Asia/Ho_Chi_Minh.
 
 ## 2. Người dùng bệnh nhân

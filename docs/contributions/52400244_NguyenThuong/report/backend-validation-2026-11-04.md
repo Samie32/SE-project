@@ -36,7 +36,7 @@ Bốn regression bổ sung kiểm số đếm ở CLI, bỏ ví dụ trùng vẫ
 
 Backend nguồn: `main@b10e0960a6a48225b5c26af60c737dbd1c37968f`. Gói đóng góp ban đầu: `docs/52400244-demo-data@1104fdb970233a396df1ee76af37e155496ffc55`. Metadata/hash snapshot ở `test-data/backend/source.json` được giữ nguyên vì contract không thay đổi.
 
-[static-checks.log](static-checks.log) giữ nguyên stdout lịch sử của lần chạy 27 test; dòng ghi 19 operations trong đó là lỗi thông báo cũ, không phải số lượng đúng hiện tại. [Báo cáo 28/10](../test-data/validation/VALIDATION-REPORT.md) là bản lưu lịch sử riêng.
+[static-checks.log](static-checks.log) giữ nguyên stdout lịch sử của lần chạy 27 test; dòng ghi 19 operations trong đó là lỗi thông báo cũ, không phải số lượng đúng hiện tại. [Báo cáo 28/10](../test-data/archive/design-0.1/validation/VALIDATION-REPORT.md) là bản lưu lịch sử riêng.
 
 Workspace ban đầu là bản giải nén không có .git/backend; sau đó đã được thay bằng clone thật. Backup trên máy: `C:/Users/josep/OneDrive/Documents/Máy tính/SE-project-backup-8207ddd4`, thư mục `original-files` giữ các tệp trước khi thay. Backup tạm đầu tiên ở `C:/Users/josep/AppData/Local/Temp/se-project-review-9852174b8dc143929373403bb3050ad9/local-52400244-before`; không giả định các đường dẫn máy cá nhân này có trên máy khác.
 

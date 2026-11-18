@@ -6,7 +6,7 @@ import argparse, json
 from datetime import datetime, date, timedelta
 from zoneinfo import ZoneInfo
 from pathlib import Path
-from validate_demo import load_data, validate, time_utc, FOLDER, VN
+from validate_demo import load_data, validate, time_utc, DESIGN_DATA, FIXTURES, FOLDER, VN
 
 BASE1=date(2026,11,10)
 BASE2=date(2026,11,11)
@@ -54,9 +54,8 @@ def main():
     else:
         start=date.fromisoformat(args.base_date)
     if start<=today:raise SystemExit(f'Ngày demo phải sau hôm nay tại VN ({today}); lịch quá khứ không được tạo lại cho luồng đặt lịch')
-    out=Path(args.output_dir) if args.output_dir else FOLDER/'test-data/generated'/start.isoformat()
-    original=FOLDER/'test-data/fixtures'
-    if out.resolve()==original.resolve():raise SystemExit('Không ghi đè dữ liệu nguồn')
+    out=Path(args.output_dir) if args.output_dir else FOLDER/'test-data/generated/design-0.1'/start.isoformat()
+    if out.resolve()==FIXTURES.resolve():raise SystemExit('Không ghi đè dữ liệu nguồn')
     if out.exists():raise SystemExit('Thư mục đích đã tồn tại; chọn thư mục khác để tránh ghi đè')
     data,sl,ap=rebase(load_data(),start)
     (out/'fixtures').mkdir(parents=True)
@@ -64,7 +63,7 @@ def main():
     for name,items in data.items():
         (out/'fixtures'/f'{name}.json').write_text(json.dumps(items,ensure_ascii=False,indent=2)+'\n',encoding='utf-8')
     # Bản sao api-catalog được cập nhật ngày truy vấn nhưng không sửa catalog nguồn.
-    catalog=FOLDER/'test-data/scenarios/api-catalog.json'
+    catalog=DESIGN_DATA/'scenarios/api-catalog.json'
     if catalog.exists():
         manifest=json.loads(catalog.read_text(encoding='utf-8'))
         for op in manifest['operations']:
@@ -72,7 +71,7 @@ def main():
                 op['params']['query']['date']=start.isoformat()
         (out/'scenarios').mkdir(parents=True,exist_ok=True)
         (out/'scenarios'/'api-catalog.json').write_text(json.dumps(manifest,ensure_ascii=False,indent=2)+'\n',encoding='utf-8')
-    for inp in (FOLDER/'test-data/api-examples').glob('*.json'):
+    for inp in (DESIGN_DATA/'api-examples').glob('*.json'):
         body=json.loads(inp.read_text(encoding='utf-8'))
         if inp.name in ('create_availability.json','create_time_off.json'):
             delta=(start-BASE1).days

@@ -36,7 +36,7 @@ def render_clinical_http(bundle):
     emit(lines, 'detail', 'GET', '/appointments/{{appointmentId}}', 'doctor')
     lines.append('# Ca mới chưa có record: version=0. Nếu có draft cũ, đọc current trước và dùng version hiện tại.')
     emit(lines, 'draft', 'PUT', '/encounters/{{detail.response.body.$.encounterId}}/record', 'doctor',
-         '{"version":0,"content":"DU LIEU DEMO 52400244 - KHONG PHAI BENH AN THAT","status":"DRAFT"}', command=True)
+         '{"version":0,"content":"Dữ liệu mô phỏng. Ghi nhận triệu chứng và hẹn theo dõi.","status":"DRAFT"}', command=True)
     emit(lines, 'current', 'GET', '/encounters/{{detail.response.body.$.encounterId}}/record', 'doctor')
     emit(lines, 'final', 'PUT', '/encounters/{{detail.response.body.$.encounterId}}/record', 'doctor',
          '{"version":{{current.response.body.$.version}},"content":"DEMO FINAL - KHONG PHAI BENH AN THAT","status":"FINAL"}', command=True)

@@ -36,6 +36,6 @@ Booking tương lai không tự đáp ứng check-in/start sát giờ. Đặt tr
 
 ## Nghiệm thu
 
-Theo [runbook](../../demo/demo-runbook.md), [24 TC](traceability.csv) và BE-01…04. Queue rỗng chuẩn 204 có thể còn 404 ở baseline. Quyền đọc lịch lễ tân, danh mục auditor và audit từ chối vào phòng còn backlog.
+Theo [kịch bản demo](../../../../../data_demo/guides/demo-runbook.md), [24 TC](traceability.csv) và BE-01…04. Queue rỗng chuẩn 204 có thể còn 404 ở baseline. Quyền đọc lịch lễ tân, danh mục auditor và audit từ chối vào phòng còn backlog.
 
 HTTP lifecycle/signaling không chứng minh video/audio. FE đã có WebRTC; cần mở hai người dùng để kiểm media/end/cleanup rồi kiểm hai mạng/TURN theo [hướng dẫn media trên nhánh tích hợp](https://github.com/Samie32/SE-project/blob/98a02e19fa79414f6b4d63fbe9738969d261889b/docs/webrtc-client.md). Không gửi SDP giả để tuyên bố media thật. Runtime bộ đóng góp này vẫn NOT_RUN tới khi có log/ảnh gắn SHA.

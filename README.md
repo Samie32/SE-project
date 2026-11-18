@@ -21,6 +21,10 @@ Yêu cầu Java 21+ và Docker Desktop đang chạy:
 Script khởi động hạ tầng và backend. Swagger: http://localhost:8080/swagger-ui/index.html.
 [API và các luồng khám](docs/backend-completion.md).
 
+## Dữ liệu demo
+
+[Mở data_demo](data_demo/README.md) để xem cách nạp dữ liệu dùng chung, lấy tài khoản theo vai trò và chạy kịch bản trình diễn.
+
 ## Tài liệu các giai đoạn trước
 
 - [Hướng dẫn chạy backend và môi trường local](docs/running.md).

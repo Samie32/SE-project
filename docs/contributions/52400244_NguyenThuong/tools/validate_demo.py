@@ -6,7 +6,8 @@ from uuid import UUID
 import json, csv, copy
 
 FOLDER = Path(__file__).resolve().parent.parent
-FIXTURES = FOLDER / 'test-data' / 'fixtures'
+DESIGN_DATA = FOLDER / 'test-data/archive/design-0.1'
+FIXTURES = DESIGN_DATA / 'fixtures'
 FILES = ('users','patients','doctors','specialties','doctor-specialties','availabilities','slots','appointments','encounters','medical-records','prescriptions','prescription-items','queue-tickets','telehealth-sessions','notification-jobs','audit-events')
 ACTIVE = {'CONFIRMED','CHECKED_IN','IN_PROGRESS'}
 VALID_MODES = {'IN_PERSON','TELEHEALTH'}
@@ -210,7 +211,7 @@ def validate(data, traceability_path=None):
 
 def main():
     try:
-        data=load_data();errors=validate(data,FOLDER/'test-data/scenarios/traceability.csv')
+        data=load_data();errors=validate(data,DESIGN_DATA/'scenarios/traceability.csv')
     except (OSError,ValueError,KeyError) as e:
         errors=[str(e)];data={}
     if errors:

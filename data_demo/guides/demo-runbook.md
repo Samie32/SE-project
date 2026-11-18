@@ -1,12 +1,13 @@
-# Kịch bản demo 52400244 — 17/11/2026
+# Kịch bản demo dùng chung
 
-**Kế hoạch chạy, chưa phải biên bản nghiệm thu.** Chuẩn 1.0.0, BE a04dcb1, FE/media 98a02e1. Dùng `test-data/backend`, không dùng UUID/enum thiết kế 0.1.
+**Kế hoạch chạy, chưa phải biên bản nghiệm thu.** Chuẩn 1.0.0, BE a04dcb1, FE/media 98a02e1. Dùng [mẫu API hiện hành](../../docs/contributions/52400244_NguyenThuong/test-data/backend/README.md).
 
 ## Chuẩn bị
 
 1. Chạy môi trường demo theo README root; xác nhận Keycloak/MySQL/BE/FE, V1/V2 và 6 account. Không reset volume có dữ liệu cần giữ.
+   Có thể [nạp bộ demo dùng chung](../README.md) vào project tích hợp local để có sẵn danh mục, lịch hẹn, bệnh án và đơn thuốc.
 2. Kiểm /api/me/profile và danh mục bằng patient/doctor/admin. Auditor chỉ đọc audit. Ghi doctorId/patientId thực tế.
-3. Chạy `tools/run-checks.ps1`, sinh bằng `tools/backend_demo.py`. Đặt trước lịch IN_PERSON và REMOTE thuộc đúng người vào giờ demo; generated không chứa token thật.
+3. Dùng [công cụ sinh mẫu request](../../docs/contributions/52400244_NguyenThuong/test-data/backend/README.md) nếu demo qua API. Đặt trước lịch IN_PERSON và REMOTE thuộc đúng người vào giờ demo.
 4. Đổi/hủy cần >=2 giờ; check-in [T−15,T+15), prepare/join [T−10,T+15), start [T,T+15). Không đổi đồng hồ hoặc insert SQL để vượt cửa sổ.
 5. Mở hai browser profile patient/doctor, kiểm quyền camera/micro. Khác mạng cần HTTPS/TURN theo [hướng dẫn media trên nhánh tích hợp](https://github.com/Samie32/SE-project/blob/98a02e19fa79414f6b4d63fbe9738969d261889b/docs/webrtc-client.md).
 
