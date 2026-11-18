@@ -42,6 +42,9 @@ jobs:
         run: |
           script="$RUNNER_TEMP/cliniccare-deploy.sh"
           printf 'DEPLOY_SHA=%s\n' "$GITHUB_SHA" > "$script"
+          if [ "$GITHUB_EVENT_NAME" = workflow_dispatch ]; then
+            printf 'DEPLOY_FORCE_FULL=1\n' >> "$script"
+          fi
           cat scripts/deploy-azure-demo.sh >> "$script"
 
           output="$(az vm run-command invoke \

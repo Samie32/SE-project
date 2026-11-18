@@ -28,6 +28,19 @@ if [ -n "$(git status --porcelain)" ]; then
   exit 1
 fi
 
+pending_deploy=/var/lib/cliniccare/deploy-pending
+mode=full
+if [ "${DEPLOY_FORCE_FULL:-0}" != 1 ] && [ -f "$deployed_sha" ] && [ ! -e "$pending_deploy" ]; then
+  deployed_commit=$(cat "$deployed_sha")
+  if git merge-base --is-ancestor "$deployed_commit" "$DEPLOY_SHA"; then
+    if git diff --quiet "$deployed_commit" "$DEPLOY_SHA" -- . ':(exclude)docs/' ':(exclude)README.md'; then
+      mode=docs-only
+    elif git diff --quiet "$deployed_commit" "$DEPLOY_SHA" -- . ':(exclude)docs/' ':(exclude)README.md' ':(exclude)frontend/'; then
+      mode=frontend-only
+    fi
+  fi
+fi
+
 if git show-ref --verify --quiet refs/heads/main; then
   git switch main
   git merge --ff-only "$DEPLOY_SHA"
@@ -36,18 +49,46 @@ else
 fi
 test "$(git rev-parse HEAD)" = "$DEPLOY_SHA"
 
+printf 'CLINICCARE_DEPLOY_MODE %s %s\n' "$mode" "$DEPLOY_SHA"
+record_deployment() {
+  printf '%s\n' "$DEPLOY_SHA" > "$deployed_sha.tmp"
+  mv "$deployed_sha.tmp" "$deployed_sha"
+  rm -f "$pending_deploy"
+  printf 'CLINICCARE_DEPLOY_OK %s\n' "$DEPLOY_SHA"
+}
+
+if [ "$mode" = docs-only ]; then
+  record_deployment
+  exit 0
+fi
+
 compose() {
   docker compose --env-file .env.internet -f compose.yaml -f compose.internet.yaml "$@"
 }
 
 compose config --quiet
-compose up -d --build
-compose restart frontend
+install -d -m 0755 /var/lib/cliniccare
+touch "$pending_deploy"
+if [ "$mode" = frontend-only ]; then
+  compose up -d --build --no-deps frontend
+  app_host=$(compose exec -T gateway printenv APP_HOST)
+else
+  compose up -d --build
+  compose restart frontend
+fi
+
+frontend_https_ready() {
+  curl --fail --silent --show-error --max-time 5 \
+    --resolve "$app_host:443:127.0.0.1" -o /dev/null "https://$app_host/" &&
+  [ "$(curl --silent --show-error --max-time 5 \
+    --resolve "$app_host:443:127.0.0.1" -o /dev/null -w '%{http_code}' \
+    "https://$app_host/api/me/profile")" = 401 ]
+}
 
 for attempt in $(seq 1 30); do
   if compose exec -T frontend wget -q -T 3 -O /dev/null http://backend:8080/actuator/health &&
-     compose exec -T frontend wget -q -T 3 -O /dev/null http://127.0.0.1/health; then
-    install -d -m 0755 /var/lib/cliniccare
+     compose exec -T frontend wget -q -T 3 -O /dev/null http://127.0.0.1/health &&
+     { [ "$mode" != frontend-only ] || frontend_https_ready; }; then
     if ! cmp -s infra/internet/cliniccare-boot-deploy.service /etc/systemd/system/cliniccare-boot-deploy.service; then
       install -m 0644 infra/internet/cliniccare-boot-deploy.service /etc/systemd/system/
       systemctl daemon-reload
@@ -56,10 +97,8 @@ for attempt in $(seq 1 30); do
       systemctl enable cliniccare-boot-deploy.service
     fi
     systemctl is-enabled --quiet cliniccare-boot-deploy.service
-    printf '%s\n' "$DEPLOY_SHA" > "$deployed_sha.tmp"
-    mv "$deployed_sha.tmp" "$deployed_sha"
     printf 'CLINICCARE_BOOT_CHECK_ENABLED\n'
-    printf 'CLINICCARE_DEPLOY_OK %s\n' "$DEPLOY_SHA"
+    record_deployment
     exit 0
   fi
   sleep 5

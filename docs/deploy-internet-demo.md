@@ -31,7 +31,15 @@ Workflow **Deploy ClinicCare to Azure** chạy khi có push vào `main`. Bước
 3. Trên GitHub, ở **Settings → Secrets and variables → Actions → Secrets**, thêm `AZURE_CLIENT_ID` (Client ID của identity), `AZURE_TENANT_ID` và `AZURE_SUBSCRIPTION_ID`. Khi VM sẵn sàng, thêm `AZURE_DEPLOY_ENABLED=true` trong tab **Variables**.
 4. Vào **Actions → Deploy ClinicCare to Azure → Run workflow**, chọn `main`. Kiểm tra log job deploy có `CLINICCARE_DEPLOY_OK` kèm SHA. Có thể chạy workflow thủ công để triển khai lại khi cần.
 
-Workflow cập nhật checkout `/opt/cliniccare` theo commit đã qua kiểm tra, khởi động lại dịch vụ và kiểm tra FE/BE. File `.env.internet` và Docker volumes được giữ qua các lượt deploy.
+Workflow cập nhật checkout `/opt/cliniccare` theo commit đã qua kiểm tra. VM so sánh toàn bộ thay đổi từ SHA triển khai thành công gần nhất đến SHA mới để chọn chế độ. File `.env.internet` và Docker volumes được giữ qua các lượt deploy.
+
+| Chế độ trong log | Điều kiện | Thao tác trên VM |
+| --- | --- | --- |
+| `docs-only` | Chỉ đổi `docs/` hoặc `README.md`, hoặc nội dung đầu và cuối giống nhau | Cập nhật checkout và ghi SHA mới. |
+| `frontend-only` | Có thay đổi trong `frontend/` và phần còn lại chỉ là tài liệu | Chạy `docker compose up -d --build --no-deps frontend`, sau đó kiểm tra web và API qua HTTPS. |
+| `full` | Có thay đổi khác, thiếu mốc triển khai hợp lệ, lượt trước bị gián đoạn, hoặc chạy thủ công bằng **Run workflow** | Chạy `docker compose up -d --build`, khởi động lại frontend và kiểm tra cả FE lẫn BE. |
+
+Xem `CLINICCARE_DEPLOY_MODE <chế độ> <SHA>` trong log GitHub Actions hoặc nhật ký systemd. Khi VM bỏ lỡ nhiều commit, thay đổi backend ở bất kỳ commit nào còn hiện diện trong bản mới đều khiến VM chọn `full`.
 
 ### Kiểm tra commit khi VM khởi động
 
