@@ -29,9 +29,15 @@ Workflow **Deploy ClinicCare to Azure** chạy khi có push vào `main`. Bước
 1. Mở managed identity `id-cliniccare-deploy` → **Federated credentials** → **Add Credential**. Chọn **GitHub Actions deploying Azure resources**, nhập tên chủ sở hữu `Samie32` (ID `266011799`) và repo `SE-project` (ID `1385168886`), chọn **Branch**, nhập `main` và đặt tên `github-main`. Subject là `repo:Samie32@266011799/SE-project@1385168886:ref:refs/heads/main`.
 2. Gán quyền `Microsoft.Compute/virtualMachines/read` và `Microsoft.Compute/virtualMachines/runCommand/action` cho identity ở phạm vi `vm-cliniccare-azure-test` trong `rg-cliniccare`. Run Command chạy với quyền quản trị trong VM. Giới hạn quyền sửa workflow và merge vào `main`.
 3. Trên GitHub, ở **Settings → Secrets and variables → Actions → Secrets**, thêm `AZURE_CLIENT_ID` (Client ID của identity), `AZURE_TENANT_ID` và `AZURE_SUBSCRIPTION_ID`. Khi VM sẵn sàng, thêm `AZURE_DEPLOY_ENABLED=true` trong tab **Variables**.
-4. Vào **Actions → Deploy ClinicCare to Azure → Run workflow**, chọn `main`. Kiểm tra log job deploy có `CLINICCARE_DEPLOY_OK` kèm SHA. Khi VM đã tắt lúc có push, bật VM, đợi **Agent status: Ready** rồi chạy workflow trên `main` để cập nhật bù.
+4. Vào **Actions → Deploy ClinicCare to Azure → Run workflow**, chọn `main`. Kiểm tra log job deploy có `CLINICCARE_DEPLOY_OK` kèm SHA. Có thể chạy workflow thủ công để triển khai lại khi cần.
 
 Workflow cập nhật checkout `/opt/cliniccare` theo commit đã qua kiểm tra, khởi động lại dịch vụ và kiểm tra FE/BE. File `.env.internet` và Docker volumes được giữ qua các lượt deploy.
+
+### Kiểm tra commit khi VM khởi động
+
+Sau lượt deploy thành công đầu tiên, VM bật dịch vụ systemd `cliniccare-boot-deploy.service`. Khi khởi động, dịch vụ so sánh SHA mới nhất trên `main` với SHA đã triển khai thành công. Nếu trùng thì ghi log rồi kết thúc. Nếu có SHA mới, dịch vụ chờ lượt GitHub Actions đã qua cả ba kiểm tra và đã chạy bước triển khai, sau đó dùng cùng script triển khai. Cơ chế này xử lý cả lượt CI đạt nhưng GitHub gửi lệnh lúc VM đang tắt. Một lượt có bước deploy bị bỏ qua không kích hoạt cập nhật bù.
+
+Xem kết quả kiểm tra bằng `sudo journalctl -u cliniccare-boot-deploy.service -b`.
 
 ### Nạp dữ liệu demo trên VM
 

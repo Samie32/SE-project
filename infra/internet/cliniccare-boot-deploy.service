@@ -1,0 +1,17 @@
+[Unit]
+Description=Check GitHub main for missed ClinicCare deployments
+Wants=network-online.target
+After=network-online.target docker.service
+Requires=docker.service
+StartLimitIntervalSec=20min
+StartLimitBurst=8
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/python3 -B /opt/cliniccare/scripts/check-azure-demo-on-boot.py
+TimeoutStartSec=45min
+Restart=on-failure
+RestartSec=2min
+
+[Install]
+WantedBy=multi-user.target
