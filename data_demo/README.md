@@ -15,7 +15,7 @@ Cần Docker đang chạy và Python 3.10+. Từ thư mục gốc dự án:
 if (!(Test-Path .env) -or !(Test-Path infra/runtime/clinic-realm.json)) {
     powershell.exe -NoProfile -ExecutionPolicy Bypass -File scripts/setup-local.ps1
 }
-docker compose -p clinic-telehealth-integration up -d --build --wait backend
+docker compose -p clinic-telehealth-integration up -d --build --wait backend patient-frontend
 
 $loader = 'data_demo/load_local_demo.py'
 python -B $loader           # In kế hoạch, chưa ghi dữ liệu
@@ -32,12 +32,18 @@ Mặc định chọn hai ngày làm việc kế tiếp theo giờ Việt Nam và
 
 ## 2. Tài khoản và mật khẩu demo
 
-Mở trang local và nhập **username** trong bảng. Cả tám tài khoản trên cùng máy demo local dùng giá trị **`DEMO_PASSWORD` trong file `.env` ở thư mục gốc**. Giá trị này do script chuẩn bị sinh trên máy chạy demo. Người phụ trách gửi riêng username và mật khẩu demo cho người đóng vai, không gửi cả file `.env`. `KEYCLOAK_ADMIN_PASSWORD` là mật khẩu quản trị hạ tầng, riêng với mật khẩu đăng nhập ClinicCare của tài khoản `admin`.
+Mở trang local và nhập **username** trong bảng. Các tài khoản demo local dùng chung mật khẩu mặc định **`DemoClinic`**. Để đổi, sửa **`DEMO_PASSWORD` trong `.env`** ở thư mục gốc rồi chạy lại `data_demo/nap-du-lieu.cmd`. Biến môi trường `DEMO_PASSWORD` của phiên chạy được ưu tiên nếu có. Trình nạp đồng bộ mật khẩu trong Keycloak cho cả tài khoản demo đã có. `KEYCLOAK_ADMIN_PASSWORD` là mật khẩu quản trị hạ tầng riêng.
 
 | Username | Vai trò | Dùng để demo |
 | --- | --- | --- |
 | `patient3` | Bệnh nhân | Tài khoản của Trần Hoàng Minh. Xem các lịch mẫu, bệnh án và đơn thuốc sau khi nạp ca đã khám. |
 | `doctor2` | Bác sĩ | Tài khoản của Nguyễn Minh An. Xem ca, giờ nghỉ, hàng đợi và tham gia lịch khám từ xa trong bộ demo. |
+| `doctor3` | Bác sĩ | Lê Hải Yến, chuyên khoa Tim mạch. |
+| `doctor4` | Bác sĩ | Phạm Quốc Huy, chuyên khoa Nhi khoa. |
+| `doctor5` | Bác sĩ | Võ Thanh Tâm, khám tổng quát. Có mặt trong cả General practice và Nội tổng quát. |
+| `doctor6` | Bác sĩ | Đặng Bảo Ngọc, chuyên khoa Da liễu. |
+| `doctor7` | Bác sĩ | Bùi Đức Thành, chuyên khoa Tim mạch. |
+| `doctor8` | Bác sĩ | Hoàng Mai Anh, chuyên khoa Nhi khoa. |
 | `receptionist` | Lễ tân | Check-in lịch trực tiếp, xem hàng đợi và thông báo. |
 | `admin` | Quản trị ứng dụng | Kiểm tra bác sĩ, chuyên khoa, lịch và vai trò. |
 | `auditor` | Kiểm toán viên | Tra nhật ký thao tác. |
@@ -45,13 +51,11 @@ Mở trang local và nhập **username** trong bảng. Cả tám tài khoản tr
 | `patient` | Bệnh nhân | Đặt lịch mới trong luồng trình diễn. |
 | `patient2` | Bệnh nhân | Thử đặt cùng lượt hoặc kiểm tra quyền xem lịch của người khác. |
 
-Dùng phiên trình duyệt riêng cho mỗi vai trò. Khi trình diễn trên máy chủ Internet, dùng URL và tài khoản do người vận hành máy chủ cấp. Hai tài khoản bổ sung trong bảng được nạp trên môi trường local.
-
 ## 3. Dữ liệu có sẵn
 
 | Dữ liệu bổ sung | Dùng để demo |
 | --- | --- |
-| Nguyễn Minh An và hai chuyên khoa Nội tổng quát, Da liễu | Tìm bác sĩ theo chuyên khoa, đối chiếu hai bác sĩ trong danh mục. |
+| Ít nhất hai bác sĩ cho mỗi chuyên khoa của bộ demo, kể cả General practice có sẵn | Chọn giữa nhiều bác sĩ. Mỗi bác sĩ bổ sung từ `doctor3` đến `doctor8` có một ca trực tiếp 15 phút/lượt vào mỗi ngày nạp. |
 | Hai ca trực tiếp 15 phút/lượt và hai ca từ xa 30 phút/lượt | Xem lịch tuần, tìm và lọc khung giờ theo hình thức. |
 | Khoảng nghỉ 14:30–15:00 vào ngày thứ hai | Lượt từ xa 14:30 bị ẩn trong danh sách đặt, các lượt ngoài thời gian nghỉ vẫn có. |
 | Bốn lịch tương lai | Lịch trực tiếp 09:00, từ xa 14:00 và lịch đã hủy 09:15 vào ngày đầu. Lịch trực tiếp ngày thứ hai đã dời từ 10:00 sang 10:30. |

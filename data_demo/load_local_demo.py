@@ -1,8 +1,9 @@
-"""Load the team demo data through the API in the isolated local Compose stack."""
+"""Load the team demo data into the isolated local Compose stack."""
 
 import argparse
 from datetime import date, datetime, time, timedelta, timezone
 import json
+import os
 from pathlib import Path
 import subprocess
 from time import monotonic, sleep
@@ -26,6 +27,14 @@ PATIENT_GIVEN_NAME = "Hoàng Minh"
 PATIENT_FAMILY_NAME = "Trần"
 DOCTOR_NAME = f"{DOCTOR_FAMILY_NAME} {DOCTOR_GIVEN_NAME}"
 SPECIALTIES = ("Nội tổng quát", "Da liễu")
+EXTRA_DOCTORS = (
+    ("doctor3", "Hải Yến", "Lê", ("Tim mạch",)),
+    ("doctor4", "Quốc Huy", "Phạm", ("Nhi khoa",)),
+    ("doctor5", "Thanh Tâm", "Võ", ("General practice", "Nội tổng quát")),
+    ("doctor6", "Bảo Ngọc", "Đặng", ("Da liễu",)),
+    ("doctor7", "Đức Thành", "Bùi", ("Tim mạch",)),
+    ("doctor8", "Mai Anh", "Hoàng", ("Nhi khoa",)),
+)
 CANCEL_REASON = "Bệnh nhân bận và chủ động hủy lịch."
 CLINICAL_NOTE = (
     "Dữ liệu mô phỏng. Bệnh nhân đến khám vì khó chịu nhẹ và được hẹn theo dõi. "
@@ -83,12 +92,18 @@ def require_local_stack():
             raise RuntimeError(f"Expected {service} of {PROJECT} bound to 127.0.0.1:{host_port}.")
 
 
-def local_secrets():
+def read_env(path):
     values = {}
-    for line in (ROOT / ".env").read_text(encoding="utf-8-sig").splitlines():
+    for line in path.read_text(encoding="utf-8-sig").splitlines():
         if "=" in line and not line.lstrip().startswith("#"):
             key, value = line.split("=", 1)
             values[key.strip()] = value.strip().strip("'\"")
+    return values
+
+
+def local_secrets():
+    values = read_env(ROOT / ".env")
+    values["DEMO_PASSWORD"] = os.getenv("DEMO_PASSWORD") or values.get("DEMO_PASSWORD") or "DemoClinic"
     for name in ("DEMO_PASSWORD", "KEYCLOAK_ADMIN_PASSWORD"):
         if not values.get(name) or values[name].startswith("replace-"):
             raise RuntimeError(f"Missing {name} in local .env.")
@@ -118,6 +133,7 @@ def login(user, password, *, realm="clinic", client="clinic-local-cli"):
     }, form=True)["access_token"]
 
 
+
 def keycloak_users(admin, username):
     query = "?" + urlencode({"username": username, "exact": "true"})
     return request(OIDC, KEYCLOAK_USERS_PATH + query, token=admin)
@@ -137,6 +153,21 @@ def ensure_keycloak_user(admin, username, first_name, last_name, password, rows)
         raise RuntimeError(f"Existing Keycloak user {username} does not belong to this demo pack.")
 
 
+def demo_login(admin, username, password, expected_id=None):
+    try:
+        return login(username, password)
+    except RequestFailed as exc:
+        if exc.status != 401:
+            raise
+    rows = keycloak_users(admin, username)
+    if len(rows) != 1 or (expected_id and rows[0]["id"] != expected_id):
+        raise RuntimeError(f"Cannot identify the local demo account {username}.")
+    request(OIDC, f"{KEYCLOAK_USERS_PATH}/{rows[0]['id']}/reset-password", "PUT", {
+        "type": "password", "value": password, "temporary": False,
+    }, token=admin)
+    return login(username, password)
+
+
 def next_workday(day):
     day += timedelta(days=1)
     return day + timedelta(days=1) if day.weekday() == 6 else day
@@ -154,7 +185,7 @@ def same_time(row, key, expected):
     return datetime.fromisoformat(row[key].replace("Z", "+00:00")) == expected
 
 
-def ensure_doctor(admin, doctor_token):
+def ensure_doctor(admin, doctor_token, display_name, specialty_names):
     profile = api(doctor_token, "/me/profile")
     roles = set(profile["roles"])
     doctor_id = profile["doctorId"]
@@ -164,13 +195,13 @@ def ensure_doctor(admin, doctor_token):
         raise RuntimeError("Unexpected roles on the dedicated demo doctor.")
     specialties = {row["name"]: row["id"] for row in api(admin, "/specialties")}
     ids = []
-    for name in SPECIALTIES:
+    for name in specialty_names:
         ids.append(specialties.get(name) or api(admin, "/specialties", "POST", {"name": name})["id"])
     if not doctor_id:
         doctor_id = api(admin, "/doctors", "POST", {"userId": profile["id"], "specialtyIds": ids})["id"]
     if profile["displayName"] == "Patient":
         api(admin, f"/doctors/{doctor_id}", "PUT", {
-            "active": True, "displayName": DOCTOR_NAME, "specialtyIds": ids,
+            "active": True, "displayName": display_name, "specialtyIds": ids,
         })
     profile = api(doctor_token, "/me/profile")
     if set(profile["roles"]) != {"DOCTOR"}:
@@ -321,7 +352,7 @@ def load_clinical(admin, patient, doctor, receptionist, doctor_id, start):
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--apply", action="store_true", help="Write demo data to the isolated local stack.")
+    parser.add_argument("--apply", action="store_true", help="Write demo data to the selected demo stack.")
     parser.add_argument("--date", type=date.fromisoformat, help="First future date (YYYY-MM-DD, Vietnam).")
     parser.add_argument("--clinical-at", help="Optional clinical example today at HH:MM Vietnam time.")
     args = parser.parse_args()
@@ -333,9 +364,10 @@ def main():
     clinical = at(today, args.clinical_at) if args.clinical_at else None
     if clinical and args.clinical_at != clinical.strftime("%H:%M"):
         parser.error("--clinical-at must use HH:MM.")
-    print(f"Local project: {PROJECT}; dates: {first}, {second} (UTC+7)")
+    print(f"Project: {PROJECT}; dates: {first}, {second} (UTC+7)", flush=True)
     if not args.apply:
-        print("Plan only: 2 accounts, 2 specialties, 4 shifts, 1 time-off and 4 future appointments.")
+        print(f"Plan only: {2 + len(EXTRA_DOCTORS)} additional accounts, "
+              f"{4 + 2 * len(EXTRA_DOCTORS)} shifts, 1 time-off and 4 future appointments.")
         if clinical:
             print(f"Optional completed clinical case today at {clinical:%H:%M} (UTC+7).")
         return
@@ -345,7 +377,14 @@ def main():
     wait_for_services()
     password = env["DEMO_PASSWORD"]
     kc_admin = login("admin", env["KEYCLOAK_ADMIN_PASSWORD"], realm="master", client="admin-cli")
-    admin = login("admin", password)
+    realm = json.loads((ROOT / "infra/keycloak/realm-template.json").read_text(encoding="utf-8-sig"))
+    seeded_tokens = {user["username"]: demo_login(kc_admin, user["username"], password, user["id"])
+                     for user in realm["users"]}
+    load_data(kc_admin, seeded_tokens, password, first, second, clinical)
+
+
+def load_data(kc_admin, seeded_tokens, password, first, second, clinical):
+    admin = seeded_tokens["admin"]
     doctor_users = keycloak_users(kc_admin, DOCTOR)
     patient_users = keycloak_users(kc_admin, PATIENT)
     if not doctor_users or not patient_users:
@@ -355,20 +394,28 @@ def main():
                                "Restore the matching Keycloak data or start a fresh demo environment.")
     ensure_keycloak_user(kc_admin, DOCTOR, DOCTOR_GIVEN_NAME, DOCTOR_FAMILY_NAME, password, doctor_users)
     ensure_keycloak_user(kc_admin, PATIENT, PATIENT_GIVEN_NAME, PATIENT_FAMILY_NAME, password, patient_users)
-    doctor = login(DOCTOR, password)
-    patient = login(PATIENT, password)
+    doctor = demo_login(kc_admin, DOCTOR, password)
+    patient = demo_login(kc_admin, PATIENT, password)
     if set(api(patient, "/me/profile")["roles"]) != {"PATIENT"}:
         raise RuntimeError("Unexpected roles on the dedicated demo patient.")
-    doctor_id = ensure_doctor(admin, doctor)
+    doctor_id = ensure_doctor(admin, doctor, DOCTOR_NAME, SPECIALTIES)
+    for username, given_name, family_name, specialties in EXTRA_DOCTORS:
+        rows = keycloak_users(kc_admin, username)
+        ensure_keycloak_user(kc_admin, username, given_name, family_name, password, rows)
+        extra_id = ensure_doctor(admin, demo_login(kc_admin, username, password),
+                                 f"{family_name} {given_name}", specialties)
+        for day in (first, second):
+            ensure_interval(admin, extra_id, "availability", at(day, "09:00"), at(day, "11:00"),
+                            mode="IN_PERSON", slotMinutes=15)
     if not api(patient, "/appointments?limit=1"):
         api(patient, "/me/contact", "PUT", {"email": f"{PATIENT}@example.test"})
     load_future(admin, patient, doctor_id, first, second)
     if clinical:
-        load_clinical(admin, patient, doctor, login("receptionist", password), doctor_id, clinical)
+        load_clinical(admin, patient, doctor, seeded_tokens["receptionist"], doctor_id, clinical)
 
 
 if __name__ == "__main__":
     try:
         main()
-    except (OSError, ValueError, RuntimeError, subprocess.SubprocessError) as exc:
+    except (OSError, KeyError, ValueError, RuntimeError, subprocess.SubprocessError) as exc:
         raise SystemExit(f"Demo load stopped: {exc}") from None

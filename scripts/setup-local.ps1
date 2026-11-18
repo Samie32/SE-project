@@ -13,7 +13,7 @@ if (-not (Test-Path -LiteralPath $envPath)) {
         "DB_PASSWORD=$(New-Secret)"
         "MYSQL_ROOT_PASSWORD=$(New-Secret)"
         "KEYCLOAK_ADMIN_PASSWORD=$(New-Secret)"
-        "DEMO_PASSWORD=$(New-Secret)"
+        'DEMO_PASSWORD=DemoClinic'
         "DATA_ENCRYPTION_KEY=$(New-Secret)"
     )
     [IO.File]::WriteAllLines($envPath, $values, (New-Object Text.UTF8Encoding $false))
@@ -25,6 +25,13 @@ Get-Content -LiteralPath $envPath | ForEach-Object {
 $runtime = Join-Path $projectRoot 'infra/runtime'
 New-Item -ItemType Directory -Path $runtime -Force | Out-Null
 $realm = Get-Content -Raw -LiteralPath (Join-Path $projectRoot 'infra/keycloak/realm-template.json')
-$realm = $realm.Replace('__DEMO_PASSWORD__', $settings['DEMO_PASSWORD'])
+$demoPassword = if ($env:DEMO_PASSWORD) {
+    $env:DEMO_PASSWORD
+} elseif ($settings['DEMO_PASSWORD']) {
+    $settings['DEMO_PASSWORD'].Trim().Trim("'`"")
+} else {
+    'DemoClinic'
+}
+$realm = $realm.Replace('"__DEMO_PASSWORD__"', (ConvertTo-Json -InputObject $demoPassword -Compress))
 [IO.File]::WriteAllText((Join-Path $runtime 'clinic-realm.json'), $realm, (New-Object Text.UTF8Encoding $false))
 Write-Output 'Local environment and demo realm ready. Secrets are stored in ignored .env.'
