@@ -1,0 +1,55 @@
+name: Deploy ClinicCare to Azure
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: cliniccare-azure-test
+  cancel-in-progress: false
+
+jobs:
+  frontend:
+    uses: ./.github/workflows/frontend.yml
+  backend:
+    uses: ./.github/workflows/backend.yml
+  api-contract:
+    uses: ./.github/workflows/api-contract.yml
+
+  deploy:
+    if: github.repository == 'Samie32/SE-project' && github.ref == 'refs/heads/main' && vars.AZURE_DEPLOY_ENABLED == 'true'
+    needs: [frontend, backend, api-contract]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Sign in to Azure
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+      - name: Deploy verified commit
+        shell: bash
+        run: |
+          script="$RUNNER_TEMP/cliniccare-deploy.sh"
+          printf 'DEPLOY_SHA=%s\n' "$GITHUB_SHA" > "$script"
+          cat scripts/deploy-azure-demo.sh >> "$script"
+
+          output="$(az vm run-command invoke \
+            --resource-group rg-cliniccare \
+            --name vm-cliniccare-azure-test \
+            --command-id RunShellScript \
+            --scripts "@$script" \
+            --query 'value[].message' -o tsv)"
+          printf '%s\n' "$output"
+          grep -Fxq "CLINICCARE_DEPLOY_OK $GITHUB_SHA" <<< "$output" ||
+            grep -Fxq "CLINICCARE_DEPLOY_SUPERSEDED $GITHUB_SHA" <<< "$output"

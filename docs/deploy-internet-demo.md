@@ -22,24 +22,28 @@ docker compose --env-file .env.internet -f compose.yaml -f compose.internet.yaml
 
 Tất cả tài khoản mẫu của ClinicCare dùng mật khẩu mặc định `DemoClinic`. Đặt `DEMO_PASSWORD` khi tạo cấu hình hoặc sửa biến này trong `.env.internet` để dùng giá trị khác. Mật khẩu quản trị hạ tầng Keycloak (`KEYCLOAK_ADMIN_PASSWORD`) được sinh riêng. Giữ các file cấu hình trên máy chủ và chỉ dùng bộ tài khoản này với dữ liệu mô phỏng.
 
-### Cập nhật VM đang chạy
+### Tự động cập nhật VM Azure từ main
 
-Chạy trên VM hoặc trong Azure **RunShellScript**. Ví dụ áp dụng cho bản thử cài tại `/opt/cliniccare`.
+Workflow **Deploy ClinicCare to Azure** chạy khi có push vào `main`. Bước triển khai chờ kiểm tra frontend, backend và hợp đồng API đạt.
+
+1. Mở managed identity `id-cliniccare-deploy` → **Federated credentials** → **Add Credential**. Chọn **GitHub Actions deploying Azure resources**, nhập `Samie32` và `SE-project`, chọn **Branch**, nhập `main` và đặt tên `github-main`. Subject là `repo:Samie32/SE-project:ref:refs/heads/main`.
+2. Gán quyền `Microsoft.Compute/virtualMachines/read` và `Microsoft.Compute/virtualMachines/runCommand/action` cho identity ở phạm vi `vm-cliniccare-azure-test` trong `rg-cliniccare`. Run Command chạy với quyền quản trị trong VM. Giới hạn quyền sửa workflow và merge vào `main`.
+3. Trên GitHub, ở **Settings → Secrets and variables → Actions → Secrets**, thêm `AZURE_CLIENT_ID` (Client ID của identity), `AZURE_TENANT_ID` và `AZURE_SUBSCRIPTION_ID`. Khi VM sẵn sàng, thêm `AZURE_DEPLOY_ENABLED=true` trong tab **Variables**.
+4. Vào **Actions → Deploy ClinicCare to Azure → Run workflow**, chọn `main`. Kiểm tra log job deploy có `CLINICCARE_DEPLOY_OK` kèm SHA. Khi VM đã tắt lúc có push, bật VM, đợi **Agent status: Ready** rồi chạy workflow trên `main` để cập nhật bù.
+
+Workflow cập nhật checkout `/opt/cliniccare` theo commit đã qua kiểm tra, khởi động lại dịch vụ và kiểm tra FE/BE. File `.env.internet` và Docker volumes được giữ qua các lượt deploy.
+
+### Nạp dữ liệu demo trên VM
+
+Sau khi dịch vụ sẵn sàng, chạy các lệnh dưới đây trên VM hoặc trong Azure **RunShellScript**. Lệnh đầu nạp dữ liệu mẫu. Lệnh sau đồng bộ và xác thực mật khẩu tài khoản mẫu theo `DEMO_PASSWORD`.
 
 ```bash
-set -eu
 cd /opt/cliniccare
-git pull --ff-only origin deploy/azure-demo
-if ! grep -q '^DEMO_PASSWORD=' .env.internet; then
-  printf '\nDEMO_PASSWORD=DemoClinic\n' >> .env.internet
-fi
-docker compose --env-file .env.internet -f compose.yaml -f compose.internet.yaml up -d
-python3 -B data_demo/load_local_demo.py --internet --demo-logins --apply
+sudo python3 -B data_demo/load_local_demo.py --internet --apply
+sudo python3 -B data_demo/load_local_demo.py --internet --demo-logins --apply
 ```
 
-Lệnh cuối áp dụng và xác thực lại các tài khoản mẫu đã có trong realm `clinic`. Khi đã nạp đủ dữ liệu mẫu, kết quả là `Verified Keycloak demo logins: 14 accounts.` Lệnh dùng giá trị `DEMO_PASSWORD` nếu đã cấu hình, mặc định là `DemoClinic`. Keycloak lưu thay đổi trong volume đang dùng. File realm JSON là bản import ban đầu và có thể còn lưu mật khẩu cũ. Bản cập nhật này dùng lại image đang có.
-
-Sau khi dịch vụ sẵn sàng, chạy `sudo python3 -B data_demo/load_local_demo.py --internet --apply` trên máy chủ để thêm chuyên khoa, bác sĩ và lịch mẫu. Xem [tài khoản và cách nạp](../data_demo/README.md#2-tài-khoản-và-mật-khẩu-demo).
+Khi đã nạp đủ dữ liệu, kết quả xác thực là `Verified Keycloak demo logins: 14 accounts.` Xem [tài khoản và cách nạp](../data_demo/README.md#2-tài-khoản-và-mật-khẩu-demo).
 
 Frontend trỏ `VITE_WEBRTC_ICE_CONFIG_URL` tới `/api/webrtc/ice`. Caddy chuyển riêng URL này tới dịch vụ cấp ICE. Dịch vụ dùng `/api/me/profile` hiện có để kiểm tra JWT và vai trò bác sĩ/bệnh nhân, sau đó trả thông tin TURN dùng trong một giờ. Caddy chuyển các API khác theo tuyến frontend → backend hiện có. Bí mật ký TURN chỉ có ở máy chủ.
 

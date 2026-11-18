@@ -1,6 +1,8 @@
 name: ClinicCare frontend
 on:
+  workflow_call:
   push:
+    branches-ignore: [main]
     paths: ['frontend/**', '.github/workflows/frontend.yml', 'compose.yaml']
   pull_request:
     paths: ['frontend/**', '.github/workflows/frontend.yml', 'compose.yaml']
