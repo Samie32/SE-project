@@ -1,0 +1,36 @@
+@startuml skip-ticket
+title UC-21 — Trả phiếu về cuối hàng đợi
+
+skinparam sequenceMessageAlign center
+skinparam responseMessageBelowArrow true
+skinparam ParticipantPadding 10
+skinparam BoxPadding 8
+skinparam dpi 150
+
+actor       "Lễ tân"             as R
+participant "Dịch vụ hàng đợi"  as SVC
+database    "MySQL"              as DB
+
+R -> SVC : bỏQua(ticketId, lý_do)
+SVC -> SVC : xác thực; phân quyền lễ tân; yêu cầu lý do
+SVC -> DB : BEGIN; khóa Bác sĩ, rồi phiếu
+
+alt [phiếu CALLED]
+  SVC -> DB : cấp MAX(vị_trí)+1 cho bác sĩ / ngày
+  SVC -> DB : đặt WAITING, vị trí mới; audit kèm lý do
+  SVC -> DB : COMMIT
+  DB --> SVC : phiếu ở cuối hàng đợi
+  SVC --> R : phiếu ở cuối hàng đợi
+end
+
+alt [không phải CALLED]
+  SVC -> DB : ROLLBACK
+  SVC --> R : 409
+end
+
+note over SVC
+  Không tạo thêm phiếu hay thay đổi lịch hẹn CHECKED_IN.
+  Lỗi lưu trữ / audit đều rollback; không trả thành công.
+end note
+
+@enduml

@@ -4,6 +4,7 @@ Thiết kế sử dụng React + TypeScript, Spring Boot modular monolith và My
 
 ## Tài liệu nền tảng
 
+- [Nguồn thiết kế Figma desktop và phạm vi bàn giao](gui-mockups/figma-design-source.md)
 - [Kiến trúc và các góc nhìn 4+1](architecture/architecture.md)
 - [Phân quyền, bảo mật và audit](architecture/security.md)
 - [Từ điển dữ liệu và ràng buộc](database/data-dictionary.md)
@@ -25,6 +26,7 @@ Thiết kế sử dụng React + TypeScript, Spring Boot modular monolith và My
 | database | [erd-scheduling](database/erd-scheduling.png) |
 | database | [erd](database/erd.png) |
 | sequence-diagrams | [book-appointment](sequence-diagrams/book-appointment.png) |
+| sequence-diagrams | [change-appointment](sequence-diagrams/change-appointment.png) |
 | sequence-diagrams | [cancel-appointment](sequence-diagrams/cancel-appointment.png) |
 | sequence-diagrams | [checkin-and-queue](sequence-diagrams/checkin-and-queue.png) |
 | sequence-diagrams | [consultation-progress](sequence-diagrams/consultation-progress.png) |

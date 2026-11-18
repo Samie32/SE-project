@@ -1,0 +1,9 @@
+<map id="book-appointment_map" name="book-appointment_map">
+<area shape="rect" id="id1" href="hợp" title="hợp" alt="" coords="239,1066,254,1088"/>
+<area shape="rect" id="id2" href="lỗi" title="lỗi" alt="" coords="255,1346,368,1368"/>
+<area shape="rect" id="id3" href="tất" title="tất" alt="" coords="255,1153,402,1175"/>
+<area shape="rect" id="id4" href="payload" title="payload" alt="" coords="255,718,409,740"/>
+<area shape="rect" id="id5" href="yêu" title="yêu" alt="" coords="285,380,574,401"/>
+<area shape="rect" id="id6" href="xung" title="xung" alt="" coords="255,1502,588,1524"/>
+<area shape="rect" id="id7" href="trùng" title="trùng" alt="" coords="255,525,591,547"/>
+</map>

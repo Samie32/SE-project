@@ -1,0 +1,84 @@
+@startuml system-architecture
+skinparam rectangle {
+  BackgroundColor White
+  BorderColor #555
+  FontName Arial
+  FontSize 11
+}
+skinparam component {
+  BackgroundColor White
+  BorderColor #555
+}
+skinparam actor {
+  BackgroundColor White
+  BorderColor #555
+}
+skinparam noteBackgroundColor #FFFDE7
+skinparam noteBorderColor #F9A825
+skinparam cloud {
+  BackgroundColor #F5F5F5
+  BorderColor #888
+}
+skinparam database {
+  BackgroundColor White
+  BorderColor #555
+}
+skinparam shadowing false
+skinparam dpi 150
+title Kien truc he thong - He thong dat lich & kham tu xa phong kham ngoai tru
+
+actor "Benh nhan" as Patient
+actor "Nhan vien\nphong kham" as Staff
+
+component "React + TypeScript\nTrinh duyet" as Browser
+
+rectangle "Spring Boot - Monolith mo-dun" as Backend {
+  component "M06 Dich vu\ngui thong bao" as M06
+  component "M09 Dong phong\ntham chieu" as M09worker
+
+  component "M05 Ho so / Don thuoc\nM08 Check-in / Hang doi\nM09 Y te tu xa" as M05
+  component "M07 Kiem toan" as M07
+
+  component "Controllers / DTOs" as Controllers
+
+  component "M02 Bac si / Chuyen khoa\nM03 Lich lam viec\nM04 Lich hen" as M02
+  component "M01 Xac thuc / Phan quyen" as M01
+}
+
+cloud "Nha cung cap\nEmail / SMS" as EmailSMS
+cloud "Nha cung cap\nvideo / audio" as VideoAudio
+cloud "Nha cung cap\ndanh tinh\nOAuth2 / OIDC" as IdP
+
+database "MySQL\nDu lieu mien + outbox + kiem toan" as MySQL
+
+Patient --> Browser
+Staff --> Browser
+
+Browser --> Controllers : HTTPS / JSON
+Patient --> IdP : dang nhap
+
+M06 --> EmailSMS : gui / thu lai
+M09worker --> VideoAudio : dong phong / thu lai
+M05 --> MySQL : giao dich + kiem toan + outbox
+M07 --> MySQL : them (append)
+M02 --> MySQL : tai khoan / vai tro
+M01 --> IdP : issuer / khoa / xac thuc token
+
+Controllers --> M05
+Controllers --> M07
+Controllers --> M02
+Controllers --> M01
+Controllers ..> M06 : yeu cau nhiem vu
+Controllers ..> M09worker : yeu cau dong phong
+
+M05 ..> VideoAudio : phong / thu nhan
+M06 ..> MySQL : giao dich + outbox
+
+note right of MySQL
+  Muc tieu thiet ke: mot backend
+  co the trien khai doc lap.
+  Truy cap PHI yeu cau phan quyen tai nguyen.
+  Dich vu ngoai dung provider adapter.
+end note
+
+@enduml

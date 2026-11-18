@@ -1,0 +1,44 @@
+@startuml prescription
+title UC-14 — Nháp và phát hành đơn thuốc
+
+skinparam sequenceMessageAlign center
+skinparam responseMessageBelowArrow true
+skinparam ParticipantPadding 10
+skinparam BoxPadding 8
+skinparam dpi 150
+
+actor       "Bác sĩ"             as D
+participant "Dịch vụ lâm sàng"  as SVC
+database    "MySQL"              as DB
+
+D -> SVC : tạoĐơnThuốc(encounterId, items)
+SVC -> SVC : xác thực; phân quyền bác sĩ được phân công
+SVC -> DB : BEGIN; khóa encounter; yêu cầu IN_PROGRESS
+SVC -> DB : chèn đơn thuốc DRAFT và các mục; audit; COMMIT
+DB --> SVC : nháp kèm version
+SVC --> D : nháp kèm version
+
+D -> SVC : phátHànhĐơnThuốc(id, version, Idempotency-Key)
+SVC -> SVC : xác thực; phân quyền bác sĩ được phân công
+SVC -> DB : BEGIN; giữ chỗ / replay key; khóa encounter và đơn thuốc
+SVC -> DB : yêu cầu DRAFT, version khớp, encounter IN_PROGRESS
+SVC -> DB : yêu cầu >=1 mục; tên, liều, đường dùng, tần suất, thời gian
+
+alt [hợp lệ]
+  SVC -> DB : đặt ISSUED, issued_at, version + 1;\naudit + kết quả idempotency; COMMIT
+  DB --> SVC : đơn thuốc đã phát hành
+  SVC --> D : đơn thuốc đã phát hành
+end
+
+alt [không hợp lệ / cũ]
+  SVC -> DB : ROLLBACK
+  SVC --> D : 422 / 409; nháp không thay đổi
+end
+
+note over SVC
+  Lỗi lưu trữ / audit đều rollback và trả 503.
+  Nội dung ISSUED bất biến; không có gợi ý thuốc/liều tự động.
+  Bệnh nhân chỉ đọc đơn thuốc ISSUED của chính mình, kèm audit ĐỌC.
+end note
+
+@enduml

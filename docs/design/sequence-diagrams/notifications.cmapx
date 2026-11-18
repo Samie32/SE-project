@@ -1,0 +1,8 @@
+<map id="notifications_map" name="notifications_map">
+<area shape="rect" id="id1" href="hết" title="hết" alt="" coords="344,853,411,875"/>
+<area shape="rect" id="id2" href="được" title="được" alt="" coords="328,475,414,497"/>
+<area shape="rect" id="id3" href="timeout" title="timeout" alt="" coords="328,766,431,788"/>
+<area shape="rect" id="id4" href="nhận" title="nhận" alt="" coords="351,610,577,631"/>
+<area shape="rect" id="id5" href="xác" title="xác" alt="" coords="312,388,583,410"/>
+<area shape="rect" id="id6" href="version" title="version" alt="" coords="344,290,635,312"/>
+</map>

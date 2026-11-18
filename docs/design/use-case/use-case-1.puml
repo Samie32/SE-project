@@ -1,0 +1,50 @@
+@startuml use-case-1
+skinparam usecase {
+  BackgroundColor White
+  BorderColor #555
+  ArrowColor #333
+}
+skinparam packageStyle rectangle
+skinparam packageBackgroundColor #FAFAFA
+skinparam packageBorderColor #AAAAAA
+skinparam shadowing false
+skinparam defaultFontName Arial
+skinparam defaultFontSize 11
+skinparam dpi 150
+title Danh tính & danh mục — Use case chi tiết
+
+left to right direction
+
+actor "Người dùng" as User
+actor "Quản trị viên" as Admin
+actor "Bác sĩ" as Doctor
+actor "Nhà cung cấp danh tính" as IdP
+
+rectangle "Hệ thống phòng khám" {
+
+  package "M01 — Danh tính" {
+    usecase "UC-01\nĐăng nhập" as UC01
+    usecase "UC-02\nQuản lý vai trò /\nKiểm soát truy cập" as UC02
+  }
+
+  package "M02 — Danh mục" {
+    usecase "UC-03\nQuản lý bác sĩ\nvà chuyên khoa" as UC03
+    usecase "UC-04\nVô hiệu hóa bác sĩ" as UC04
+  }
+
+  package "M03 — Lịch làm việc" {
+    usecase "UC-05\nQuản lý lịch làm việc" as UC05
+    usecase "UC-06\nQuản lý lịch nghỉ" as UC06
+  }
+}
+
+User --> UC01
+IdP --> UC01
+UC01 ..> UC02 : <<include>>
+
+Admin --> UC03
+Admin --> UC04
+
+Doctor --> UC05
+Doctor --> UC06
+@enduml

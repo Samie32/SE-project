@@ -1,0 +1,38 @@
+@startuml medical-record
+skinparam state {
+  BackgroundColor White
+  BorderColor #555
+  ArrowColor #333
+  FontName Arial
+  FontSize 11
+}
+skinparam noteBackgroundColor #FFFDE7
+skinparam noteBorderColor #F9A825
+skinparam shadowing false
+skinparam dpi 150
+title Vòng đời Hồ sơ khám — FR-13
+
+[*] --> DRAFT : [hồ sơ mới, bác sĩ được phân công, encounter IN_PROGRESS]
+
+DRAFT --> DRAFT : chỉnh sửa [version khớp] / tăng version
+
+DRAFT --> FINAL : chốt [nội dung hợp lệ, version khớp]\n/ đóng băng hồ sơ này
+
+[*] --> FINAL : [bổ sung, FINAL trước gần nhất, bác sĩ được phân công, lý do]\n/ tạo hồ sơ mới; giữ nguyên bản trước
+
+FINAL --> [*]
+
+note right of FINAL
+  Bổ sung không bao giờ chuyển trạng thái hồ sơ FINAL gốc.
+  Tạo hồ sơ FINAL mới với supersedes_id và lý do;
+  giữ nguyên nội dung và tác giả gốc.
+  Tuần tự hóa ghi encounter; cấp version mới.
+  Chỉ bác sĩ được phân công mới được bổ sung.
+end note
+
+note bottom
+  Chốt hồ sơ và hoàn tất encounter là hai lệnh riêng biệt.
+  Hồ sơ có thể là FINAL trong khi lịch hẹn vẫn IN_PROGRESS.
+end note
+
+@enduml

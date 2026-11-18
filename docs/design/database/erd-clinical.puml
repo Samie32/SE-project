@@ -1,0 +1,114 @@
+@startuml erd-clinical
+skinparam entity {
+  BackgroundColor White
+  BorderColor #555
+  ArrowColor #333
+  FontName Arial
+  FontSize 10
+}
+skinparam shadowing false
+skinparam dpi 150
+title erd-clinical - MySQL / InnoDB
+
+entity "Doctor" as D {
+  active : BOOLEAN
+  --
+  * id : CHAR(36) <<PK>>
+  user_id : CHAR(36) <<FK,UK>>
+  display_name : VARCHAR(255)
+}
+
+entity "Appointment" as AP {
+  version : INT
+  cancellation_reason : TEXT
+  --
+  * id : CHAR(36) <<PK>>
+  patient_id : CHAR(36) <<FK>>
+  doctor_id : CHAR(36) <<FK>>
+  slot_id : CHAR(36) <<FK>>
+  start_at : DATETIME(6)
+  end_at : DATETIME(6)
+  status : VARCHAR(32)
+  mode : VARCHAR(32)
+}
+
+entity "QueueTicket" as QT {
+  service_date : DATE
+  position : INT
+  --
+  * id : CHAR(36) <<PK>>
+  appointment_id : CHAR(36) <<FK,UK>>
+  doctor_id : CHAR(36) <<FK>>
+  status : VARCHAR(32)
+}
+
+entity "Encounter" as EN {
+  version : INT
+  --
+  * id : CHAR(36) <<PK>>
+  appointment_id : CHAR(36) <<FK,UK>>
+  status : VARCHAR(32)
+}
+
+entity "TelehealthSession" as TS {
+  version : INT
+  --
+  * id : CHAR(36) <<PK>>
+  appointment_id : CHAR(36) <<FK,UK>>
+  provider_room_id : VARCHAR(255) <<UK,nullable>>
+  status : VARCHAR(32)
+  ended_at : DATETIME(6)
+}
+
+entity "ProviderEvent" as PE {
+  * provider : VARCHAR(64) <<PK>>
+  * event_id : VARCHAR(255) <<PK>>
+  --
+  session_id : CHAR(36) <<FK>>
+  received_at : DATETIME(6)
+}
+
+entity "MedicalRecord" as MR {
+  version : INT
+  content_encrypted : BLOB
+  amendment_reason : TEXT
+  --
+  * id : CHAR(36) <<PK>>
+  encounter_id : CHAR(36) <<FK>>
+  author_id : CHAR(36) <<FK>>
+  status : VARCHAR(32)
+  supersedes_id : CHAR(36) <<FK,UK,nullable>>
+}
+
+entity "Prescription" as PR {
+  version : INT
+  --
+  * id : CHAR(36) <<PK>>
+  encounter_id : CHAR(36) <<FK>>
+  author_id : CHAR(36) <<FK>>
+  status : VARCHAR(32)
+  issued_at : DATETIME(6)
+}
+
+entity "PrescriptionItem" as PI {
+  * id : CHAR(36) <<PK>>
+  --
+  prescription_id : CHAR(36) <<FK>>
+  medicine_name : VARCHAR(255)
+  dose_text : VARCHAR(255)
+  route : VARCHAR(255)
+  frequency : VARCHAR(255)
+  duration_text : VARCHAR(255)
+}
+
+D ||--o{ AP : author
+AP ||--o| QT
+AP ||--o| EN
+AP ||--o| TS
+EN ||--o{ MR
+EN ||--o{ PR
+MR |o--o| MR : supersedes
+PR ||--o{ PI
+TS ||--o{ PE
+
+@enduml

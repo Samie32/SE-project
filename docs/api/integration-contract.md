@@ -1,6 +1,6 @@
 # Hợp đồng tích hợp BE–FE 1.0.0
 
-Chốt ngày **16/11/2026** theo yêu cầu thống nhất BE với frontend gộp. Baseline backend: `main` tại `a04dcb1`. Phạm vi: chín phân hệ, **46 thao tác trên 38 đường dẫn**. Hợp đồng này là chuẩn để triển khai tiếp, không phải biên bản nghiệm thu.
+Chốt ngày **16/11/2026** (cập nhật ngày **19/11/2026**) theo yêu cầu thống nhất BE với frontend gộp. Baseline backend: `main` tại `a04dcb1`. Phạm vi hiện tại: chín phân hệ, **56 thao tác trên 45 đường dẫn**. Hợp đồng này là chuẩn để triển khai tiếp, không phải biên bản nghiệm thu.
 
 ## 1. Nguồn chuẩn và quy tắc thay đổi
 
@@ -25,12 +25,16 @@ Khi thay tên trường, endpoint, mã thành công hoặc điều kiện quyề
 | Vai trò | `PATIENT`, `DOCTOR`, `RECEPTIONIST`, `ADMINISTRATOR`, `AUDITOR`; lấy từ database qua `/me`, không lấy quyền từ localStorage/JWT claim để tự cấp quyền |
 | Danh tính nghiệp vụ | Dùng **GET `/me/profile`** lấy `patientId`, `doctorId`, `displayName`, `roles`; không dò bác sĩ bằng thử quyền từng lịch |
 
-`id` trong `/me` là user ID nội bộ. Không giả định nó luôn bằng patient ID hoặc doctor ID. `/users` chỉ dành quản trị để tìm tài khoản tạo bác sĩ/cấp quyền. Quản trị không mặc nhiên được đọc bệnh án hoặc vào phòng từ xa. HTTPS là yêu cầu triển khai ngoài local; HTTP ở bảng trên chỉ dùng phát triển.
+`id` trong `/me` là user ID nội bộ. Không giả định nó luôn bằng patient ID hoặc doctor ID. `GET /users` dành cho quản trị và chỉ trả tài khoản nhân sự. Tham số `q` tìm theo username hoặc tên hiển thị. Có thể lọc theo `role` (gồm `UNASSIGNED`) và `active`. Mỗi dòng trả vai trò hiện tại, `doctorId` nếu đã có hồ sơ bác sĩ và `username` nếu đã có định danh. Quyền đọc bệnh án và vào phòng từ xa vẫn theo vai trò và quan hệ với lần khám. HTTPS là yêu cầu triển khai ngoài local. HTTP ở bảng trên chỉ dùng phát triển.
+
+**Thêm nhân sự** gọi `POST /staff/provision` để tạo tài khoản Keycloak, cấp vai trò trong ClinicCare và tạo hồ sơ bác sĩ kèm chuyên khoa nếu chọn vai trò `DOCTOR`. Người dùng đổi mật khẩu tạm thời khi đăng nhập lần đầu. Hồ sơ bác sĩ mới chờ bật nhận lịch. `POST /staff` giữ luồng liên kết định danh Keycloak đã tạo cho trình nạp dữ liệu. `PUT /staff/{id}` cập nhật họ tên và trạng thái truy cập ClinicCare. Phải ngừng nhận lịch trước khi thu hồi quyền bác sĩ hoặc vô hiệu hóa tài khoản. Tài khoản bệnh nhân độc lập giữ nguyên lịch sử.
 
 ## 3. Dữ liệu, danh sách và lỗi
 
 - JSON camelCase; ID tài nguyên UUID; `version` là số nguyên không âm. Các enum phân biệt chữ hoa/thường.
 - Thời điểm ISO-8601 UTC có `Z`; ngày query `YYYY-MM-DD` theo `Asia/Ho_Chi_Minh`. Lưu khoảng `[startAt,endAt)`; UI chuyển giờ Việt Nam khi hiển thị.
+- GET `/clinic/hours` trả giờ hoạt động theo tuần cho tài khoản đã xác thực. PUT cùng đường dẫn chỉ dành cho quản trị, nhận đủ bảy thứ với giờ `HH:mm` theo giờ Việt Nam. Ngày nghỉ gửi `null` cho cả hai giờ. API trả 409 nếu giờ mới xung đột với ca đang diễn ra hoặc sắp tới.
+- GET `/clinic/holidays` trả danh sách ngày nghỉ lễ và lịch hoạt động đặc biệt cho tài khoản đã xác thực. POST `/clinic/holidays` và DELETE `/clinic/holidays/{id}` (`204`) chỉ dành cho `ADMINISTRATOR`, kiểm tra trùng khoảng ngày và xung đột ca làm việc hiện có (409), áp dụng ưu tiên trên giờ hoạt động hằng tuần khi mở ca/đăng ký nghỉ và ghi audit `CLINIC_HOLIDAY_CREATED` / `CLINIC_HOLIDAY_REMOVED`.
 - `mode`: chỉ `IN_PERSON` hoặc `REMOTE`; không dùng `ONLINE`, `OFFLINE` hay `VIRTUAL`.
 - Tên chuẩn: **`createdAt`**, **`consent`**, **`targetStatus`**, **`doseText`**, **`durationText`**. Không có alias `timestamp`, `participationConfirmed`, `status` cho progress hoặc `dosage`.
 - Danh sách trả **mảng trực tiếp**, không có `{data,total}`. `/appointments`, `/users`, lịch sử record/rx và audit dùng `limit=20&offset=0`, tối đa 100; FE đọc tiếp nếu cần. Không suy tổng số từ một trang.
@@ -41,7 +45,7 @@ Khi thay tên trường, endpoint, mã thành công hoặc điều kiện quyề
 
 | HTTP | Cách FE xử lý |
 |---|---|
-| 200 | Thành công; đa số trả JSON. Riêng PUT `/me/contact`, `/users/{id}/roles` body rỗng, không gọi `response.json()` vô điều kiện |
+| 200 | Thành công. PUT `/me/contact`, `/users/{id}/roles` và `/staff/{id}` có body rỗng. |
 | 204 | Không body: DELETE lịch; queue/next khi hết người WAITING **sau BE-04** |
 | 400 | Thiếu/sai query/header/body; kiểm tra payload trước khi gửi lại |
 | 401 | Token không hợp lệ/hết hạn; đăng nhập lại; không giả định có JSON error body |
@@ -116,7 +120,7 @@ Patient chỉ đọc FINAL/ISSUED của mình. DOCTOR phụ trách đọc draft 
 ## 8. Telehealth và WebRTC
 
 1. POST `/appointments/{id}/telehealth-session`, không body, có key, tạo/lấy phòng hợp lệ từ start-10 phút đến trước start+15 phút. Gọi một lần khi vào trang; giữ session ID.
-2. Poll **GET `/telehealth-sessions/{id}`** để đọc trạng thái, kể cả ENDED/CANCELLED; không dùng POST prepare làm poll vì prepare từ chối phòng đã đóng.
+2. Khi mở lại lịch đang khám và chưa có ID phiên, gọi **GET `/appointments/{id}/telehealth-session`**. Dùng đường dẫn này cả khi prepare trả 409 để kiểm tra phiên đã đóng. Chủ lịch và bác sĩ phụ trách có thể đọc trạng thái phiên kể cả sau cửa sổ tham gia. Sau khi có ID phiên, poll **GET `/telehealth-sessions/{id}`**.
 3. Join POST `{consent:true}` cho patient, không key; bác sĩ có thể gửi false sau start. Response có `sessionId,token,expiresAt,signalingUrl`. Không dùng `participationConfirmed`.
 4. Patient join CREATED → WAITING. Bác sĩ start với `{version}` + key từ start đến trước start+15 phút; WAITING → ACTIVE, lịch → IN_PROGRESS và tạo encounter nguyên tử. Sau start bác sĩ join để lấy token của mình.
 5. `signalingUrl` đã gồm `/api/...`; không nối thành `/api/api/...`. GET/POST signals gửi JWT + **X-Room-Token**. GET `?after=0` trả message bên kia; lần sau dùng ID cuối nhận. POST `{kind:"OFFER"|"ANSWER"|"ICE",payload:"..."}` trả `{accepted:true}`. Payload ≤65.536 ký tự; ≤300 message/người/phòng/phút.

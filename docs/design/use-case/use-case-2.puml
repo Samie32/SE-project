@@ -1,0 +1,58 @@
+@startuml use-case-2
+skinparam usecase {
+  BackgroundColor White
+  BorderColor #555
+  ArrowColor #333
+}
+skinparam packageStyle rectangle
+skinparam packageBackgroundColor #FAFAFA
+skinparam packageBorderColor #AAAAAA
+skinparam shadowing false
+skinparam defaultFontName Arial
+skinparam defaultFontSize 11
+skinparam dpi 150
+title Lịch hẹn & hàng đợi — Use case chi tiết
+
+left to right direction
+
+actor "Bệnh nhân" as Patient
+actor "Bác sĩ" as Doctor
+actor "Lễ tân" as Receptionist
+
+rectangle "Hệ thống phòng khám" {
+
+  package "M03 — Lịch làm việc" {
+    usecase "UC-07\nTìm slot khả dụng" as UC07
+  }
+
+  package "M04 — Lịch hẹn" {
+    usecase "UC-08\nĐặt lịch hẹn" as UC08
+    usecase "UC-09\nĐổi lịch hẹn" as UC09
+    usecase "UC-10\nHủy lịch hẹn" as UC10
+    usecase "UC-11\nTiến trình lịch hẹn" as UC11
+  }
+
+  package "M08 — Hàng đợi" {
+    usecase "UC-19\nCheck-in bệnh nhân" as UC19
+    usecase "UC-20\nGọi bệnh nhân tiếp theo" as UC20
+    usecase "UC-21\nTrả phiếu về cuối hàng đợi" as UC21
+  }
+}
+
+Patient --> UC07
+Patient --> UC08
+Patient --> UC09
+Patient --> UC10
+Patient --> UC11
+
+Receptionist --> UC07
+Receptionist --> UC19
+Receptionist --> UC21
+
+Doctor --> UC11
+Doctor --> UC20
+Doctor --> UC21
+
+UC08 ..> UC07 : <<include>>
+UC09 ..> UC07 : <<include>>
+@enduml

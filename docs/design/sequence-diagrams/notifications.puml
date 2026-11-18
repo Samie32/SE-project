@@ -1,0 +1,51 @@
+@startuml notifications
+title UC-15/16 — Gửi thông báo bất đồng bộ
+
+skinparam sequenceMessageAlign center
+skinparam responseMessageBelowArrow true
+skinparam ParticipantPadding 10
+skinparam BoxPadding 8
+skinparam dpi 150
+
+participant "Worker thông báo"        as W
+database    "MySQL"                   as DB
+participant "Nhà cung cấp Email/SMS"  as ESP
+
+W -> DB : lấy sự kiện outbox đã commit; tạo job đã loại trùng lặp
+W -> DB : lấy job đến hạn với lease; tải lịch hẹn hiện tại
+
+alt [version cũ / nhắc lịch không ở CONFIRMED]
+  W -> DB : đặt SKIPPED
+end
+
+alt [xác nhận hoặc nhắc lịch đủ điều kiện]
+  W -> ESP : gửi template tối giản với dedupe key
+
+  alt [được chấp nhận]
+    ESP --> W : message ID của nhà cung cấp
+    W -> DB : đánh dấu SENT
+
+    opt [nhận được receipt xác nhận giao]
+      ESP --> W : receipt
+      W -> DB : loại trùng receipt; đánh dấu DELIVERED
+    end
+  end
+
+  alt [timeout / lỗi tạm thời]
+    W -> DB : attempts + 1; lên lịch retry tiếp theo sau +1/+5/+15 phút
+
+    alt [hết lần retry]
+      W -> DB : đánh dấu FAILED
+    end
+  end
+end
+
+note over W
+  Nhắc lịch đến hạn tại bắt đầu - 30 phút; booking muộn chỉ nhận xác nhận.
+  Kiểm tra lại trạng thái/version trước mỗi lần gửi và retry.
+  Lỗi nhà cung cấp không bao giờ rollback lịch hẹn đã commit.
+  Lease hết hạn phục hồi job bị crash; vẫn có thể giao trùng lặp
+  khi nhà cung cấp không hỗ trợ deduplication.
+end note
+
+@enduml

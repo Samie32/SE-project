@@ -1,0 +1,7 @@
+<map id="checkin-and-queue_map" name="checkin-and-queue_map">
+<area shape="rect" id="id1" href="phiếu" title="phiếu" alt="" coords="218,1292,270,1314"/>
+<area shape="rect" id="id2" href="hàng" title="hàng" alt="" coords="218,1485,295,1507"/>
+<area shape="rect" id="id3" href="chế" title="chế" alt="" coords="133,937,430,959"/>
+<area shape="rect" id="id4" href="phiếu" title="phiếu" alt="" coords="133,405,440,427"/>
+<area shape="rect" id="id5" href="CONFIRMED" title="CONFIRMED" alt="" coords="133,598,522,620"/>
+</map>

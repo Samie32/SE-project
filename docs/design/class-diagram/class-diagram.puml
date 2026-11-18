@@ -1,0 +1,135 @@
+@startuml class-diagram
+skinparam class {
+  BackgroundColor White
+  BorderColor #555
+  ArrowColor #333
+  FontName Arial
+  FontSize 11
+}
+skinparam noteBackgroundColor #FFFDE7
+skinparam noteBorderColor #F9A825
+skinparam shadowing false
+skinparam dpi 150
+title Mo hinh mien (PIM)
+
+class UserAccount <<C>> {
+  id : UUID
+  status : TrangThaiTaiKhoan
+}
+
+class UserRole <<C>> {
+  role : VaiTro
+}
+
+class Doctor <<C>> {
+  active : Boolean
+}
+
+class AuditEvent <<C>> {
+  actorType : NGUOIDUNG hoac HETHONG
+  actorLabel : String
+}
+
+class Patient <<C>> {
+}
+
+class Availability <<C>> {
+  startAt : Instant
+  endAt : Instant
+  slotMinutes : Integer
+}
+
+class TimeOff <<C>> {
+}
+
+class Specialty <<C>> {
+}
+
+class Slot <<C>> {
+  startAt : Instant
+  endAt : Instant
+  mode : CheDoKham
+}
+
+class Appointment <<C>> {
+  status : TrangThaiLichHen
+  version : Integer
+  reschedule()
+  cancel()
+  start()
+  complete()
+}
+
+class QueueTicket <<C>> {
+  position : Integer
+  status : TrangThaiPhieu
+  call()
+  skip()
+}
+
+class TelehealthSession <<C>> {
+  status : TrangThaiPhien
+  join()
+  end()
+}
+
+class Encounter <<C>> {
+  status : TrangThaiLanKham
+  version : Integer
+}
+
+class MedicalRecord <<C>> {
+  version : Integer
+  status : TrangThaiHoSo
+  amendmentReason : String
+  finalize()
+  amend()
+}
+
+class Prescription <<C>> {
+  status : TrangThaiDonThuoc
+  issue()
+}
+
+class PrescriptionItem <<C>> {
+}
+
+class NotificationJob <<C>> {
+}
+
+UserAccount "1" --> "0..*" UserRole
+UserAccount "1" --> "0..1" Doctor
+UserAccount "1" --> "0..1" Patient
+UserAccount "0..*" ..> AuditEvent : actor
+
+Doctor "1" --> "0..*" Availability
+Doctor "1" --> "0..*" TimeOff
+Doctor "*" --> "*" Specialty
+
+Availability "1" --> "0..*" Slot
+
+Slot "0..*" --> "0..*" Appointment : lich su; toi da 1 active
+
+Appointment "1" --> "0..1" QueueTicket
+Appointment "1" --> "0..1" TelehealthSession
+Appointment "1" --> "0..1" Encounter
+
+Encounter "1" --> "0..*" MedicalRecord : phien ban
+
+MedicalRecord "0..1" --> "0..1" MedicalRecord : tien nhiem / ke thua
+
+Encounter "1" --> "0..*" Prescription
+
+Prescription "0..*" --> "0..*" PrescriptionItem
+Prescription "0..*" ..> NotificationJob
+
+Appointment "0..*" ..> AuditEvent : author
+MedicalRecord "0..*" ..> AuditEvent : author
+
+note bottom of Prescription
+  Ban nhap co the co 0 muc thuoc.
+  Da phat hanh yeu cau it nhat 1 muc.
+  Quyen so huu khong quy dinh xoa vat ly.
+end note
+
+@enduml

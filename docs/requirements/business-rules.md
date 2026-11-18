@@ -28,7 +28,7 @@ Phiên khám từ xa chuyển theo các trạng thái CREATED → WAITING → AC
 
 ## Tham số nghiệp vụ và giới hạn xử lý
 
-- Một phòng khám, múi giờ Asia/Ho_Chi_Minh; giờ làm 08:00–17:00, thứ Hai đến thứ Bảy. Lịch từng bác sĩ nằm trong khoảng này; khung giờ mặc định 20 phút, có thể cấu hình số phút nguyên dương.
+- Một phòng khám, múi giờ Asia/Ho_Chi_Minh. Giờ hoạt động mặc định là 08:00–17:00 từ thứ Hai đến thứ Bảy. Quản trị có thể đặt một khoảng mở cửa trong ngày hoặc đánh dấu nghỉ cho từng thứ, đồng thời cấu hình ngày nghỉ lễ hoặc khung giờ đặc biệt theo khoảng ngày (quy tắc ngày lễ ưu tiên trên giờ hoạt động hằng tuần và không được chồng ngày lễ khác). Ca làm việc và thời gian nghỉ mới của bác sĩ phải nằm trong giờ hoạt động hiệu lực của ngày đó. Hệ thống từ chối thay đổi giờ hoạt động hoặc ngày nghỉ lễ nếu có ca đang diễn ra hoặc sắp tới bị xung đột. Mỗi lượt khám mặc định 20 phút và có thể cấu hình số phút nguyên dương.
 - Bệnh nhân có tài khoản, chỉ đặt cho mình. Chỉ tiếp nhận lịch hẹn có thời điểm bắt đầu trong tương lai.
 - Đổi/hủy khi còn ít nhất 2 giờ trước thời điểm bắt đầu và trạng thái CONFIRMED. Không có ngoại lệ đổi/hủy sau hạn trong phạm vi đồ án.
 - Check-in từ 15 phút trước thời điểm bắt đầu đến trước 15 phút sau thời điểm bắt đầu. Từ start +15 phút không nhận check-in mới hoặc bắt đầu phiên từ xa mới; lễ tân/bác sĩ chỉ đánh dấu NO_SHOW khi lịch còn CONFIRMED. Bệnh nhân đã check-in đúng giờ được tiếp tục chờ và bắt đầu khám trực tiếp sau mốc này.

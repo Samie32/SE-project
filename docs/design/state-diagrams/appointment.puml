@@ -1,0 +1,48 @@
+@startuml appointment
+skinparam state {
+  BackgroundColor White
+  BorderColor #555
+  ArrowColor #333
+  FontName Arial
+  FontSize 11
+}
+skinparam noteBackgroundColor #FFFDE7
+skinparam noteBorderColor #F9A825
+skinparam shadowing false
+skinparam dpi 150
+title Vòng đời Lịch hẹn — BR-07/08
+
+[*] --> CONFIRMED : đặt lịch [slot tương lai hợp lệ] / commit
+
+CONFIRMED --> CONFIRMED : đổi lịch [chủ sở hữu, hiện tại ≤ bắt đầu - 2h]\n/ thay slot nguyên tử; tăng version
+
+CONFIRMED --> CANCELLED : hủy [chủ sở hữu, hiện tại ≤ bắt đầu - 2h]\n/ lý do; vô hiệu nhắc lịch
+
+CONFIRMED --> CHECKED_IN : checkIn [IN_PERSON, lễ tân,\nbắt đầu - 15min ≤ hiện tại < bắt đầu + 15min]\n/ tạo phiếu WAITING duy nhất
+
+CONFIRMED --> NO_SHOW : đánh dấu vắng [hiện tại ≥ bắt đầu + 15min]\n/ lễ tân (trực tiếp) hoặc bác sĩ (từ xa)
+
+CONFIRMED --> IN_PROGRESS : bắtĐầuTừXa [bác sĩ được phân công,\nbệnh nhân WAITING,\nbắt đầu ≤ hiện tại < bắt đầu + 15min]\n/ phiên ACTIVE; tạo encounter
+
+CHECKED_IN --> IN_PROGRESS : bắt đầu [bác sĩ, phiếu CALLED]\n/ tạo encounter; phiếu IN_SERVICE
+
+IN_PROGRESS --> COMPLETED : hoàn thành [bác sĩ, hồ sơ FINAL,\nphiên từ xa ENDED nếu có]\n/ encounter COMPLETED; phiếu DONE
+
+CANCELLED --> [*]
+NO_SHOW --> [*]
+COMPLETED --> [*]
+
+note right of CHECKED_IN
+  Bệnh nhân check-in đúng giờ có thể
+  chờ quá bắt đầu + 15 phút.
+  CHECKED_IN không thể chuyển sang NO_SHOW.
+end note
+
+note right of COMPLETED
+  Mọi thay đổi: phân quyền, kiểm tra version,
+  khóa Bác sĩ → Bệnh nhân → hàng phụ thuộc;
+  lưu trạng thái và audit nguyên tử.
+  NO_SHOW đóng phiên CREATED/WAITING thành CANCELLED.
+end note
+
+@enduml

@@ -1,0 +1,119 @@
+@startuml erd-scheduling
+skinparam entity {
+  BackgroundColor White
+  BorderColor #555
+  ArrowColor #333
+  FontName Arial
+  FontSize 10
+}
+skinparam shadowing false
+skinparam dpi 150
+title erd-scheduling - MySQL / InnoDB
+
+entity "UserAccount" as UA {
+  * id : CHAR(36) <<PK>>
+  --
+  issuer : VARCHAR(255)
+  subject : VARCHAR(255)
+  status : VARCHAR(32)
+}
+
+entity "Doctor" as D {
+  active : BOOLEAN
+  --
+  * id : CHAR(36) <<PK>>
+  user_id : CHAR(36) <<FK,UK>>
+  display_name : VARCHAR(255)
+}
+
+entity "Specialty" as SP {
+  active : BOOLEAN
+  --
+  * id : CHAR(36) <<PK>>
+  name : VARCHAR(255) <<UK>>
+}
+
+entity "DoctorSpecialty" as DS {
+  * doctor_id : CHAR(36) <<PK,FK>>
+  * specialty_id : CHAR(36) <<PK,FK>>
+}
+
+entity "TimeOff" as TO {
+  * id : CHAR(36) <<PK>>
+  --
+  doctor_id : CHAR(36) <<FK>>
+  start_at : DATETIME(6)
+  end_at : DATETIME(6)
+}
+
+entity "Availability" as AV {
+  slot_minutes : INT
+  --
+  * id : CHAR(36) <<PK>>
+  doctor_id : CHAR(36) <<FK>>
+  start_at : DATETIME(6)
+  end_at : DATETIME(6)
+  mode : VARCHAR(32)
+}
+
+entity "Slot" as SL {
+  * id : CHAR(36) <<PK>>
+  --
+  availability_id : CHAR(36) <<FK>>
+  doctor_id : CHAR(36) <<FK>>
+  start_at : DATETIME(6)
+  end_at : DATETIME(6)
+  mode : VARCHAR(32)
+}
+
+entity "ClinicHours" as CH {
+  * day_of_week : TINYINT <<PK>>
+  --
+  opens_at : CHAR(5)
+  closes_at : CHAR(5)
+}
+
+entity "ClinicHoliday" as HL {
+  * id : CHAR(36) <<PK>>
+  --
+  start_date : DATE
+  end_date : DATE
+  name : VARCHAR(255)
+  closed : BOOLEAN
+  opens_at : CHAR(5)
+  closes_at : CHAR(5)
+}
+
+entity "Patient" as P {
+  contact_encrypted : BLOB
+  --
+  * id : CHAR(36) <<PK>>
+  user_id : CHAR(36) <<FK,UK>>
+  display_name : VARCHAR(255)
+}
+
+entity "Appointment" as AP {
+  version : INT
+  cancellation_reason : TEXT
+  --
+  * id : CHAR(36) <<PK>>
+  patient_id : CHAR(36) <<FK>>
+  doctor_id : CHAR(36) <<FK>>
+  slot_id : CHAR(36) <<FK>>
+  start_at : DATETIME(6)
+  end_at : DATETIME(6)
+  status : VARCHAR(32)
+  mode : VARCHAR(32)
+}
+
+UA ||--o| D
+UA ||--o| P
+D }o--o{ SP : DoctorSpecialty
+D ||--o{ AV
+D ||--o{ TO
+AV ||--o{ SL
+SL }o--o{ AP
+P ||--o{ AP
+D ||--o{ AP
+
+@enduml

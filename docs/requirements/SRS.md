@@ -34,6 +34,8 @@ Phiên bản tài liệu này bao gồm phân tích và thiết kế, chưa bao 
 
 Thay đổi quy tắc nghiệp vụ được phản ánh đồng bộ trong đặc tả yêu cầu, mô hình thiết kế, hợp đồng API và ca kiểm thử liên quan.
 
+**Ghi chú triển khai M09.** Khi nghiệm thu khám từ xa qua Internet, cả hai thiết bị cần truy cập web, hệ thống đăng nhập và signaling qua HTTPS. Cấu hình ICE dùng STUN/TURN để hỗ trợ hai mạng khác nhau. Phép thử bổ sung dùng Wi-Fi và mạng di động, xác nhận âm thanh và hình ảnh hai chiều, rồi thử lại khi bắt buộc qua TURN. Đây là điều kiện triển khai và kiểm thử cho FR-22–24 và NFR-04. Xem [hướng dẫn triển khai demo qua Internet](../deploy-internet-demo.md).
+
 ## 6. Thuật ngữ
 
 | Thuật ngữ | Diễn giải |

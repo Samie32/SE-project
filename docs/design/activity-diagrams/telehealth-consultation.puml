@@ -1,0 +1,74 @@
+@startuml telehealth-consultation
+skinparam ActivityBorderColor #555
+skinparam ActivityBackgroundColor #FAFAFA
+skinparam ActivityDiamondBorderColor #555
+skinparam ActivityDiamondBackgroundColor #FAFAFA
+skinparam swimlaneBorderColor #AAAAAA
+skinparam shadowing false
+skinparam defaultFontName Arial
+skinparam defaultFontSize 11
+skinparam dpi 150
+title BP-04 — Khám bệnh từ xa
+
+|Bệnh nhân|
+start
+:Mở phòng chờ; kiểm tra camera / microphone;
+:Xác nhận tham gia;
+
+|Hệ thống|
+if (Chủ sở hữu, REMOTE CONFIRMED, trong cửa sổ tham gia?) then (có)
+  :Chuẩn bị phiên duy nhất và phòng nhà cung cấp;
+  if (Nhà cung cấp sẵn sàng?) then (có)
+    :Phát hành token tiếp nhận 5 phút; phiên WAITING;
+  else (không)
+    :Báo lỗi có thể retry; giữ phiên CREATED;
+    stop
+  endif
+else (không)
+  :Từ chối tiếp nhận;
+  stop
+endif
+
+|Bác sĩ|
+if (Bắt đầu trước bắt đầu + 15 phút?) then (có)
+else (không)
+  :Yêu cầu bắt đầu tại hoặc sau thời gian đã lên lịch;
+endif
+
+|Hệ thống|
+if (Bệnh nhân chưa tham gia sau bắt đầu + 15 phút?) then (có)
+  :Đánh dấu lịch CONFIRMED là NO_SHOW từ bắt đầu + 15 phút;
+  :Hủy phiên chưa dùng; thu hồi tiếp nhận;
+  stop
+endif
+:Xác thực bác sĩ được phân công và tiếp nhận của bệnh nhân;
+:Kích hoạt phiên, bắt đầu lịch,\ntạo encounter và audit nguyên tử;
+
+|Bác sĩ|
+:Khám; lưu nháp hồ sơ;
+if (Phương tiện bị gián đoạn?) then (có)
+  :Nối lại hoặc dùng âm thanh;
+  if (Có thể tiếp tục?) then (có)
+  else (không)
+    :Ghi lý do gián đoạn và hướng dẫn theo dõi;
+  endif
+endif
+:Phát hành đơn thuốc nếu phù hợp;
+:Kết thúc phiên từ xa;
+
+|Hệ thống|
+:Đặt ENDED và audit; từ chối token mới;\nretry đóng phòng nhà cung cấp đến khi xác nhận;
+
+|Bác sĩ|
+if (Hồ sơ sẵn sàng?) then (có)
+  :Chốt hồ sơ; yêu cầu hoàn tất encounter;
+else (không)
+  |Hệ thống|
+  :Giữ encounter mở để ghi chú;
+endif
+
+|Hệ thống|
+:Kiểm tra FINAL và phiên ENDED;\nhoàn tất encounter và lịch nguyên tử;
+
+stop
+@enduml

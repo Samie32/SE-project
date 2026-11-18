@@ -25,4 +25,6 @@ Bộ tài liệu trình bày phạm vi, yêu cầu, mô hình nghiệp vụ và 
 
 ## Triển khai và kiểm chứng
 
+[Frontend gộp chính và kết quả chuẩn bị tích hợp](frontend-unified.md), theo [hợp đồng BE–FE 1.0.0](api/integration-contract.md). Các frontend cũ giữ làm tài liệu lịch sử.
+
 [Hướng dẫn chạy](running.md), [thiết kế backend triển khai](backend-design.md), [API tuần 3–4](api/implementation.md) và [kết quả thực hiện](week-03-04.md). Các tài liệu thiết kế chín phân hệ vẫn mô tả phạm vi toàn hệ thống.

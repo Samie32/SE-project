@@ -1,0 +1,61 @@
+@startuml checkin-and-queue
+title UC-19/20 — Check-in và gọi lượt tiếp theo
+
+skinparam sequenceMessageAlign center
+skinparam responseMessageBelowArrow true
+skinparam ParticipantPadding 10
+skinparam BoxPadding 8
+skinparam dpi 150
+
+actor       "Lễ tân"             as R
+actor       "Bác sĩ"             as D
+participant "Dịch vụ hàng đợi"  as SVC
+database    "MySQL"              as DB
+
+R -> SVC : checkIn(appointmentId, Idempotency-Key)
+SVC -> SVC : xác thực; phân quyền lễ tân
+SVC -> DB : BEGIN; giữ chỗ / replay idempotency key;\nkhóa Bác sĩ, rồi Bệnh nhân, rồi lịch hẹn
+
+alt [phiếu đã tồn tại cho lịch IN_PERSON hợp lệ]
+  SVC -> DB : COMMIT
+  DB --> SVC : phiếu hiện có (không có vị trí mới)
+  SVC --> R : phiếu hiện có
+end
+
+alt [CONFIRMED và bắt đầu - 15min <= hiện tại < bắt đầu + 15min]
+  SVC -> DB : cấp MAX(vị_trí)+1 cho bác sĩ / ngày\ndưới khóa Bác sĩ
+  SVC -> DB : chèn phiếu WAITING duy nhất; cập nhật lịch CHECKED_IN;\ntăng version; audit + kết quả idempotency
+  SVC -> DB : COMMIT
+  DB --> SVC : phiếu
+  SVC --> R : phiếu
+end
+
+alt [chế độ / trạng thái / cửa sổ không hợp lệ]
+  SVC -> DB : ROLLBACK
+  SVC --> R : 409
+end
+
+D -> SVC : gọiTiếp(hàng đợi của mình, Idempotency-Key)
+SVC -> SVC : xác thực; phân quyền bác sĩ được phân công
+SVC -> DB : BEGIN; replay/giữ chỗ idempotency key; khóa Bác sĩ
+SVC -> DB : chọn phiếu WAITING thấp nhất theo vị trí cho bác sĩ / ngày
+
+alt [phiếu tồn tại]
+  SVC -> DB : đặt CALLED + audit + kết quả idempotency; COMMIT
+  DB --> SVC : phiếu đã nhận
+  SVC --> D : phiếu đã nhận
+end
+
+alt [hàng đợi trống]
+  SVC -> DB : lưu kết quả rỗng; COMMIT
+  DB --> SVC : không có phiếu chờ
+  SVC --> D : không có phiếu chờ
+end
+
+note over SVC
+  Mọi thay đổi vị trí / trạng thái hàng đợi dùng cùng khóa Bác sĩ.
+  Lỗi lưu trữ / audit đều rollback và trả 503.
+  Xung đột idempotency trả 409; trùng lặp replay kết quả trước.
+end note
+
+@enduml

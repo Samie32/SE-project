@@ -1,0 +1,57 @@
+@startuml cancel-appointment
+title UC-10 — Hủy lịch hẹn
+
+skinparam sequenceMessageAlign center
+skinparam responseMessageBelowArrow true
+skinparam ParticipantPadding 10
+skinparam BoxPadding 8
+skinparam dpi 150
+
+actor       "Bệnh nhân"           as P
+participant "Dịch vụ lịch hẹn"   as SVC
+database    "MySQL"               as DB
+
+P -> SVC : hủy(lý do, version, Idempotency-Key)
+SVC -> SVC : xác thực; phân quyền chủ sở hữu; kiểm tra lý do
+
+break [danh tính / quyền / đầu vào không hợp lệ]
+  SVC --> P : 401 / 403 / 404 / 422
+end
+
+SVC -> DB : BEGIN; giữ chỗ idempotency key
+
+break [trùng lặp đã hoàn thành / payload không khớp]
+  SVC -> DB : hoàn tất giao dịch không thay đổi dữ liệu
+  DB --> SVC : kết quả trước / 409
+  SVC --> P : kết quả trước / 409
+end
+
+SVC -> DB : khóa Bác sĩ, rồi Bệnh nhân, rồi lịch hẹn
+SVC -> DB : yêu cầu CONFIRMED, version khớp, hiện tại <= bắt đầu - 2h
+
+alt [đủ điều kiện]
+  SVC -> DB : đặt CANCELLED, lý do, version + 1;\naudit + outbox hủy + kết quả idempotency
+
+  alt [ghi thành công]
+    SVC -> DB : COMMIT
+    DB --> SVC : lịch hẹn đã hủy
+    SVC --> P : lịch hẹn đã hủy
+  end
+
+  alt [lỗi lưu trữ / audit]
+    SVC -> DB : ROLLBACK
+    SVC --> P : 503
+  end
+end
+
+alt [không đủ điều kiện]
+  SVC -> DB : ROLLBACK
+  SVC --> P : 409; không thay đổi
+end
+
+note over SVC
+  Job nhắc lịch bị vô hiệu khi version/trạng thái thay đổi.
+  Xác nhận hủy được gửi bất đồng bộ.
+end note
+
+@enduml
