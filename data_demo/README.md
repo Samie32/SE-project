@@ -69,9 +69,7 @@ Trên máy chủ Linux đã khởi động Internet Compose, chạy từ thư m�
 sudo python3 -B data_demo/load_local_demo.py --internet --apply
 ```
 
-Ở bản cài mới, `DEMO_PASSWORD` trong `.env.internet` mặc định là `DemoClinic` và được dùng cho `patient3`, `doctor2` đến `doctor8`. Nếu VM cũ chưa có biến này, trình nạp tiếp tục dùng mật khẩu lưu tại `infra/runtime/internet/demo-seed-password`. Đặt `DEMO_PASSWORD` rồi nạp lại để đồng bộ nhóm tài khoản bổ sung.
-
-Để đổi riêng mật khẩu `doctor` và `patient` trên VM đã cài, chạy `python3 -B data_demo/load_local_demo.py --internet --demo-logins --apply`. Lệnh dùng `DEMO_PASSWORD` nếu đã cấu hình, mặc định là `DemoClinic`. Xem [hướng dẫn cập nhật VM](../docs/deploy-internet-demo.md#cập-nhật-vm-đang-chạy).
+Tất cả 14 tài khoản mẫu trong bảng mặc định dùng `DemoClinic` trên VM. Để đổi, đặt `DEMO_PASSWORD` trong `.env.internet`. Chạy `python3 -B data_demo/load_local_demo.py --internet --demo-logins --apply` để đồng bộ mật khẩu các tài khoản mẫu đã có mà không tạo thêm lịch hẹn. Chạy chế độ nạp thông thường nếu cần tạo tài khoản bổ sung và lịch mẫu. Xem [hướng dẫn cập nhật VM](../docs/deploy-internet-demo.md#cập-nhật-vm-đang-chạy).
 
 ## 3. Dữ liệu có sẵn
 

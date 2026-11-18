@@ -20,7 +20,7 @@ docker compose --env-file .env.internet -f compose.yaml -f compose.internet.yaml
 docker compose --env-file .env.internet -f compose.yaml -f compose.internet.yaml ps
 ```
 
-Ở bản cài mới, `doctor` và `patient` mặc định dùng `DemoClinic`. Bạn có thể đặt `DEMO_PASSWORD` khi tạo cấu hình hoặc sửa biến trong `.env.internet` rồi chạy lệnh cập nhật bên dưới. Tài khoản quản trị và các tài khoản khởi tạo khác có mật khẩu riêng trong `infra/runtime/internet/clinic-realm.json`. Giữ các file cấu hình trên máy chủ. Chỉ dùng mật khẩu mặc định với dữ liệu mô phỏng.
+Tất cả tài khoản mẫu của ClinicCare dùng mật khẩu mặc định `DemoClinic`. Đặt `DEMO_PASSWORD` khi tạo cấu hình hoặc sửa biến này trong `.env.internet` để dùng giá trị khác. Mật khẩu quản trị hạ tầng Keycloak (`KEYCLOAK_ADMIN_PASSWORD`) được sinh riêng. Giữ các file cấu hình trên máy chủ và chỉ dùng bộ tài khoản này với dữ liệu mô phỏng.
 
 ### Cập nhật VM đang chạy
 
@@ -37,7 +37,7 @@ docker compose --env-file .env.internet -f compose.yaml -f compose.internet.yaml
 python3 -B data_demo/load_local_demo.py --internet --demo-logins --apply
 ```
 
-Lệnh cuối xác thực lại hai tài khoản sau khi áp dụng mật khẩu. Keycloak lưu thay đổi trong volume đang dùng. File realm JSON là bản import ban đầu nên mật khẩu trong đó có thể cũ sau khi đổi trực tiếp. Bản cập nhật này dùng lại image đang có.
+Lệnh cuối áp dụng và xác thực lại các tài khoản mẫu đã có trong realm `clinic`. Khi đã nạp đủ dữ liệu mẫu, kết quả là `Verified Keycloak demo logins: 14 accounts.` Lệnh dùng giá trị `DEMO_PASSWORD` nếu đã cấu hình, mặc định là `DemoClinic`. Keycloak lưu thay đổi trong volume đang dùng. File realm JSON là bản import ban đầu và có thể còn lưu mật khẩu cũ. Bản cập nhật này dùng lại image đang có.
 
 Sau khi dịch vụ sẵn sàng, chạy `sudo python3 -B data_demo/load_local_demo.py --internet --apply` trên máy chủ để thêm chuyên khoa, bác sĩ và lịch mẫu. Xem [tài khoản và cách nạp](../data_demo/README.md#2-tài-khoản-và-mật-khẩu-demo).
 

@@ -146,7 +146,7 @@ def internet_credentials(*, seed_data=True):
     env = read_env(ROOT / ".env.internet")
     runtime = ROOT / "infra/runtime/internet"
     realm = json.loads((runtime / "clinic-realm.json").read_text(encoding="utf-8"))
-    existing_passwords = {user["username"]: user["credentials"][0]["value"] for user in realm["users"]}
+    ids = {user["username"]: user["id"] for user in realm["users"]}
     compose = ["docker", "compose", "--env-file", ".env.internet",
                "-f", "compose.yaml", "-f", "compose.internet.yaml"]
     container = subprocess.check_output(compose + ["ps", "-q", "keycloak"], cwd=ROOT, text=True).strip()
@@ -162,18 +162,7 @@ def internet_credentials(*, seed_data=True):
     OIDC_HEADERS.update({"X-Forwarded-Proto": "https", "X-Forwarded-Host": env["AUTH_HOST"],
                          "X-Forwarded-Port": "443"})
     admin = login("admin", env["KEYCLOAK_ADMIN_PASSWORD"], realm="master", client="admin-cli")
-    password = os.getenv("DEMO_PASSWORD") or env.get("DEMO_PASSWORD")
-    if seed_data and not password:
-        password_path = runtime / "demo-seed-password"
-        try:
-            fd = os.open(password_path, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
-            with os.fdopen(fd, "w", encoding="utf-8") as file:
-                file.write(secrets.token_urlsafe(24) + "\n")
-        except FileExistsError:
-            pass
-        password = password_path.read_text(encoding="utf-8").strip()
-        if not password:
-            raise RuntimeError("The Internet demo seed password file is empty.")
+    password = os.getenv("DEMO_PASSWORD") or env.get("DEMO_PASSWORD") or "DemoClinic"
     client_path = "/admin/realms/clinic/clients"
     client_id = f"clinic-demo-seed-{secrets.token_hex(8)}"
     client_uuid = str(uuid5(NAMESPACE_URL, client_id))
@@ -186,7 +175,7 @@ def internet_credentials(*, seed_data=True):
     }, token=admin)
     DEMO_CLIENT.update(client_id=client_id, client_secret=client_secret)
     try:
-        tokens = {name: login(name, existing_passwords[name])
+        tokens = {name: demo_login(admin, name, password, ids[name])
                   for name in ("admin", "receptionist")} if seed_data else {}
         yield admin, tokens, password
     finally:
@@ -221,7 +210,7 @@ def demo_login(admin, username, password, expected_id=None):
             raise
     rows = keycloak_users(admin, username)
     if len(rows) != 1 or (expected_id and rows[0]["id"] != expected_id):
-        raise RuntimeError(f"Cannot identify the local demo account {username}.")
+        raise RuntimeError(f"Cannot identify the demo account {username}.")
     request(OIDC, f"{KEYCLOAK_USERS_PATH}/{rows[0]['id']}/reset-password", "PUT", {
         "type": "password", "value": password, "temporary": False,
     }, token=admin)
@@ -415,7 +404,7 @@ def main():
     parser.add_argument("--apply", action="store_true", help="Write demo data to the selected demo stack.")
     parser.add_argument("--internet", action="store_true", help="Use Internet Compose from its Linux host.")
     parser.add_argument("--demo-logins", action="store_true",
-                        help="Set the Internet demo doctor and patient passwords without seeding data.")
+                        help="Set passwords for existing Internet demo accounts without seeding data.")
     parser.add_argument("--date", type=date.fromisoformat, help="First future date (YYYY-MM-DD, Vietnam).")
     parser.add_argument("--clinical-at", help="Optional clinical example today at HH:MM Vietnam time.")
     args = parser.parse_args()
@@ -425,9 +414,20 @@ def main():
         realm = json.loads((ROOT / "infra/runtime/internet/clinic-realm.json").read_text(encoding="utf-8"))
         ids = {user["username"]: user["id"] for user in realm["users"]}
         with internet_credentials(seed_data=False) as (admin, _, password):
-            for username in ("doctor", "patient"):
-                demo_login(admin, username, password or "DemoClinic", ids[username])
-        print("Updated Keycloak demo logins: doctor, patient.")
+            password = password or "DemoClinic"
+            additional_users = (
+                (DOCTOR, DOCTOR_GIVEN_NAME, DOCTOR_FAMILY_NAME),
+                (PATIENT, PATIENT_GIVEN_NAME, PATIENT_FAMILY_NAME),
+                *((username, given_name, family_name) for username, given_name, family_name, _ in EXTRA_DOCTORS),
+            )
+            for username, given_name, family_name in additional_users:
+                rows = keycloak_users(admin, username)
+                if rows:
+                    ensure_keycloak_user(admin, username, given_name, family_name, password, rows)
+                    ids[username] = rows[0]["id"]
+            for username, user_id in ids.items():
+                demo_login(admin, username, password, user_id)
+        print(f"Verified Keycloak demo logins: {len(ids)} accounts.")
         return
 
     today = datetime.now(VN).date()

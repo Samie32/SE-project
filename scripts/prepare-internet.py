@@ -55,9 +55,8 @@ def main():
     if any(char in demo_password for char in "\r\n"):
         parser.error("DEMO_PASSWORD must fit on one line.")
     for user in realm["users"]:
-        password = demo_password if user["username"] in {"doctor", "patient"} else secrets.token_urlsafe(24)
         user["credentials"] = [
-            {"type": "password", "value": password, "temporary": False}
+            {"type": "password", "value": demo_password, "temporary": False}
         ]
 
     values = {
