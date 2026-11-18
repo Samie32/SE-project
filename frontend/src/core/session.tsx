@@ -56,6 +56,7 @@ export function OidcSessionProvider({ children }: { children: ReactNode }) {
       response_type="code"
       scope="openid profile email"
       userStore={userStore}
+      requestTimeoutInSeconds={20}
       automaticSilentRenew
       onSigninCallback={(user) => {
         const from = (user as unknown as { state?: { from?: string } } | undefined)?.state?.from;

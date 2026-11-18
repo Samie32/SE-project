@@ -1,10 +1,12 @@
 import { useEffect, useState } from "react";
 import { CalendarDays, CalendarOff, ChevronLeft, ChevronRight, Plus, Stethoscope, Trash2, Video } from "lucide-react";
 import { createAvailability, createTimeOff, deleteAvailability, deleteTimeOff, listAvailability, listTimeOff } from "@/api/schedule";
+import { getClinicHours } from "@/api/clinic-hours";
 import { ApiError, errorMessage } from "@/core/client";
+import { clinicWindow, type ClinicDayHours } from "@/core/clinic-hours";
 import { useAsync, useNow } from "@/core/useAsync";
 import { addDays, addMonths, dayKey, formatTime, localToIso, longDate, monthGridDays, monthLabel, monthStart, todayKey, weekStart, weekdayShort } from "@/core/datetime";
-import { nextWorkingDay, overlaps, scheduleIntervalError, SHIFT_PRESETS, slotDurationError, suggestValidInterval } from "@/core/schedule-rules";
+import { nextWorkingDay, overlaps, scheduleIntervalError, shiftPresets, slotDurationError, suggestValidInterval } from "@/core/schedule-rules";
 import { MODE_SHORT } from "@/core/labels";
 import type { AppointmentMode, Availability, TimeOff } from "@/core/types";
 import { AsyncBlock, ConfirmDialog, Field, Modal, Notice, PageHead, Panel, useToast } from "@/ui";
@@ -15,15 +17,17 @@ function toInterval(date:string,start:string,end:string) {
   catch { return {startAt:"",endAt:""}; }
 }
 const hhmmToMin=(hhmm:string)=>{const [h,m]=hhmm.split(":").map(Number);return h*60+m;};
-function addShiftBlockReason(date:string,dayShifts:Availability[],now:number):string {
-  if(new Date(`${date}T00:00:00Z`).getUTCDay()===0) return "Phòng khám nghỉ Chủ nhật (chỉ làm việc thứ Hai–thứ Bảy).";
+function addShiftBlockReason(date:string,dayShifts:Availability[],now:number,hours:readonly ClinicDayHours[]):string {
+  const window=clinicWindow(date,hours);
+  if(!window) return "Phòng khám nghỉ ngày này.";
+  const close=hhmmToMin(window.end);
   const todayStr=dayKey(new Date(now));
   if(date<todayStr) return "Ngày này đã qua, không thể đăng ký ca làm việc.";
-  let earliest=8*60;
+  let earliest=hhmmToMin(window.start);
   if(date===todayStr){
     const nowMin=hhmmToMin(formatTime(new Date(now).toISOString()));
     earliest=Math.max(earliest,nowMin+1);
-    if(earliest>=17*60) return "Hôm nay đã hết giờ làm việc của phòng khám (08:00–17:00), không thể đăng ký thêm ca.";
+    if(earliest>=close) return "Hôm nay đã hết giờ làm việc của phòng khám.";
   }
   let cursor=earliest;
   const sorted=[...dayShifts].sort((x,y)=>x.startAt.localeCompare(y.startAt));
@@ -32,7 +36,7 @@ function addShiftBlockReason(date:string,dayShifts:Availability[],now:number):st
     if(sm>cursor) return "";
     cursor=Math.max(cursor,em);
   }
-  if(cursor>=17*60) return "Khung giờ làm việc trong ngày này đã kín, không còn thời gian trống để đăng ký thêm ca.";
+  if(cursor>=close) return "Khung giờ làm việc trong ngày này đã kín, không còn thời gian trống để đăng ký thêm ca.";
   return "";
 }
 function DayTimeline({
@@ -40,6 +44,7 @@ function DayTimeline({
   shifts,
   breaks,
   now,
+  hours,
   highlightId,
   onSelect,
 }:{
@@ -47,21 +52,31 @@ function DayTimeline({
   shifts:Availability[];
   breaks:TimeOff[];
   now:number;
+  hours:readonly ClinicDayHours[];
   highlightId?:string;
   onSelect?:(v:{kind:"availability";item:Availability}|{kind:"off";item:TimeOff})=>void;
 }) {
-  const OPEN=8*60,CLOSE=17*60,SPAN=CLOSE-OPEN;
+  const window=clinicWindow(date,hours);
+  const items=[...shifts,...breaks];
+  const OPEN=Math.min(window ? hhmmToMin(window.start) : Infinity,...items.map(item=>hhmmToMin(formatTime(item.startAt))));
+  const CLOSE=Math.max(window ? hhmmToMin(window.end) : -Infinity,...items.map(item=>hhmmToMin(formatTime(item.endAt))));
+  const SPAN=CLOSE-OPEN;
+  if(!Number.isFinite(SPAN)||SPAN<=0) return null;
   const pct=(min:number)=>Math.max(0,Math.min(100,((min-OPEN)/SPAN)*100));
   const isToday=date===todayKey();
   const nowMin=hhmmToMin(formatTime(new Date(now).toISOString()));
   const showNow=isToday&&nowMin>=OPEN&&nowMin<=CLOSE;
-  const ticks=[8,10,12,14,16,17];
-  return <div className="day-tl" aria-label="Dòng thời gian trong ngày 08:00 đến 17:00">
+  const tickStep=Math.max(1,Math.ceil(SPAN/300))*60;
+  const ticks=[OPEN];
+  for(let minute=Math.ceil((OPEN+1)/tickStep)*tickStep;minute<CLOSE;minute+=tickStep) ticks.push(minute);
+  ticks.push(CLOSE);
+  const label=(minute:number)=>`${String(Math.floor(minute/60)).padStart(2,"0")}:${String(minute%60).padStart(2,"0")}`;
+  return <div className="day-tl" aria-label={`Dòng thời gian trong ngày ${label(OPEN)} đến ${label(CLOSE)}`}>
     <div className="day-tl-ticks">
-      {ticks.map(h=><span key={h} style={{left:`${pct(h*60)}%`}}>{String(h).padStart(2,"0")}:00</span>)}
+      {ticks.map(minute=><span key={minute} style={{left:`${pct(minute)}%`}}>{label(minute)}</span>)}
     </div>
     <div className="day-tl-track">
-      {ticks.slice(1,-1).map(h=><i key={h} className="day-tl-grid" style={{left:`${pct(h*60)}%`}} aria-hidden/>)}
+      {ticks.slice(1,-1).map(minute=><i key={minute} className="day-tl-grid" style={{left:`${pct(minute)}%`}} aria-hidden/>)}
       {shifts.map(x=>{
         const s=hhmmToMin(formatTime(x.startAt)),e=hhmmToMin(formatTime(x.endAt));
         const past=Date.parse(x.endAt)<=now,ongoing=Date.parse(x.startAt)<=now&&Date.parse(x.endAt)>now;
@@ -100,27 +115,37 @@ function Presets({
   start,
   end,
   onChange,
-  fullDay=false,
+  presets,
   disabledIds=[],
 }:{
   start:string;
   end:string;
   onChange:(s:string,e:string)=>void;
-  fullDay?:boolean;
+  presets:ReturnType<typeof shiftPresets>;
   disabledIds?:string[];
 }) {
-  const presets=(fullDay ? [...SHIFT_PRESETS,{id:"day",label:"Cả ngày",start:"08:00",end:"17:00"}] : [...SHIFT_PRESETS])
-    .filter(p=>!disabledIds.includes(p.id));
-  if(!presets.length) return <Notice tone="warn">Các khung giờ gợi ý (Ca sáng, Ca chiều) trong ngày này đã có ca. Bạn chỉ có thể chọn khoảng giờ còn trống (nếu có).</Notice>;
+  const available=presets.filter(p=>!disabledIds.includes(p.id));
+  if(!presets.length) return null;
+  if(!available.length) return <Notice tone="warn">Các khung giờ gợi ý (Ca sáng, Ca chiều) trong ngày này đã có ca. Bạn chỉ có thể chọn khoảng giờ còn trống (nếu có).</Notice>;
   return <div className="schedule-presets" aria-label="Chọn nhanh khung giờ">
-    {presets.map(p=><button key={p.id} type="button" className="schedule-preset" aria-pressed={start===p.start&&end===p.end} onClick={()=>onChange(p.start,p.end)}><b>{p.label}</b><span>{p.start}–{p.end}</span></button>)}
+    {available.map(p=><button key={p.id} type="button" className="schedule-preset" aria-pressed={start===p.start&&end===p.end} onClick={()=>onChange(p.start,p.end)}><b>{p.label}</b><span>{p.start}–{p.end}</span></button>)}
     <span className="muted">Có thể chỉnh giờ bên dưới.</span>
   </div>;
 }
 
-export function ScheduleManager({doctorId}:{doctorId:string}) {
+export type ShiftFilter = "ALL" | "MORNING" | "AFTERNOON";
+export type ModeFilter = "ALL" | AppointmentMode;
+
+export function ScheduleManager({doctorId,shiftFilter="ALL",modeFilter="ALL"}:{doctorId:string;shiftFilter?:ShiftFilter;modeFilter?:ModeFilter}) {
+  const settings=useAsync(getClinicHours);
+  return <AsyncBlock loading={settings.loading} error={settings.error} onRetry={settings.reload}>
+    {settings.data&&<ScheduleCalendar doctorId={doctorId} hours={settings.data.days} shiftFilter={shiftFilter} modeFilter={modeFilter} />}
+  </AsyncBlock>;
+}
+
+function ScheduleCalendar({doctorId,hours,shiftFilter,modeFilter}:{doctorId:string;hours:readonly ClinicDayHours[];shiftFilter:ShiftFilter;modeFilter:ModeFilter}) {
   const toast=useToast();
-  const now=useNow(1000).getTime();
+  const now=useNow(30_000).getTime();
   const [showAddShift,setShowAddShift]=useState(false);
   const [dayDetail,setDayDetail]=useState<string|null>(null);
   const [dayAddError,setDayAddError]=useState("");
@@ -134,16 +159,26 @@ export function ScheduleManager({doctorId}:{doctorId:string}) {
   const [breakBusy,setBreakBusy]=useState(false);
   const [removingBreakId,setRemovingBreakId]=useState<string|null>(null);
   const [view,setView]=useState<"week"|"month">("week");
-  const [week,setWeek]=useState(()=>weekStart(nextWorkingDay()));
-  const [month,setMonth]=useState(()=>monthStart(nextWorkingDay()));
+  const [week,setWeek]=useState(()=>weekStart(nextWorkingDay(hours)));
+  const [month,setMonth]=useState(()=>monthStart(nextWorkingDay(hours)));
   const av=useAsync(()=>listAvailability(doctorId),[doctorId]);
   const off=useAsync(()=>listTimeOff(doctorId),[doctorId]);
-  const [a,setA]=useState(()=>({date:nextWorkingDay(),start:"08:00",end:"12:00",slot:20,mode:"IN_PERSON" as AppointmentMode}));
+  const [a,setA]=useState(()=>{
+    const date=nextWorkingDay(hours);
+    const preset=shiftPresets(date,hours)[0];
+    return {date,start:preset?.start??"",end:preset?.end??"",slot:20,mode:"IN_PERSON" as AppointmentMode};
+  });
   const [aErr,setAErr]=useState("");const [aBusy,setABusy]=useState(false);
   const avs=av.data??[],offs=off.data??[];
+  const matchesFilter=(x:Availability)=>{
+    if(shiftFilter==="MORNING"&&formatTime(x.startAt)>="12:00") return false;
+    if(shiftFilter==="AFTERNOON"&&formatTime(x.startAt)<"12:00") return false;
+    if(modeFilter!=="ALL"&&x.mode!==modeFilter) return false;
+    return true;
+  };
   const ready=!av.loading&&!off.loading&&!av.error&&!off.error;
   const interval=toInterval(a.date,a.start,a.end);
-  const intervalIssue=scheduleIntervalError(interval.startAt,interval.endAt,now);
+  const intervalIssue=scheduleIntervalError(interval.startAt,interval.endAt,now,hours);
   const slotIssue=intervalIssue ? "" : slotDurationError(interval.startAt,interval.endAt,a.slot);
   const conflict=intervalIssue ? undefined : avs.find(x=>overlaps(interval.startAt,interval.endAt,x));
   const conflictIssue=conflict ? `Trùng ca ${formatTime(conflict.startAt)}–${formatTime(conflict.endAt)} (${MODE_SHORT[conflict.mode]}). Một bác sĩ không thể có hai ca chồng giờ, kể cả khác hình thức khám.` : "";
@@ -152,20 +187,20 @@ export function ScheduleManager({doctorId}:{doctorId:string}) {
   const count=!intervalIssue&&!slotIssue ? duration/a.slot : 0;
   const reload=()=>{av.reload();off.reload();};
   const syncPeriod=(date:string)=>{setWeek(weekStart(date));setMonth(monthStart(date));};
-  const takenPresetIds=(date:string)=>SHIFT_PRESETS.filter(p=>{
+  const takenPresetIds=(date:string)=>shiftPresets(date,hours).filter(p=>{
     const iv=toInterval(date,p.start,p.end);
     return iv.startAt&&iv.endAt&&avs.some(x=>overlaps(iv.startAt,iv.endAt,x));
   }).map(p=>p.id);
   const pickFreePreset=(date:string,fallbackStart:string,fallbackEnd:string,slot:number)=>{
     const taken=takenPresetIds(date);
-    const free=SHIFT_PRESETS.find(p=>!taken.includes(p.id));
-    if(free) return suggestValidInterval(date,free.start,free.end,slot,now);
-    return suggestValidInterval(date,fallbackStart,fallbackEnd,slot,now);
+    const free=shiftPresets(date,hours).find(p=>!taken.includes(p.id));
+    if(free) return suggestValidInterval(date,free.start,free.end,slot,now,hours);
+    return suggestValidInterval(date,fallbackStart,fallbackEnd,slot,now,hours);
   };
   useEffect(()=>{
     if(!ready||!showAddShift)return;
     const taken=takenPresetIds(a.date);
-    const onTakenPreset=SHIFT_PRESETS.some(p=>taken.includes(p.id)&&a.start===p.start&&a.end===p.end);
+    const onTakenPreset=shiftPresets(a.date,hours).some(p=>taken.includes(p.id)&&a.start===p.start&&a.end===p.end);
     if(onTakenPreset){
       const next=pickFreePreset(a.date,a.start,a.end,a.slot);
       if(next.start!==a.start||next.end!==a.end) setA(p=>({...p,...next}));
@@ -184,16 +219,18 @@ export function ScheduleManager({doctorId}:{doctorId:string}) {
     setDayDetail(date);
   };
   const autoFixAvailability=()=>{
-    const isSunday=new Date(`${a.date}T00:00:00Z`).getUTCDay()===0;
-    const targetDate=isSunday||(a.date===today&&formatTime(new Date(now).toISOString())>="16:55")?nextWorkingDay():a.date;
-    const fixed=suggestValidInterval(targetDate,a.start,a.end,a.slot,now);
+    const window=clinicWindow(a.date,hours);
+    const time=formatTime(new Date(now).toISOString());
+    const insufficientToday=window&&a.date===today&&hhmmToMin(window.end)-hhmmToMin(time)<=a.slot;
+    const targetDate=!window||a.date<today||insufficientToday?nextWorkingDay(hours):a.date;
+    const fixed=suggestValidInterval(targetDate,a.start,a.end,a.slot,now,hours);
     setA(p=>({...p,date:targetDate,...fixed}));
     syncPeriod(targetDate);
     setAErr("");
   };
   const openBreakFormForShift=(shift:Availability)=>{
     const date=dayKey(shift.startAt);
-    const fixed=suggestValidInterval(date,formatTime(shift.startAt),formatTime(shift.endAt),undefined,now);
+    const fixed=suggestValidInterval(date,formatTime(shift.startAt),formatTime(shift.endAt),undefined,now,hours);
     setBreakRange(fixed);
     setBreakErr("");
     setShowBreakForm(true);
@@ -231,7 +268,7 @@ export function ScheduleManager({doctorId}:{doctorId:string}) {
 
   async function addAv(e:React.FormEvent) {
     e.preventDefault();setAErr("");
-    const issue=scheduleIntervalError(interval.startAt,interval.endAt)||slotDurationError(interval.startAt,interval.endAt,a.slot)||conflictIssue;
+    const issue=scheduleIntervalError(interval.startAt,interval.endAt,Date.now(),hours)||slotDurationError(interval.startAt,interval.endAt,a.slot)||conflictIssue;
     if(issue){setAErr(issue);return;}
     if(!ready){setAErr("Cần tải xong lịch hiện tại trước khi thêm ca.");return;}
     setABusy(true);
@@ -243,7 +280,7 @@ export function ScheduleManager({doctorId}:{doctorId:string}) {
     e.preventDefault();setBreakErr("");
     const date=dayKey(shift.startAt);
     const times=toInterval(date,breakRange.start,breakRange.end);
-    const issue=scheduleIntervalError(times.startAt,times.endAt,now);
+    const issue=scheduleIntervalError(times.startAt,times.endAt,now,hours);
     if(issue){setBreakErr(issue);return;}
     if(Date.parse(times.startAt)<Date.parse(shift.startAt)||Date.parse(times.endAt)>Date.parse(shift.endAt)){
       setBreakErr(`Thời gian nghỉ phải nằm trong ca (${formatTime(shift.startAt)}–${formatTime(shift.endAt)}).`);return;
@@ -267,7 +304,7 @@ export function ScheduleManager({doctorId}:{doctorId:string}) {
   const shiftOngoing=(s:{startAt:string;endAt:string})=>Date.parse(s.startAt)<=now&&Date.parse(s.endAt)>now;
 
   return <>
-    <Panel className="schedule-panel" title={view==="week"?"Lịch làm việc theo tuần":"Lịch làm việc theo tháng"} subtitle={`${view==="week"?`${longDate(week)} – ${longDate(addDays(week,6))}`:monthLabel(month)} · 08:00–17:00 (T2–T7)`}
+    <Panel className="schedule-panel" title={view==="week"?"Lịch làm việc theo tuần":"Lịch làm việc theo tháng"} subtitle={`${view==="week"?`${longDate(week)} – ${longDate(addDays(week,6))}`:monthLabel(month)} · Giờ Việt Nam`}
       actions={<div className="row wrap">
         <button className="btn sm" aria-label={view==="week"?"Tuần trước":"Tháng trước"} onClick={()=>view==="week"?setWeek(addDays(week,-7)):setMonth(addMonths(month,-1))}><ChevronLeft size={15}/></button>
         <button
@@ -285,23 +322,34 @@ export function ScheduleManager({doctorId}:{doctorId:string}) {
         <span className="legend-item"><i className="legend-dot off" aria-hidden/>Nghỉ</span>
         <span className="legend-item"><i className="legend-dot ongoing" aria-hidden/>Đang diễn ra</span>
         <span className="legend-item"><i className="legend-dot past" aria-hidden/>Đã qua</span>
-        <span className="legend-meta">Mặc định 20 phút/lượt · UTC+7</span>
       </div>
       <AsyncBlock loading={av.loading||off.loading} error={av.error||off.error} onRetry={reload}>
         {view==="week"?(
-          <div className="schedule-week-scroll" tabIndex={0} role="region" aria-label="Lịch tuần, cuộn ngang để xem đủ ngày"><div className="weekgrid">{weekDays.map((day,index)=>{
+          <div
+            className="schedule-week-scroll"
+            role="region"
+            aria-label="Lịch tuần, cuộn ngang để xem đủ ngày"
+            onWheel={e => {
+              const el = e.currentTarget;
+              if (el.scrollWidth <= el.clientWidth) return;
+              if (Math.abs(e.deltaY) > Math.abs(e.deltaX) && e.deltaY !== 0) {
+                el.scrollLeft += e.deltaY;
+                e.preventDefault();
+              }
+            }}
+          ><div className="weekgrid">{weekDays.map(day=>{
             const shifts=avs.filter(x=>dayKey(x.startAt)===day).sort((x,y)=>x.startAt.localeCompare(y.startAt));
             const breaks=offs.filter(x=>dayKey(x.startAt)===day).sort((x,y)=>x.startAt.localeCompare(y.startAt));
             const isPastDay=day<today;
-            const isSunday=index===6;
-            return <div key={day} className={`weekday weekday-clickable${day===today?" today":""}${day===a.date?" schedule-selected":""}${isPastDay?" past-day":""}${isSunday?" sunday":""}`} onClick={()=>openDayDetail(day)}>
+            const isClosed=!clinicWindow(day,hours);
+            return <div key={day} className={`weekday weekday-clickable${day===today?" today":""}${day===a.date?" schedule-selected":""}${isPastDay?" past-day":""}${isClosed?" sunday":""}`} onClick={()=>openDayDetail(day)}>
               <button type="button" className="wd-head schedule-day" aria-pressed={day===dayDetail} aria-label={`Xem chi tiết ngày ${longDate(day)}`} onClick={e=>{e.stopPropagation();openDayDetail(day);}}><b>{weekdayShort(day)}</b><span>{day.slice(8)}/{day.slice(5,7)}</span></button>
-              {isSunday&&<p className="muted">Phòng khám nghỉ</p>}
-              {!isSunday&&!shifts.length&&!breaks.length&&<p className="muted">Chưa có ca</p>}
+              {isClosed&&<p className="muted">Phòng khám nghỉ</p>}
+              {!isClosed&&!shifts.length&&!breaks.length&&<p className="muted">Chưa có ca</p>}
               {shifts.map(x=>{
-                const past=shiftEnded(x),ongoing=shiftOngoing(x);
+                const past=shiftEnded(x),ongoing=shiftOngoing(x),dimmed=!past&&!matchesFilter(x);
                 const shiftBreaks=breaks.filter(b=>overlaps(x.startAt,x.endAt,b));
-                return <button type="button" key={x.id} className={`wblock schedule-event${x.mode==="REMOTE"?" remote":" in-person"}${past?" past":""}${ongoing?" ongoing":""}`} aria-label={`Xem ca ${longDate(day)} ${formatTime(x.startAt)}–${formatTime(x.endAt)} ${MODE_SHORT[x.mode]}`} onClick={e=>{e.stopPropagation();selectItem({kind:"availability",item:x});}}>
+                return <button type="button" key={x.id} className={`wblock schedule-event${x.mode==="REMOTE"?" remote":" in-person"}${past?" past":""}${ongoing?" ongoing":""}${dimmed?" dimmed":""}`} aria-label={`Xem ca ${longDate(day)} ${formatTime(x.startAt)}–${formatTime(x.endAt)} ${MODE_SHORT[x.mode]}`} onClick={e=>{e.stopPropagation();selectItem({kind:"availability",item:x});}}>
                   <span className="wblock-top">
                     <b>{formatTime(x.startAt)}–{formatTime(x.endAt)}</b>
                     {ongoing?<span className="shift-tag live">Đang diễn ra</span>:past?<span className="shift-tag past">Đã qua</span>:null}
@@ -326,14 +374,14 @@ export function ScheduleManager({doctorId}:{doctorId:string}) {
             <div className="monthgrid-head" aria-hidden="true">
               {["Th 2","Th 3","Th 4","Th 5","Th 6","Th 7","CN"].map((d,i)=><div key={d} className={i===6?"sunday":""}>{d}</div>)}
             </div>
-            <div className="monthgrid">{monthDays.map((day,idx)=>{
+            <div className="monthgrid">{monthDays.map(day=>{
               const shifts=avs.filter(x=>dayKey(x.startAt)===day).sort((x,y)=>x.startAt.localeCompare(y.startAt));
               const breaks=offs.filter(x=>dayKey(x.startAt)===day).sort((x,y)=>x.startAt.localeCompare(y.startAt));
-              const isSunday=idx%7===6;
+              const isClosed=!clinicWindow(day,hours);
               const isOutside=day.slice(0,7)!==month.slice(0,7);
               const isPastDay=day<today;
               const isToday=day===today;
-              return <div key={day} className={`monthday weekday-clickable${isToday?" today":""}${isOutside?" outside":""}${isPastDay?" past-day":""}${isSunday?" sunday":""}${day===a.date?" schedule-selected":""}`} onClick={()=>openDayDetail(day)}>
+              return <div key={day} className={`monthday weekday-clickable${isToday?" today":""}${isOutside?" outside":""}${isPastDay?" past-day":""}${isClosed?" sunday":""}${day===a.date?" schedule-selected":""}`} onClick={()=>openDayDetail(day)}>
                 <div className="md-head">
                   <button type="button" className="md-num" aria-label={`Xem chi tiết ngày ${longDate(day)}`} onClick={e=>{e.stopPropagation();openDayDetail(day);}}>
                     <span>{Number(day.slice(8))}</span>
@@ -342,9 +390,9 @@ export function ScheduleManager({doctorId}:{doctorId:string}) {
                 </div>
                 <div className="md-events">
                   {shifts.map(x=>{
-                    const past=shiftEnded(x),ongoing=shiftOngoing(x);
+                    const past=shiftEnded(x),ongoing=shiftOngoing(x),dimmed=!past&&!matchesFilter(x);
                     const hasBreak=breaks.some(b=>overlaps(x.startAt,x.endAt,b));
-                    return <button type="button" key={x.id} className={`mchip${x.mode==="REMOTE"?" remote":" in-person"}${past?" past":""}${ongoing?" ongoing":""}`} title={`${formatTime(x.startAt)}–${formatTime(x.endAt)} · ${MODE_SHORT[x.mode]}${hasBreak?" (Có giờ nghỉ)":""}${past?" (Đã qua)":""}`} aria-label={`Xem ca ${longDate(day)} ${formatTime(x.startAt)}–${formatTime(x.endAt)} ${MODE_SHORT[x.mode]}`} onClick={e=>{e.stopPropagation();selectItem({kind:"availability",item:x});}}>
+                    return <button type="button" key={x.id} className={`mchip${x.mode==="REMOTE"?" remote":" in-person"}${past?" past":""}${ongoing?" ongoing":""}${dimmed?" dimmed":""}`} title={`${formatTime(x.startAt)}–${formatTime(x.endAt)} · ${MODE_SHORT[x.mode]}${hasBreak?" (Có giờ nghỉ)":""}${past?" (Đã qua)":""}`} aria-label={`Xem ca ${longDate(day)} ${formatTime(x.startAt)}–${formatTime(x.endAt)} ${MODE_SHORT[x.mode]}`} onClick={e=>{e.stopPropagation();selectItem({kind:"availability",item:x});}}>
                       <span className="mchip-dot" aria-hidden/>
                       <span>{formatTime(x.startAt)}–{formatTime(x.endAt)}</span>
                       {hasBreak&&<CalendarOff size={10} aria-hidden/>}
@@ -357,7 +405,7 @@ export function ScheduleManager({doctorId}:{doctorId:string}) {
                       <span>Nghỉ {formatTime(x.startAt)}–{formatTime(x.endAt)}</span>
                     </button>;
                   })}
-                  {isSunday&&!shifts.length&&!breaks.length&&<span className="md-closed">Nghỉ</span>}
+                  {isClosed&&!shifts.length&&!breaks.length&&<span className="md-closed">Nghỉ</span>}
                 </div>
               </div>;
             })}</div>
@@ -368,13 +416,15 @@ export function ScheduleManager({doctorId}:{doctorId:string}) {
     {dayDetail&&(()=>{
       const dayShifts=avs.filter(x=>dayKey(x.startAt)===dayDetail).sort((x,y)=>x.startAt.localeCompare(y.startAt));
       const dayBreaks=offs.filter(x=>dayKey(x.startAt)===dayDetail).sort((x,y)=>x.startAt.localeCompare(y.startAt));
-      const isSunday=new Date(`${dayDetail}T00:00:00Z`).getUTCDay()===0;
-      const blockReason=addShiftBlockReason(dayDetail,dayShifts,now);
+      const dayWindow=clinicWindow(dayDetail,hours);
+      const isClosed=!dayWindow;
+      const formWindow=clinicWindow(a.date,hours);
+      const blockReason=addShiftBlockReason(dayDetail,dayShifts,now,hours);
       return <Modal title={`Chi tiết ${longDate(dayDetail)}`} onClose={closeDayDetail} footer={!showAddShift?<button className="btn primary" onClick={()=>{if(blockReason){setDayAddError(blockReason);return;}chooseDay(dayDetail);}}><Plus size={14} aria-hidden/>Thêm ca làm việc</button>:undefined}>
         {dayAddError&&<Notice tone="warn">{dayAddError}</Notice>}
-        {!isSunday&&<DayTimeline date={dayDetail} shifts={dayShifts} breaks={dayBreaks} now={now} onSelect={item=>{setDayDetail(null);setShowAddShift(false);setDayAddError("");selectItem(item);}}/>}
-        {isSunday&&<Notice tone="info">Chủ nhật phòng khám nghỉ.</Notice>}
-        {!isSunday&&!dayShifts.length&&!dayBreaks.length&&!showAddShift&&<p className="muted">Chưa có ca làm việc hoặc lịch nghỉ nào trong ngày này.</p>}
+        {(!isClosed||dayShifts.length>0||dayBreaks.length>0)&&<DayTimeline date={dayDetail} shifts={dayShifts} breaks={dayBreaks} now={now} hours={hours} onSelect={item=>{setDayDetail(null);setShowAddShift(false);setDayAddError("");selectItem(item);}}/>}
+        {dayWindow?<p className="muted">Giờ hoạt động {dayWindow.start}–{dayWindow.end}</p>:<Notice tone="info">Phòng khám nghỉ ngày này.</Notice>}
+        {!isClosed&&!dayShifts.length&&!dayBreaks.length&&!showAddShift&&<p className="muted">Chưa có ca làm việc hoặc lịch nghỉ nào trong ngày này.</p>}
         {dayShifts.length>0&&<div className="day-detail-group">
           <b className="day-detail-title">Ca làm việc ({dayShifts.length})</b>
           <div className="day-detail-list">
@@ -415,11 +465,11 @@ export function ScheduleManager({doctorId}:{doctorId:string}) {
               <Field label="Ngày làm việc" required>{id=><input id={id} type="date" className="field" min={todayKey()} value={a.date} onChange={e=>{const date=e.target.value;const fixed=date?pickFreePreset(date,a.start,a.end,a.slot):{start:a.start,end:a.end};setA({...a,date,...fixed});if(date){syncPeriod(date);setDayDetail(date);}setAErr("");}}/>}</Field>
               <Field label="Hình thức khám" required>{id=><select id={id} className="field" value={a.mode} onChange={e=>setA({...a,mode:e.target.value as AppointmentMode})}><option value="IN_PERSON">{MODE_SHORT.IN_PERSON}</option><option value="REMOTE">{MODE_SHORT.REMOTE}</option></select>}</Field>
             </div>
-            <Presets start={a.start} end={a.end} disabledIds={takenPresetIds(a.date)} onChange={(start,end)=>{const fixed=suggestValidInterval(a.date,start,end,a.slot,now);setA({...a,...fixed});setAErr("");}}/>
+            <Presets presets={shiftPresets(a.date,hours)} start={a.start} end={a.end} disabledIds={takenPresetIds(a.date)} onChange={(start,end)=>{const fixed=suggestValidInterval(a.date,start,end,a.slot,now,hours);setA({...a,...fixed});setAErr("");}}/>
             <div className="formgrid">
-              <Field label="Giờ bắt đầu ca" required>{id=><input id={id} type="time" className="field" min="08:00" max="17:00" step={60} value={a.start} onChange={e=>setA({...a,start:e.target.value})}/>}</Field>
-              <Field label="Giờ kết thúc ca" required>{id=><input id={id} type="time" className="field" min="08:00" max="17:00" step={60} value={a.end} onChange={e=>setA({...a,end:e.target.value})}/>}</Field>
-              <Field label="Phút mỗi lượt khám" required>{id=><input id={id} type="number" className="field" min={1} max={540} step={1} value={a.slot||""} onChange={e=>{const slot=Number(e.target.value);const fixed=Number.isInteger(slot)&&slot>=1&&slot<=540?suggestValidInterval(a.date,a.start,a.end,slot,now):{start:a.start,end:a.end};setA({...a,slot,...fixed});}}/>}</Field>
+              <Field label="Giờ bắt đầu ca" required>{id=><input id={id} type="time" className="field" min={formWindow?.start} max={formWindow?.end} step={60} value={a.start} onChange={e=>setA({...a,start:e.target.value})}/>}</Field>
+              <Field label="Giờ kết thúc ca" required>{id=><input id={id} type="time" className="field" min={formWindow?.start} max={formWindow?.end} step={60} value={a.end} onChange={e=>setA({...a,end:e.target.value})}/>}</Field>
+              <Field label="Phút mỗi lượt khám" required>{id=><input id={id} type="number" className="field" min={1} max={540} step={1} value={a.slot||""} onChange={e=>{const slot=Number(e.target.value);const fixed=Number.isInteger(slot)&&slot>=1&&slot<=540?suggestValidInterval(a.date,a.start,a.end,slot,now,hours):{start:a.start,end:a.end};setA({...a,slot,...fixed});}}/>}</Field>
             </div>
             <div className="schedule-summary" aria-live="polite">
               <span>{intervalIssue||slotIssue||`${a.start}–${a.end} · ${duration} phút · ${count} lượt khám dự kiến`}</span>
@@ -443,6 +493,7 @@ export function ScheduleManager({doctorId}:{doctorId:string}) {
         shifts={avs.filter(x=>dayKey(x.startAt)===dayKey(selected.item.startAt))}
         breaks={offs.filter(x=>dayKey(x.startAt)===dayKey(selected.item.startAt))}
         now={now}
+        hours={hours}
         highlightId={selected.item.id}
         onSelect={item=>selectItem(item)}
       />}

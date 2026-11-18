@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Camera, CameraOff, LogIn, Mic, MicOff, PhoneOff, PlayCircle, Video } from "lucide-react";
-import { endSession, getSession, joinSession, prepareSession, startSession } from "@/api/operations";
+import { endSession, getAppointmentSession, getSession, joinSession, prepareSession, startSession } from "@/api/operations";
 import { WebRtcCall, type CallState } from "@/core/webrtc";
 import { createCallTransport } from "@/core/rtc-transport";
 import { useCommand } from "@/core/useCommand";
@@ -35,9 +35,13 @@ export function TelehealthRoom({ role, appointment, counterpartName, onSessionCh
   const [localStream, setLocalStream] = useState<MediaStream | null>(null);
   const [remoteStream, setRemoteStream] = useState<MediaStream | null>(null);
   const [playRequired, setPlayRequired] = useState(false);
+  const [showStats, setShowStats] = useState(false);
+  const [videoStats, setVideoStats] = useState("");
   const [callGeneration, setCallGeneration] = useState(0);
   const call = useRef<WebRtcCall | null>(null);
   const remoteVideo = useRef<HTMLVideoElement>(null);
+  const remoteCanvas = useRef<HTMLCanvasElement>(null);
+  const [compatDisplay, setCompatDisplay] = useState(false);
   const [token, setToken] = useState<JoinToken | null>(null);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
@@ -62,18 +66,31 @@ export function TelehealthRoom({ role, appointment, counterpartName, onSessionCh
     setSession(s);
     if (changed) changeRef.current?.(s);
   }, []);
-  const admissionOpen = inJoinWindow(appointment.startAt, now) || appointment.status === "IN_PROGRESS";
+  const patientWindow = inJoinWindow(appointment.startAt, now);
+  const admissionOpen = patientWindow || appointment.status === "IN_PROGRESS";
 
   const refresh = useCallback(async () => {
     if (!enabled || fetching.current || (!sessionRef.current && !admissionOpen)) return;
     fetching.current = true;
     try {
       const existing = sessionRef.current;
-      const result = existing ? await getSession(existing.id) : await command(`prepare:${appointment.id}`, appointment.id, key => prepareSession(appointment.id, key));
+      let result: TelehealthSession;
+      if (existing) {
+        result = await getSession(existing.id);
+      } else if (appointment.status === "IN_PROGRESS") {
+        result = await getAppointmentSession(appointment.id);
+      } else {
+        try {
+          result = await command(`prepare:${appointment.id}`, appointment.id, key => prepareSession(appointment.id, key));
+        } catch (e) {
+          if (!(e instanceof ApiError) || e.status !== 409) throw e;
+          result = await getAppointmentSession(appointment.id);
+        }
+      }
       if (mounted.current) { setS(result); setError(""); }
     } catch (e) { if (mounted.current) setError(errorMessage(e)); }
     finally { fetching.current = false; }
-  }, [appointment.id, enabled, admissionOpen, command, setS]);
+  }, [appointment.id, appointment.status, enabled, admissionOpen, command, setS]);
   useEffect(() => {
     mounted.current = true;
     void refresh();
@@ -124,6 +141,28 @@ export function TelehealthRoom({ role, appointment, counterpartName, onSessionCh
     element.srcObject=remoteStream;setPlayRequired(false);
     if (remoteStream) void element.play().catch(() => {if (mounted.current && element.srcObject === remoteStream) setPlayRequired(true);});
   }, [remoteStream]);
+  useEffect(() => {
+    const source = remoteVideo.current;
+    const canvas = remoteCanvas.current;
+    if (!compatDisplay || !remoteStream || !source || !canvas) return;
+    const context = canvas.getContext("2d");
+    if (!context) return;
+    // Keep the video playing for audio. Paint the decoded frame through the 2D path.
+    const draw = () => {
+      if (source.readyState < 2 || !source.videoWidth || !source.videoHeight) return;
+      if (canvas.width !== source.videoWidth) canvas.width = source.videoWidth;
+      if (canvas.height !== source.videoHeight) canvas.height = source.videoHeight;
+      context.drawImage(source, 0, 0);
+    };
+    draw();
+    if (typeof source.requestVideoFrameCallback === "function") {
+      const frame = () => { draw(); handle = source.requestVideoFrameCallback(frame); };
+      let handle = source.requestVideoFrameCallback(frame);
+      return () => source.cancelVideoFrameCallback(handle);
+    }
+    const timer = window.setInterval(draw, 50);
+    return () => window.clearInterval(timer);
+  }, [compatDisplay, remoteStream]);
   useEffect(() => {
     const online=()=>{if (call.current && ["ACTIVE","RECONNECTING"].includes(sessionRef.current?.status ?? "")) void call.current.restart();};
     const offline=()=>{setCallError("Thiết bị đang mất mạng. Cuộc gọi sẽ thử nối lại khi có mạng.");setCallState("reconnecting");};
@@ -200,15 +239,51 @@ export function TelehealthRoom({ role, appointment, counterpartName, onSessionCh
   const st = session?.status;
   const sInfo = st ? SESSION_STATUS[st] : undefined;
   const startMs = Date.parse(appointment.startAt);
-  const patientWindow = inJoinWindow(appointment.startAt, now);
+  const admissionExpired = now >= startMs + 15 * MIN;
   const doctorWindow = now >= startMs && now < startMs + 15 * MIN;
   const live = st === "ACTIVE" || st === "RECONNECTING";
   const closed = st === "ENDED" || st === "CANCELLED";
+  useEffect(() => {
+    if (!showStats || !live || !token) return;
+    let active = true;
+    let timer: ReturnType<typeof setTimeout>;
+    const sample = async () => {
+      try {
+        const stats = await call.current?.getStats();
+        if (!active || !stats) return;
+        let encoded = 0, decoded = 0, packets = 0;
+        let rtt: number | undefined;
+        stats.forEach(row => {
+          if (row.kind === "video" && row.type === "outbound-rtp") encoded += row.framesEncoded ?? 0;
+          if (row.kind === "video" && row.type === "inbound-rtp") {
+            packets += row.packetsReceived ?? 0;
+            decoded += row.framesDecoded ?? 0;
+          }
+          if (row.type === "transport" && row.selectedCandidatePairId) {
+            rtt = stats.get(row.selectedCandidatePairId)?.currentRoundTripTime;
+          }
+        });
+        const width = remoteVideo.current?.videoWidth ?? 0;
+        setVideoStats(`Khung hình đã mã hóa: ${encoded} · Gói video đã nhận: ${packets} · Khung hình đã giải mã: ${decoded} · Video hiển thị: ${width}px · RTT: ${rtt == null ? "—" : Math.round(rtt * 1000) + " ms"}`);
+      } catch {
+        if (active) setVideoStats("Trình duyệt chưa cung cấp số liệu kết nối.");
+      } finally {
+        if (active) timer = setTimeout(() => void sample(), 2000);
+      }
+    };
+    void sample();
+    return () => {active = false; clearTimeout(timer);};
+  }, [showStats, live, token]);
   const canPatientJoin = role === "PATIENT" && !closed && (((st === "CREATED" || st === "WAITING") && patientWindow && consent) || (live && consent));
   const canDoctorStart = role === "DOCTOR" && st === "WAITING" && doctorWindow;
   const canDoctorEnter = role === "DOCTOR" && live && !token;
 
   let hint = "";
+  if (!st && !admissionOpen && enabled) {
+    hint = admissionExpired
+      ? "Đã qua thời gian vào phòng. Hãy chọn lịch khám khác."
+      : `Phòng chờ mở lúc ${formatTime(new Date(startMs - 10 * MIN).toISOString())}.`;
+  }
   if (role === "PATIENT" && st === "CREATED" && !patientWindow) hint = `Phòng chờ mở từ ${formatTime(new Date(startMs - 10 * MIN).toISOString())} đến ${formatTime(new Date(startMs + 15 * MIN).toISOString())}.`;
   if (role === "PATIENT" && st === "WAITING") hint = "Bạn đã vào phòng chờ. Vui lòng chờ bác sĩ bắt đầu phiên khám.";
   if (role === "DOCTOR" && st === "CREATED") hint = "Chờ bệnh nhân vào phòng chờ (từ 10 phút trước giờ hẹn).";
@@ -226,6 +301,7 @@ export function TelehealthRoom({ role, appointment, counterpartName, onSessionCh
             <div className="tiles">
               <div className="tile">
                 <video ref={remoteVideo} autoPlay playsInline aria-label="Hình ảnh người tham gia" data-testid="remote-video" />
+                {compatDisplay && remoteStream && <canvas ref={remoteCanvas} aria-label="Video tương thích" style={{position:"absolute", inset:0, width:"100%", height:"100%", objectFit:"cover"}} />}
                 {!remoteStream && <div><Video size={30} aria-hidden/><p>{counterpartName}</p><small>{stateLabel[callState]}</small></div>}
                 <span className="tag">{counterpartName}</span>
               </div>
@@ -246,12 +322,19 @@ export function TelehealthRoom({ role, appointment, counterpartName, onSessionCh
           </div>
           {playRequired && <button className="btn" onClick={() => {void remoteVideo.current?.play().then(()=>setPlayRequired(false)).catch(()=>setCallError("Hãy cho phép trình duyệt phát âm thanh."));}}>Bật âm thanh cuộc gọi</button>}
           {live && token && <p role="status" data-testid="call-state">{stateLabel[callState]}</p>}
+          {remoteStream && <button className="btn" aria-pressed={compatDisplay} onClick={() => setCompatDisplay(value => !value)}>
+            {compatDisplay ? "Dùng hiển thị chuẩn" : "Dùng hiển thị tương thích"}
+          </button>}
+          {live && token && <details onToggle={event => setShowStats(event.currentTarget.open)}>
+            <summary>Thông tin kết nối video</summary>
+            <p>{videoStats || "Đang lấy số liệu kết nối…"}</p>
+          </details>}
           {media === "denied" && <div style={{ marginTop: 10 }}><Notice tone="warn">Không mở được camera hoặc micro. Hãy kiểm tra thiết bị và quyền truy cập của trình duyệt.</Notice></div>}
         </div>
         <aside className="panel">
           <h2>Phiên khám từ xa</h2>
           <p className="sub">{formatTime(appointment.startAt)}–{formatTime(appointment.endAt)} · {counterpartName}</p>
-          <div className="row" style={{ margin: "10px 0" }}>Trạng thái: {sInfo ? <Pill tone={sInfo.tone}>{sInfo.label}</Pill> : <Pill>{enabled ? "Đang tải…" : "Chưa kết nối"}</Pill>}</div>
+          <div className="row" style={{ margin: "10px 0" }}>Trạng thái: {sInfo ? <Pill tone={sInfo.tone}>{sInfo.label}</Pill> : <Pill>{error ? "Không tải được phiên" : !enabled ? "Chưa kết nối" : admissionOpen ? "Đang tải…" : admissionExpired ? "Hết giờ vào phòng" : "Chưa mở phòng"}</Pill>}</div>
           {hint && <Notice><span>{hint}</span></Notice>}
           {!localStream && !closed && <label className="chk"><input type="checkbox" checked={!cam} onChange={e=>setCam(!e.target.checked)}/>Chỉ âm thanh</label>}
           {role === "PATIENT" && !closed && (

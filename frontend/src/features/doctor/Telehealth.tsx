@@ -1,18 +1,26 @@
-import { Link, useNavigate, useParams } from "react-router-dom";
+import { useEffect, useState } from "react";
+import { Link, Outlet, useMatch, useNavigate } from "react-router-dom";
 import { dayKey, formatDate, formatTime } from "@/core/datetime";
 import { apptCode, patientCode } from "@/core/labels";
 import { Empty, PageHead, Panel } from "@/ui";
 import { TelehealthRoom } from "../shared/TelehealthRoom";
 import { useDoctor } from "./DoctorContext";
 
-export function DoctorTelehealthPage() {
-  const { appointmentId } = useParams();
+export function DoctorCallLayout() {
+  const roomRoute = useMatch("/doctor/telehealth/:appointmentId?");
+  const recordRoute = useMatch("/doctor/consultation/:appointmentId?");
+  const appointmentId = roomRoute?.params.appointmentId;
+  const [lastRoom, setLastRoom] = useState<string>();
   const nav = useNavigate();
   const { appointments, loading, reload } = useDoctor();
   const remote = appointments.filter((a) => a.mode === "REMOTE" && ["CONFIRMED", "IN_PROGRESS"].includes(a.status)).sort((a, b) => a.startAt.localeCompare(b.startAt));
-  const selected = remote.find((a) => a.id === appointmentId) ?? (appointmentId ? undefined : remote[0]);
+  const selected = roomRoute
+    ? (appointmentId ? remote.find(a => a.id === appointmentId) : remote.find(a => a.id === lastRoom) ?? remote[0])
+    : remote.find(a => a.id === lastRoom && (!recordRoute?.params.appointmentId || a.id === recordRoute.params.appointmentId));
+  useEffect(() => { setLastRoom(selected?.id); }, [selected?.id]);
   return (
     <>
+      <div hidden={!roomRoute}>
       <PageHead eyebrow="Khám từ xa" title="Phòng khám từ xa" text="Vào phòng trong khung [giờ hẹn − 10’, giờ hẹn + 15’). Bắt đầu khi bệnh nhân đã vào; kết thúc phiên rồi mới hoàn tất ca khám." />
       {loading ? <div className="empty">Đang tải…</div> : remote.length === 0 ? <Panel><Empty title="Không có lịch khám từ xa đang hiệu lực" /></Panel> : (
         <>
@@ -28,6 +36,8 @@ export function DoctorTelehealthPage() {
           ) : <Panel><Empty title="Không tìm thấy lịch này" /></Panel>}
         </>
       )}
+      </div>
+      {!roomRoute && <Outlet />}
     </>
   );
 }

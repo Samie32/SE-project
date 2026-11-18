@@ -4,6 +4,9 @@ import { ScheduleManager } from "@/features/doctor/Schedule";
 import { ToastProvider } from "@/ui";
 import { createAvailability,deleteAvailability } from "@/api/schedule";
 import { ApiError } from "@/core/client";
+vi.mock("@/api/clinic-hours", async () => ({
+  getClinicHours: async () => ({ days: (await import("@/core/clinic-hours")).DEFAULT_CLINIC_HOURS }),
+}));
 vi.mock("@/api/schedule",()=>({
   listAvailability:vi.fn(async()=>[{id:"one",doctorId:"doctor",startAt:"2030-01-08T01:00:00Z",endAt:"2030-01-08T05:00:00Z",slotMinutes:20,mode:"REMOTE"}]),
   listTimeOff:vi.fn(async()=>[]),createAvailability:vi.fn(async()=>({})),createTimeOff:vi.fn(async()=>({})),

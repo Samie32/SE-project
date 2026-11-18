@@ -5,7 +5,7 @@ import { useSession } from "@/core/session";
 import { useNow } from "@/core/useAsync";
 import { formatDateTimeSec } from "@/core/datetime";
 import { ROLE_LABEL, initials } from "@/core/labels";
-import { Logo, MockBanner, Modal } from "@/ui";
+import { Logo, MockBanner, Modal, Notice } from "@/ui";
 import { ACCOUNT_ITEM, NAV_ITEMS } from "./nav";
 
 const DEFAULT_SIDE_W = 248;
@@ -18,11 +18,9 @@ const COLLAPSE_SNAP_W = 135;
 const Clock = memo(function Clock() {
   const now = useNow(1000);
   return (
-    <div className="clock" title="Giờ phòng khám Asia/Ho_Chi_Minh" aria-hidden="true">
+    <div className="clock" title="Giờ Việt Nam (Asia/Ho_Chi_Minh)" aria-hidden="true">
       <i />
-      <span>
-        Giờ Việt Nam<b>{formatDateTimeSec(now.toISOString())}</b>
-      </span>
+      <b>{formatDateTimeSec(now.toISOString())}</b>
     </div>
   );
 });
@@ -32,6 +30,7 @@ export function AppShell() {
   const { pathname } = useLocation();
   const [open, setOpen] = useState(false);
   const [confirmLogout, setConfirmLogout] = useState(false);
+  const [scrolled, setScrolled] = useState(false);
   const [collapsed, setCollapsed] = useState(() => localStorage.getItem("cc_side_collapsed") === "1");
   const [sideWidth, setSideWidth] = useState(() => {
     const saved = Number(localStorage.getItem("cc_side_w"));
@@ -70,12 +69,6 @@ export function AppShell() {
 
   const items = NAV_ITEMS.filter((i) => can(i.permission));
   const sections = [...new Set(items.map((i) => i.section))];
-  // Trang hiện tại: khớp đường dẫn dài nhất.
-  const current = [...NAV_ITEMS, { ...ACCOUNT_ITEM, permission: "patient.portal" as const }]
-    .filter((i) => (i.path === "/patient" || i.path === "/doctor" || i.path === "/staff" ? pathname === i.path : pathname.startsWith(i.path)))
-    .sort((a, b) => b.path.length - a.path.length)[0];
-
-  const roleText = roles.map((r) => ROLE_LABEL[r]).join(", ");
 
   const activeSideWidth = collapsed ? COLLAPSED_SIDE_W : sideWidth;
 
@@ -131,16 +124,13 @@ export function AppShell() {
             to={ACCOUNT_ITEM.path}
             className={({ isActive }) => "profile-link" + (isActive ? " active" : "")}
             aria-label={ACCOUNT_ITEM.label}
-            title={collapsed ? `${displayName} — ${ACCOUNT_ITEM.label}` : ACCOUNT_ITEM.label}
+            title={`${displayName} — ${ACCOUNT_ITEM.label}`}
           >
             <span className="avatar">{initials(displayName)}</span>
-            <div className="who">
-              <b title={displayName}>{displayName}</b>
-              <small>{roleText || "—"}</small>
-            </div>
+            <span className="profile-name" title={displayName}>{displayName}</span>
           </NavLink>
-          <button className="logout-mini" onClick={() => setConfirmLogout(true)} aria-label="Đăng xuất" title={collapsed ? "Đăng xuất" : undefined}>
-            <LogOut size={14} aria-hidden /> <span>Đăng xuất</span>
+          <button className="logout-mini" onClick={() => setConfirmLogout(true)} aria-label="Đăng xuất" title="Đăng xuất">
+            <LogOut size={15} aria-hidden />
           </button>
         </div>
         <div
@@ -158,41 +148,64 @@ export function AppShell() {
       </aside>
       {open && <button className="scrim" aria-label="Đóng menu" onClick={() => setOpen(false)} />}
       <div className="main">
-        {import.meta.env.DEV && <MockBanner />}
-        <header className="top">
-          <div className="crumb">
-            <button className="menu-btn" aria-label="Mở menu" aria-expanded={open} onClick={() => setOpen(true)}>
-              <Menu size={18} />
-            </button>
-            <span>ClinicCare</span>
-            <span aria-hidden>/</span>
-            <b>{current?.label ?? "Không tìm thấy"}</b>
+        <MockBanner />
+        <div className="main-stage">
+          <header className={"top" + (scrolled ? " scrolled" : "")}>
+            <div className="crumb">
+              <button className="menu-btn" aria-label="Mở menu" aria-expanded={open} onClick={() => setOpen(true)}>
+                <Menu size={18} />
+              </button>
+              <div id="top-page-title" className="top-title" />
+            </div>
+            <div className="topright">
+              <Clock />
+              <span className="pill info">
+                <ShieldCheck size={13} aria-hidden /> {roles.length ? ROLE_LABEL[roles[0]] : "—"}
+              </span>
+            </div>
+          </header>
+          <div
+            className="main-scroll"
+            onScroll={(e) => {
+              const isScrolled = e.currentTarget.scrollTop > 4;
+              setScrolled((prev) => (prev === isScrolled ? prev : isScrolled));
+            }}
+          >
+            <main id="main-content" className="content" tabIndex={-1}>
+              <Outlet />
+            </main>
           </div>
-          <div className="topright">
-            <Clock />
-            <span className="pill info">
-              <ShieldCheck size={13} aria-hidden /> {roles.length ? ROLE_LABEL[roles[0]] : "—"}
-            </span>
-          </div>
-        </header>
-        <main id="main-content" className="content" tabIndex={-1}>
-          <Outlet />
-        </main>
+        </div>
       </div>
       {confirmLogout && (
         <Modal
-          title="Đăng xuất khỏi ClinicCare?"
+          title="Xác nhận đăng xuất"
           onClose={() => setConfirmLogout(false)}
           footer={<>
             <button className="btn" onClick={() => setConfirmLogout(false)}>Ở lại</button>
-            <button className="btn danger solid" onClick={() => {setConfirmLogout(false);logout();}}>Đăng xuất</button>
+            <button className="btn danger solid" onClick={() => { setConfirmLogout(false); logout(); }}>
+              <LogOut size={15} aria-hidden /> Đăng xuất
+            </button>
           </>}
         >
-          <p>Bạn có chắc muốn đăng xuất?</p>
-          <p>Nếu có thay đổi chưa lưu, hãy chọn “Ở lại” để lưu trước. Đăng xuất có thể làm mất các thay đổi này.</p>
-          {/^\/(doctor|patient)\/telehealth(?:\/|$)/.test(pathname) && (
-            <p>Nếu đang gọi, đăng xuất sẽ rời cuộc gọi và dừng camera/micro trên thiết bị này; thao tác này không tự kết thúc phiên khám. Bác sĩ cần dùng “Kết thúc phiên” để đóng phiên cho cả hai bên.</p>
-          )}
+          <div className="logout-modal">
+            <div className="logout-account">
+              <span className="avatar">{initials(displayName)}</span>
+              <div className="logout-account-info">
+                <b>{displayName}</b>
+                <span>{roles.length ? ROLE_LABEL[roles[0]] : "—"}</span>
+              </div>
+            </div>
+            <p className="logout-note">Phiên làm việc hiện tại sẽ kết thúc và các thay đổi chưa lưu sẽ không được giữ lại.</p>
+            {/^\/(doctor|patient)\/telehealth(?:\/|$)/.test(pathname) && (
+              <Notice tone="warn">
+                <div>
+                  <b>Đang trong trang khám trực tuyến</b>
+                  <div>Đăng xuất chỉ rời cuộc gọi trên thiết bị này, không tự kết thúc phiên khám. Bác sĩ cần chọn “Kết thúc phiên” để đóng phiên cho cả hai bên.</div>
+                </div>
+              </Notice>
+            )}
+          </div>
         </Modal>
       )}
     </div>

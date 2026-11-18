@@ -43,7 +43,7 @@ export function DoctorQueuePage() {
       {(err || q.error) && <Notice tone="error">{err || q.error}</Notice>}
       {called && <Notice tone="ok"><span>Đang gọi số <b>#{called.position}</b> ({apptCode(called.appointmentId)}). <Link to={`/doctor/consultation/${called.appointmentId}`}>Mở hồ sơ khám</Link></span></Notice>}
       <Panel title={`Đang chờ (${waiting.length})`} subtitle="Tự làm mới mỗi 15 giây">
-        {rows.length === 0 ? <p className="sub">{config.backend.queue ? "Hàng đợi hôm nay đang trống." : "Hàng đợi hiện không khả dụng."}</p> : (
+        {rows.length === 0 ? <p className="sub">{config.backend.queue ? "Hàng đợi hôm nay đang trống." : "Danh sách hàng đợi sẽ hiện khi backend hỗ trợ."}</p> : (
           <div className="tablewrap"><table><thead><tr><th>Số</th><th>Lịch hẹn</th><th>Bệnh nhân</th><th>Check-in</th><th>Trạng thái</th><th /></tr></thead>
             <tbody>{rows.map((t) => { const a = apptOf(t); return (
               <tr key={t.id}><td><b>#{t.position}</b></td><td className="mono">{apptCode(t.appointmentId)}</td><td className="mono">{a ? patientCode(a.patientId) : t.patientId ? patientCode(t.patientId) : "—"}</td>

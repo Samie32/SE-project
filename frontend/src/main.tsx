@@ -10,7 +10,7 @@ import "./styles/app.css";
 async function bootstrap() {
   let SessionProvider: React.ComponentType<{ children: React.ReactNode }> = OidcSessionProvider;
   // Production không kích hoạt mock, kể cả build với mode mock.
-  if (import.meta.env.DEV && config.mock) {
+  if (config.mock) {
     const mock = await import("./mock");
     mock.installMock();
     SessionProvider = mock.MockSessionProvider;

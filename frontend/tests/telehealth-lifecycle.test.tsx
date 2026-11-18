@@ -14,6 +14,24 @@ beforeEach(() => {
   Object.defineProperty(navigator,"mediaDevices",{configurable:true,value:{getUserMedia:vi.fn(async()=>({getTracks:()=>[track],getAudioTracks:()=>[track],getVideoTracks:()=>[]}))}});
 });
 afterEach(() => {cleanup();vi.useRealTimers();});
+
+it("mở lại lịch đang khám sau giờ hẹn và hiển thị phiên đã kết thúc", async () => {
+  vi.useFakeTimers({toFake:["Date","setInterval","clearInterval"]});
+  vi.setSystemTime(new Date("2030-01-08T04:30:00Z"));
+  const fetch = vi.fn(async (_url: string, _init: RequestInit) => new Response(JSON.stringify({
+    id:"room", appointmentId:"appt", status:"ENDED", version:5,
+  })));
+  setFetchImpl(fetch);
+  const appointment = {id:"appt", startAt:"2030-01-08T02:00:00Z", endAt:"2030-01-08T02:20:00Z",
+    mode:"REMOTE", status:"IN_PROGRESS", version:1} as Appointment;
+  render(<ToastProvider><TelehealthRoom role="DOCTOR" appointment={appointment} counterpartName="Bệnh nhân"/></ToastProvider>);
+  expect(await screen.findByText(/Phiên đã kết thúc/)).toBeTruthy();
+  expect(fetch.mock.calls[0][0]).toBe("/api/appointments/appt/telehealth-session");
+  expect(fetch.mock.calls[0][1].method ?? "GET").toBe("GET");
+  expect(fetch).toHaveBeenCalledTimes(1);
+  expect((screen.getByRole("button",{name:"Bắt đầu phiên khám"}) as HTMLButtonElement).disabled).toBe(true);
+});
+
 it("prepare một lần rồi GET trạng thái để nhận biết phòng đã kết thúc", async () => {
   vi.useFakeTimers({toFake:["Date","setInterval","clearInterval"]});
   vi.setSystemTime(new Date("2030-01-08T02:00:00Z"));

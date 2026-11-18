@@ -6,7 +6,7 @@ export const setTokenGetter = (fn: () => string | null) => {
   tokenGetter = fn;
 };
 
-// Cho phép bộ kiểm thử và chế độ dev:mock thay thế fetch.
+// Cho phép chế độ giả lập thay thế fetch (chỉ được nạp khi VITE_MOCK=true).
 type FetchLike = (input: string, init: RequestInit) => Promise<Response>;
 let fetchImpl: FetchLike = (input, init) => fetch(input, init);
 export const setFetchImpl = (fn: FetchLike) => {
@@ -55,7 +55,26 @@ const STATUS_MESSAGES: Record<number, string> = {
 
 // ProblemDetail.detail của backend → tiếng Việt.
 const DETAIL_MESSAGES: Record<string, string> = {
+  "Invalid clinic hours": "Giờ đóng cửa phải sau giờ mở cửa trong cùng ngày.",
+  "Clinic hours require seven distinct days": "Cần cung cấp giờ hoạt động cho cả bảy ngày trong tuần.",
+  "Clinic hours conflict with an existing shift":
+    "Có ca đang diễn ra hoặc sắp tới nằm ngoài giờ hoạt động mới. Hãy xem lịch làm việc bác sĩ trước khi lưu.",
+  "Invalid clinic holiday": "Thông tin ngày nghỉ lễ chưa hợp lệ. Hãy kiểm tra tên và khoảng ngày.",
+  "Clinic holiday overlaps an existing holiday": "Khoảng ngày nghỉ lễ bị trùng với lịch nghỉ đã có.",
+  "Clinic holiday conflicts with an existing shift":
+    "Đã có ca làm việc của bác sĩ nằm trong khoảng ngày nghỉ lễ này. Hãy điều chỉnh lịch bác sĩ trước.",
+  "Outside clinic hours": "Thời gian đã chọn nằm ngoài giờ hoạt động của phòng khám.",
   "Self role changes are not allowed": "Không thể tự thay đổi vai trò của chính mình.",
+  "Cannot disable your own account": "Không thể vô hiệu hóa tài khoản của chính mình.",
+  "Patient account cannot be enrolled as staff": "Tài khoản này đã thuộc cổng bệnh nhân. Hãy dùng tài khoản nhân sự do phòng khám cấp.",
+  "Pause doctor scheduling first": "Hãy ngừng nhận lịch cho bác sĩ ở Danh mục bác sĩ trước khi vô hiệu hóa tài khoản hoặc thu hồi vai trò.",
+  "Doctor account must be active and have the doctor role": "Cần kích hoạt tài khoản và cấp vai trò Bác sĩ trước khi bật nhận lịch.",
+  "Doctor specialties required": "Chọn ít nhất một chuyên khoa cho bác sĩ.",
+  "Staff username or email already exists": "Username hoặc email đã được sử dụng trong Keycloak.",
+  "Staff identity details rejected": "Keycloak từ chối thông tin tài khoản. Kiểm tra email và chính sách mật khẩu.",
+  "Staff provisioning is not configured": "Máy chủ chưa được cấu hình để tạo tài khoản Keycloak.",
+  "Staff identity provider unavailable": "Tạm thời không kết nối được dịch vụ tạo tài khoản. Hãy kiểm tra lại trước khi gửi lại.",
+  "Staff identity needs reconciliation": "Việc tạo tài khoản chưa hoàn tất. Quản trị hạ tầng cần kiểm tra Keycloak trước khi thử lại.",
   "Create doctor profile first":
     "Cần tạo hồ sơ bác sĩ cho tài khoản này trước khi gán vai trò DOCTOR.",
   "Invalid roles": "Danh sách vai trò không hợp lệ.",
@@ -125,6 +144,7 @@ export const api = {
     ),
   put: <T>(path: string, body?: unknown, key?: string) =>
     apiFetch<T>(path, { method: "PUT", body: JSON.stringify(body) }, key),
+  delete: <T = void>(path: string) => apiFetch<T>(path, { method: "DELETE" }),
 };
 
 export const newIdempotencyKey = () =>

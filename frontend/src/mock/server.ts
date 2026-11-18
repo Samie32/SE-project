@@ -2,7 +2,8 @@
 // và hợp đồng thiết kế openapi.yaml cho các phần chưa có. CHỈ dùng cho `npm run dev:mock`.
 import { dayKey, MIN } from "@/core/datetime";
 import { scheduleIntervalError, slotDurationError } from "@/core/schedule-rules";
-import { getDb, genSlots, mid, persist, type DB, type MAppt, type MTicket } from "./db";
+import { isValidClinicDay, type ClinicDayHours } from "@/core/clinic-hours";
+import { getDb, genSlots, mid, mockUsername, persist, type DB, type MAppt, type MTicket } from "./db";
 
 class P extends Error { constructor(public status: number, public detail: string) { super(detail); } }
 const need = (c: unknown, status: number, detail: string) => { if (!c) throw new P(status, detail); };
@@ -35,6 +36,10 @@ const outTicket = (t: MTicket) => ({ id: t.id, appointmentId: t.appointmentId, p
 const outRecord = (r: DB["records"][number]) => ({ ...r });
 const outSession = (s: DB["sessions"][number]) => ({ id: s.id, appointmentId: s.appointmentId, status: s.status, version: s.version });
 const user = (db: DB, id: string) => db.users.find((u) => u.id === id);
+const isStaff = (db: DB, account: DB["users"][number]) =>
+  account.staff ?? (account.roles.some(role => role !== "PATIENT") || db.doctors.some(doctor => doctor.userId === account.id));
+const requireDoctorPaused = (db: DB, id: string) =>
+  need(!db.doctors.some(doctor => doctor.userId === id && doctor.active), 409, "Pause doctor scheduling first");
 
 /** Lặp lại yêu cầu cùng Idempotency-Key trả đúng kết quả cũ. */
 function idem(c: Ctx, op: string, fn: () => unknown, status = 200): Response {
@@ -59,6 +64,43 @@ const on = (method: string, path: string, h: Handler) =>
   routes.push([method, new RegExp("^" + path.replace(/:[a-zA-Z]+/g, "([^/]+)") + "$"), h]);
 
 // ---------- danh tính & danh mục ----------
+on("GET", "/clinic/hours", (c) => ({ days: c.db.clinicHours }));
+on("PUT", "/clinic/hours", (c) => {
+  req(c.actor, "ADMINISTRATOR");
+  const days: ClinicDayHours[] = c.body?.days;
+  need(Array.isArray(days) && days.length === 7 && days.every(day =>
+    day && Number.isInteger(day.dayOfWeek) && day.dayOfWeek >= 1 && day.dayOfWeek <= 7
+    && isValidClinicDay(day)) && new Set(days.map(day => day.dayOfWeek)).size === 7, 422, "Invalid clinic hours");
+  need(!c.db.avail.some(shift => Date.parse(shift.endAt) > c.now
+    && scheduleIntervalError(shift.startAt, shift.endAt, -Infinity, days)),
+  409, "Clinic hours conflict with an existing shift");
+  c.db.clinicHours = [...days].sort((a, b) => a.dayOfWeek - b.dayOfWeek);
+  audit(c.db, c.actor.id, "CLINIC_HOURS_UPDATED", "clinic-hours", c.now);
+  return { days: c.db.clinicHours };
+});
+on("GET", "/clinic/holidays", (c) => c.db.clinicHolidays ?? []);
+on("POST", "/clinic/holidays", (c) => {
+  req(c.actor, "ADMINISTRATOR");
+  const { startDate, endDate, name, closed, opensAt, closesAt } = c.body ?? {};
+  need(typeof startDate === "string" && typeof endDate === "string" && startDate <= endDate && typeof name === "string" && name.trim().length > 0, 422, "Invalid clinic holiday");
+  const list = c.db.clinicHolidays ?? (c.db.clinicHolidays = []);
+  need(!list.some(h => h.startDate <= endDate && startDate <= h.endDate), 409, "Clinic holiday overlaps an existing holiday");
+  const item = { id: mid(), startDate, endDate, name: name.trim(), closed: Boolean(closed), opensAt: closed ? null : opensAt, closesAt: closed ? null : closesAt };
+  list.push(item);
+  audit(c.db, c.actor.id, "CLINIC_HOLIDAY_CREATED", item.id, c.now);
+  return item;
+});
+on("DELETE", "/clinic/holidays/:id", (c) => {
+  req(c.actor, "ADMINISTRATOR");
+  const list = c.db.clinicHolidays ?? [];
+  const idx = list.findIndex(h => h.id === c.params[0]);
+  need(idx >= 0, 404, "Resource not found");
+  const [removed] = list.splice(idx, 1);
+  audit(c.db, c.actor.id, "CLINIC_HOLIDAY_REMOVED", removed.id, c.now);
+  return res(204);
+});
+
+
 on("GET", "/me", (c) => ({ id: c.actor.id, roles: c.actor.roles }));
 on("GET", "/me/profile", c => ({id:c.actor.id,roles:c.actor.roles,displayName:user(c.db,c.actor.id)?.name ?? "",active:true,patientId:c.actor.roles.includes("PATIENT") ? c.actor.id : null,doctorId:c.db.doctors.find(d => d.userId === c.actor.id)?.id ?? null}));
 on("GET", "/appointments/:id", c => {
@@ -72,18 +114,98 @@ on("PUT", "/me/contact", (c) => {
   audit(c.db, c.actor.id, "CONTACT_UPDATED", c.actor.id, c.now);
   return res(200);
 });
+on("GET", "/users", (c) => {
+  req(c.actor, "ADMINISTRATOR");
+  const term = (c.query.get("q") ?? "").trim().toLowerCase();
+  need(term.length <= 255, 400, "Invalid search query");
+  const role = c.query.get("role");
+  const active = c.query.get("active");
+  const accounts = c.db.users.filter(account => isStaff(c.db, account)).map(account => ({
+    id: account.id, displayName: account.name, active: account.active, roles: account.roles,
+    username: mockUsername(account),
+    doctorId: c.db.doctors.find(doctor => doctor.userId === account.id)?.id ?? null,
+  }));
+  return page(accounts.filter(account => (account.displayName.toLowerCase().includes(term)
+    || account.username?.toLowerCase().includes(term))
+    && (!active || String(account.active) === active)
+    && (!role || account.roles.some(value => value === role)
+      || (role === "UNASSIGNED" && !account.roles.some(value => value !== "PATIENT"))))
+    .sort((a, b) => a.displayName.localeCompare(b.displayName) || a.id.localeCompare(b.id)), c.query);
+});
+on("POST", "/staff", (c) => {
+  req(c.actor, "ADMINISTRATOR");
+  const { subject, username, displayName } = c.body ?? {};
+  need(typeof subject === "string" && /^[\da-f]{8}(-[\da-f]{4}){3}-[\da-f]{12}$/i.test(subject)
+    && typeof username === "string" && username.trim() && typeof displayName === "string" && displayName.trim(), 400, "Invalid request");
+  const existing = c.db.users.find(account => (account.subject ?? account.id) === subject.toLowerCase());
+  if (existing) {
+    need(isStaff(c.db, existing), 409, "Patient account cannot be enrolled as staff");
+    return res(201, { id: existing.id });
+  }
+  const id = mid();
+  c.db.users.push({ id, subject: subject.toLowerCase(), username: username.trim(),
+    name: displayName.trim(), email: "", roles: [], active: true, staff: true });
+  audit(c.db, c.actor.id, "STAFF_CREATED", id, c.now);
+  return res(201, { id });
+});
+on("POST", "/staff/provision", (c) => {
+  req(c.actor, "ADMINISTRATOR");
+  const { username, displayName, email, temporaryPassword, roles, specialtyIds } = c.body ?? {};
+  need(typeof username === "string" && /^[a-z0-9][a-z0-9._-]{2,63}$/i.test(username)
+    && typeof displayName === "string" && displayName.trim() && typeof email === "string" && email.includes("@")
+    && typeof temporaryPassword === "string" && temporaryPassword.length >= 12 && Array.isArray(specialtyIds), 400, "Invalid request");
+  need(Array.isArray(roles) && roles.length && roles.every(role =>
+    ["DOCTOR", "RECEPTIONIST", "ADMINISTRATOR", "AUDITOR"].includes(role)), 422, "Invalid roles");
+  const doctor = roles.includes("DOCTOR");
+  need(doctor === (specialtyIds.length > 0), 422, "Doctor specialties required");
+  need(!c.db.users.some(account => mockUsername(account)?.toLowerCase() === username.toLowerCase()
+    || account.email.toLowerCase() === email.toLowerCase()), 409, "Staff username or email already exists");
+  (specialtyIds as string[]).forEach(id => find(c.db.specialties.filter(item => item.active), id));
+  const id = mid();
+  c.db.users.push({ id, username: username.toLowerCase(), name: displayName.trim(),
+    email, roles: [...new Set(roles)] as never, active: true, staff: true });
+  audit(c.db, c.actor.id, "STAFF_CREATED", id, c.now);
+  if (doctor) {
+    const doctorId = mid();
+    c.db.doctors.push({ id: doctorId, userId: id, active: false, specialtyIds: [...new Set<string>(specialtyIds)] });
+    audit(c.db, c.actor.id, "DOCTOR_CREATED", doctorId, c.now);
+  }
+  audit(c.db, c.actor.id, "ROLES_CHANGED", id, c.now);
+  return res(201, { id });
+});
+on("PUT", "/staff/:id", (c) => {
+  req(c.actor, "ADMINISTRATOR");
+  const account = find(c.db.users.filter(row => isStaff(c.db, row)), c.params[0]);
+  const { displayName, active } = c.body ?? {};
+  need(typeof displayName === "string" && displayName.trim() && typeof active === "boolean", 400, "Invalid request");
+  need(active || account.id !== c.actor.id, 409, "Cannot disable your own account");
+  if (!active && account.active) requireDoctorPaused(c.db, account.id);
+  account.staff = true;
+  account.name = displayName.trim();
+  account.active = active;
+  audit(c.db, c.actor.id, "STAFF_UPDATED", account.id, c.now);
+  return res(200);
+});
 on("PUT", "/users/:id/roles", (c) => {
   req(c.actor, "ADMINISTRATOR");
   const roles: string[] = c.body?.roles ?? [];
-  const u = find(c.db.users, c.params[0]);
-  need(roles.length > 0 && roles.every((r) => ["PATIENT", "DOCTOR", "RECEPTIONIST", "ADMINISTRATOR", "AUDITOR"].includes(r)), 422, "Invalid roles");
+  const u = find(c.db.users.filter(account => isStaff(c.db, account)), c.params[0]);
+  need(Array.isArray(roles) && roles.every(r => ["DOCTOR", "RECEPTIONIST", "ADMINISTRATOR", "AUDITOR"].includes(r)
+    || (r === "PATIENT" && u.roles.includes("PATIENT"))), 422, "Invalid roles");
   need(c.actor.id !== u.id, 409, "Self role changes are not allowed");
   if (roles.includes("DOCTOR")) need(c.db.doctors.some((d) => d.userId === u.id), 409, "Create doctor profile first");
+  else if (u.roles.includes("DOCTOR")) requireDoctorPaused(c.db, u.id);
+  u.staff = true;
   u.roles = roles as never;
   audit(c.db, c.actor.id, "ROLES_CHANGED", u.id, c.now);
   return res(200);
 });
-on("GET", "/specialties", (c) => c.db.specialties.filter((s) => s.active).sort((a, b) => a.name.localeCompare(b.name)));
+on("GET", "/specialties", (c) => {
+  const all = c.query.get("includeInactive") === "true" && c.actor.roles.includes("ADMINISTRATOR");
+  return c.db.specialties
+    .filter((s) => all || s.active)
+    .sort((a, b) => a.name.localeCompare(b.name));
+});
 on("POST", "/specialties", (c) => {
   req(c.actor, "ADMINISTRATOR");
   const name = String(c.body?.name ?? "").trim();
@@ -94,26 +216,40 @@ on("POST", "/specialties", (c) => {
   audit(c.db, c.actor.id, "SPECIALTY_CREATED", s.id, c.now);
   return res(201, s);
 });
+on("PUT", "/specialties/:id", (c) => {
+  req(c.actor, "ADMINISTRATOR");
+  const s = find(c.db.specialties, c.params[0]);
+  const name = String(c.body?.name ?? "").trim();
+  need(name, 422, "Name required");
+  need(!c.db.specialties.some((item) => item.id !== s.id && item.name.toLowerCase() === name.toLowerCase()), 409, "Constraint conflict");
+  s.name = name;
+  s.active = Boolean(c.body?.active);
+  audit(c.db, c.actor.id, "SPECIALTY_UPDATED", s.id, c.now);
+  return s;
+});
 on("GET", "/doctors", (c) =>
   c.db.doctors.flatMap((d) => d.specialtyIds.map((sid) => ({ id: d.id, active: d.active, displayName: user(c.db, d.userId)?.name ?? "", specialtyId: sid }))));
 on("POST", "/doctors", (c) => {
   req(c.actor, "ADMINISTRATOR");
-  const u = find(c.db.users, String(c.body?.userId));
+  const u = find(c.db.users.filter(account => account.active && isStaff(c.db, account)), String(c.body?.userId));
   const sids: string[] = c.body?.specialtyIds ?? [];
   need(sids.length > 0, 400, "Invalid request");
   need(!c.db.doctors.some((d) => d.userId === u.id), 409, "Constraint conflict");
   sids.forEach((s) => find(c.db.specialties, s));
-  const d = { id: mid(), userId: u.id, active: true, specialtyIds: [...new Set(sids)] };
+  const d = { id: mid(), userId: u.id, active: false, specialtyIds: [...new Set(sids)] };
   c.db.doctors.push(d);
-  if (!u.roles.includes("DOCTOR")) u.roles.push("DOCTOR");
   audit(c.db, c.actor.id, "DOCTOR_CREATED", d.id, c.now);
-  return res(201, { id: d.id, userId: d.userId, active: true });
+  return res(201, { id: d.id, userId: d.userId, active: false });
 });
 on("PUT", "/doctors/:id", (c) => {
   req(c.actor, "ADMINISTRATOR");
   const d = find(c.db.doctors, c.params[0]);
   const { active, displayName, specialtyIds } = c.body ?? {};
   need(typeof active === "boolean" && String(displayName ?? "").trim() && Array.isArray(specialtyIds) && specialtyIds.length, 400, "Invalid request");
+  if (active) {
+    const account = user(c.db, d.userId);
+    need(account?.active && account.roles.includes("DOCTOR"), 409, "Doctor account must be active and have the doctor role");
+  }
   if (!active)
     need(!c.db.appts.some((a) => a.doctorId === d.id && Date.parse(a.endAt) > c.now && ACTIVE.includes(a.status)), 409, "Doctor has active appointments");
   d.active = active;
@@ -152,7 +288,7 @@ on("POST", "/doctors/:id/availability", (c) => {
   const { startAt, endAt, slotMinutes, mode } = c.body ?? {};
   need(startAt && endAt && Date.parse(startAt) < Date.parse(endAt) && Number.isInteger(slotMinutes) && slotMinutes >= 1 && slotMinutes <= 540 && ["IN_PERSON", "REMOTE"].includes(mode), 400, "Invalid request");
   need(Date.parse(startAt) > c.now, 422, "Availability must be in the future");
-  const issue=scheduleIntervalError(startAt,endAt,c.now)||slotDurationError(startAt,endAt,slotMinutes);
+  const issue=scheduleIntervalError(startAt,endAt,c.now,c.db.clinicHours)||slotDurationError(startAt,endAt,slotMinutes);
   need(!issue,422,issue);
   need(!c.db.avail.some((a) => a.doctorId === c.params[0] && overlap(a.startAt, a.endAt, startAt, endAt)), 409, "Constraint conflict");
   const a = { id: mid(), doctorId: c.params[0], startAt: new Date(startAt).toISOString(), endAt: new Date(endAt).toISOString(), slotMinutes, mode };
@@ -165,7 +301,7 @@ on("POST", "/doctors/:id/time-off", (c) => {
   doctorGuard(c, c.params[0]);
   const { startAt, endAt } = c.body ?? {};
   need(startAt && endAt && Date.parse(startAt) < Date.parse(endAt), 400, "Invalid request");
-  const issue=scheduleIntervalError(startAt,endAt,c.now);
+  const issue=scheduleIntervalError(startAt,endAt,c.now,c.db.clinicHours);
   need(!issue,422,issue);
   need(!c.db.appts.some((a) => a.doctorId === c.params[0] && ACTIVE.includes(a.status) && overlap(a.startAt, a.endAt, startAt, endAt)), 409, "Constraint conflict");
   const t = { id: mid(), doctorId: c.params[0], startAt: new Date(startAt).toISOString(), endAt: new Date(endAt).toISOString() };
@@ -397,6 +533,13 @@ on("GET", "/patients/:id/prescriptions", (c) => {
 });
 
 // ---------- khám từ xa ----------
+on("GET", "/appointments/:id/telehealth-session", (c) => {
+  const a = find(c.db.appts, c.params[0]);
+  need(a.patientId === c.actor.id || isDoctorOf(c.db, c.actor, a.doctorId), 404, "Not found");
+  const room = c.db.sessions.find((s) => s.appointmentId === a.id);
+  if (!room) throw new P(404, "Not found");
+  return outSession(room);
+});
 on("POST", "/appointments/:id/telehealth-session", (c) => idem(c, "prepare", () => {
   const a = find(c.db.appts, c.params[0]);
   need(a.patientId === c.actor.id || isDoctorOf(c.db, c.actor, a.doctorId), 403, "Insufficient permission");

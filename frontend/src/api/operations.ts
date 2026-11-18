@@ -76,6 +76,10 @@ export function getSession(id:string, signal?:AbortSignal) {
   requireBackend("telehealth");
   return apiFetch<TelehealthSession>(`/telehealth-sessions/${id}`, {signal});
 }
+export function getAppointmentSession(appointmentId: string) {
+  requireBackend("telehealth");
+  return api.get<TelehealthSession>(`/appointments/${appointmentId}/telehealth-session`);
+}
 export function joinSession(id:string, consent:boolean, signal?:AbortSignal) {
   requireBackend("telehealth");
   return apiFetch<JoinToken>(`/telehealth-sessions/${id}/join`, {method:"POST",body:JSON.stringify({consent}),signal});

@@ -4,21 +4,24 @@ import {
   useContext,
   useEffect,
   useId,
+  useLayoutEffect,
   useMemo,
   useRef,
   useState,
   type ReactNode,
 } from "react";
-import { AlertTriangle, CheckCircle2, Info, Inbox, Search, Stethoscope, X, XCircle } from "lucide-react";
-import { config, FEATURE_LABEL, type BackendFeature } from "@/core/config";
+import { createPortal } from "react-dom";
+import { AlertTriangle, CheckCircle2, Info, Inbox, Search, X, XCircle } from "lucide-react";
+import logoIcon from "@/assets/logo-icon.png";
+import { config, FEATURE_ENDPOINTS, FEATURE_LABEL, type BackendFeature } from "@/core/config";
 import { APPOINTMENT_STATUS, initials, type Tone } from "@/core/labels";
 import type { AppointmentStatus } from "@/core/types";
 
 export function Logo({ dark }: { dark?: boolean }) {
   return (
-    <div className="brand" style={dark ? { color: "var(--navy)" } : undefined}>
+    <div className="brand" style={dark ? { color: "#0f2c3f" } : undefined}>
       <span className="logo">
-        <Stethoscope size={20} aria-hidden />
+        <img src={logoIcon} alt="" className="logo-img" aria-hidden />
       </span>
       <span>
         Clinic<em>Care</em>
@@ -38,15 +41,28 @@ export function PageHead({
   text?: ReactNode;
   actions?: ReactNode;
 }) {
+  const [topTarget, setTopTarget] = useState<HTMLElement | null>(null);
+
+  useLayoutEffect(() => {
+    setTopTarget(document.getElementById("top-page-title"));
+  }, []);
+
+  const hasBody = Boolean(eyebrow || text || actions);
+
   return (
-    <div className="head">
-      <div>
-        {eyebrow && <div className="eyebrow">{eyebrow}</div>}
-        <h1>{title}</h1>
-        {text && <div className="sub">{text}</div>}
-      </div>
-      {actions && <div className="row">{actions}</div>}
-    </div>
+    <>
+      {topTarget && createPortal(<h1>{title}</h1>, topTarget)}
+      {(!topTarget || hasBody) && (
+        <div className="head">
+          <div>
+            {eyebrow && <div className="eyebrow">{eyebrow}</div>}
+            {!topTarget && <h1>{title}</h1>}
+            {text && <div className="sub">{text}</div>}
+          </div>
+          {actions && <div className="row">{actions}</div>}
+        </div>
+      )}
+    </>
   );
 }
 
@@ -194,11 +210,21 @@ export function useFeature(feature: BackendFeature) {
   return config.backend[feature];
 }
 
-export function PendingBackend({ feature }: { feature: BackendFeature }) {
+/** Banner cho chức năng mà backend chưa có API: UI đầy đủ, thao tác bị khóa, không giả lập dữ liệu. */
+export function PendingBackend({ feature, children }: { feature: BackendFeature; children?: ReactNode }) {
   if (config.backend[feature]) return null;
   return (
     <Notice tone="warn">
-      Tính năng {FEATURE_LABEL[feature].toLocaleLowerCase("vi-VN")} hiện không khả dụng.
+      <b>Chờ backend — {FEATURE_LABEL[feature]}.</b> API chưa được triển khai nên các thao tác bên dưới chưa thể kết
+      nối; giao diện không giả lập dữ liệu hay kết quả. {children}
+      <ul className="endpoint-list">
+        {FEATURE_ENDPOINTS[feature].map((e) => (
+          <li key={e}>
+            <code>{e}</code>
+          </li>
+        ))}
+      </ul>
+      Sau khi backend triển khai, đặt <code>VITE_BACKEND_{feature.toUpperCase()}=true</code> trong <code>.env</code> rồi build lại.
     </Notice>
   );
 }

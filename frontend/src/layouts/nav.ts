@@ -5,11 +5,11 @@ import {
   CalendarDays,
   ClipboardList,
   FileHeart,
+  History,
   LayoutDashboard,
   ListOrdered,
   Network,
   ShieldCheck,
-  Stethoscope,
   UserCog,
   Users,
   Video,
@@ -48,13 +48,14 @@ export const NAV_ITEMS: NavItem[] = [
   { path: "/staff/reception", label: "Tiếp đón / Check-in", icon: Users, section: "VẬN HÀNH", permission: "checkin.perform" },
   { path: "/staff/queue", label: "Hàng đợi khám", icon: ListOrdered, section: "VẬN HÀNH", permission: "queue.manage" },
   // Quản trị
-  { path: "/admin/doctors", label: "Danh mục bác sĩ", icon: Stethoscope, section: "QUẢN TRỊ HỆ THỐNG", permission: "doctors.manage" },
   { path: "/admin/specialties", label: "Danh mục chuyên khoa", icon: Network, section: "QUẢN TRỊ HỆ THỐNG", permission: "specialties.manage" },
   { path: "/admin/schedules", label: "Lịch làm việc bác sĩ", icon: CalendarCheck, section: "QUẢN TRỊ HỆ THỐNG", permission: "schedules.manage" },
-  { path: "/admin/permissions", label: "Phân quyền người dùng", icon: UserCog, section: "QUẢN TRỊ HỆ THỐNG", permission: "permissions.manage" },
+  { path: "/admin/clinic-hours", label: "Giờ hoạt động", icon: CalendarClock, section: "QUẢN TRỊ HỆ THỐNG", permission: "schedules.manage" },
+  { path: "/admin/permissions", label: "Nhân sự & bác sĩ", icon: UserCog, section: "QUẢN TRỊ HỆ THỐNG", permission: "permissions.manage" },
   // Hệ thống
   { path: "/staff/notifications", label: "Trung tâm thông báo", icon: Bell, section: "HỆ THỐNG", permission: "notifications.view" },
   { path: "/audit", label: "Nhật ký kiểm toán", icon: ShieldCheck, section: "HỆ THỐNG", permission: "audit.view" },
 ];
 
 export const ACCOUNT_ITEM = { path: "/account", label: "Tài khoản của tôi" };
+export const HISTORY_ICON = History;

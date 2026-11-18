@@ -111,6 +111,14 @@ test("video/audio hai phía, mute, ICE restart, token refresh và kết thúc đ
       }
       await expect.poll(()=>page.getByTestId("remote-video").evaluate((v:HTMLVideoElement)=>v.videoWidth)).toBeGreaterThan(0);
     }
+    await patient.getByRole("button",{name:"Dùng hiển thị tương thích"}).click();
+    const canvas = patient.getByLabel("Video tương thích");
+    await expect.poll(() => canvas.evaluate((element: HTMLCanvasElement) => {
+      const pixels = element.getContext("2d")!.getImageData(0,0,element.width,element.height).data;
+      return pixels.some((value,index) => index % 4 !== 3 && value > 32);
+    })).toBe(true);
+    await patient.getByRole("button",{name:"Dùng hiển thị chuẩn"}).click();
+    await expect(canvas).toHaveCount(0);
     expect(service.joins.PATIENT).toBeGreaterThanOrEqual(2);
     await patient.getByRole("button",{name:"Tắt micro",exact:true}).click();
     await expect.poll(()=>patient.evaluate(()=>(window as any).__rtcPeers.at(-1).getSenders().find((s:RTCRtpSender)=>s.track?.kind === "audio").track.enabled)).toBe(false);

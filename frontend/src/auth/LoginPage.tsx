@@ -36,5 +36,26 @@ export function LoginPage() {
 }
 
 export function CallbackPage() {
-  return <FullPageMessage text="Đang hoàn tất đăng nhập…" busy />;
+  const { status, error, login, retry } = useSession();
+
+  if (status === "ready") return <Navigate to="/" replace />;
+  if (status === "loading" && !error) {
+    return <FullPageMessage text="Đang hoàn tất đăng nhập…" busy />;
+  }
+  if (status === "error") {
+    return (
+      <FullPageMessage
+        text={error || "Không tải được thông tin tài khoản."}
+        error
+        action={{ label: "Thử lại", onClick: retry }}
+      />
+    );
+  }
+  return (
+    <FullPageMessage
+      text={error || "Phiên đăng nhập không còn hợp lệ. Vui lòng đăng nhập lại."}
+      error
+      action={{ label: "Đăng nhập lại", onClick: () => login("/") }}
+    />
+  );
 }

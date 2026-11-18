@@ -6,7 +6,7 @@
 - Dùng Chrome hoặc Edge bản hiện hành.
 - Cần Internet khi cài các gói lần đầu. Không cần Java, MySQL, Docker, backend hoặc Keycloak để chạy mock.
 
-Mở terminal tại thư mục `frontend` chứa `package.json`.
+Giải nén ZIP vào một thư mục, mở terminal tại thư mục `frontend` chứa `package.json`.
 
 ## 2. Khởi động
 
@@ -20,7 +20,7 @@ npm.cmd run dev:mock -- --host 127.0.0.1
 
 Trên macOS/Linux dùng `npm` thay cho `npm.cmd`.
 
-Mở **http://127.0.0.1:5173/** và chọn tài khoản demo. Lệnh `dev:mock` bật chế độ giả lập của Vite. Bạn có thể chạy ngay với cấu hình mặc định.
+Mở **http://127.0.0.1:5173/** và chọn tài khoản demo. Không cần nhập mật khẩu, không cần sao chép `.env.example` thành `.env`: lệnh `dev:mock` dùng sẵn `.env.mock`.
 
 Giữ terminal đang chạy; nhấn `Ctrl+C` để dừng. Những lần sau chỉ cần chạy lại lệnh `npm.cmd run dev:mock -- --host 127.0.0.1`.
 
@@ -75,6 +75,7 @@ npm.cmd run test:rtc
 - **Không tìm thấy node/npm:** cài Node.js phù hợp rồi mở lại terminal.
 - **PowerShell chặn npm.ps1:** dùng `npm.cmd` như các lệnh ở trên.
 - **Port 5173 is already in use:** dừng phiên Vite cũ bằng `Ctrl+C`, hoặc chạy `npm.cmd run dev:mock -- --host 127.0.0.1 --port 5176`, rồi mở cổng 5176.
-- **Hiện trang Keycloak:** dừng server và khởi động lại bằng `dev:mock`; kiểm tra terminal đang đứng trong thư mục `frontend`.
+- **Hiện trang Keycloak:** dừng server và khởi động lại bằng `dev:mock`; kiểm tra terminal đang đứng đúng thư mục đã giải nén.
 - **Dữ liệu demo cũ hoặc vai trò không phù hợp:** đăng xuất/chọn lại tài khoản; nếu cần bộ dữ liệu mới thì dùng lệnh reset ở trên.
 
+ZIP chứa source, các test hiện có, `package-lock.json` và cấu hình cần thiết; không kèm `node_modules`, bản build, kết quả chạy test hay cấu hình `.env` cá nhân.
