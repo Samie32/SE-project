@@ -26,7 +26,7 @@ Tất cả tài khoản mẫu của ClinicCare dùng mật khẩu mặc định 
 
 Workflow **Deploy ClinicCare to Azure** chạy khi có push vào `main`. Bước triển khai chờ kiểm tra frontend, backend và hợp đồng API đạt.
 
-1. Mở managed identity `id-cliniccare-deploy` → **Federated credentials** → **Add Credential**. Chọn **GitHub Actions deploying Azure resources**, nhập `Samie32` và `SE-project`, chọn **Branch**, nhập `main` và đặt tên `github-main`. Subject là `repo:Samie32/SE-project:ref:refs/heads/main`.
+1. Mở managed identity `id-cliniccare-deploy` → **Federated credentials** → **Add Credential**. Chọn **GitHub Actions deploying Azure resources**, nhập tên chủ sở hữu `Samie32` (ID `266011799`) và repo `SE-project` (ID `1385168886`), chọn **Branch**, nhập `main` và đặt tên `github-main`. Subject là `repo:Samie32@266011799/SE-project@1385168886:ref:refs/heads/main`.
 2. Gán quyền `Microsoft.Compute/virtualMachines/read` và `Microsoft.Compute/virtualMachines/runCommand/action` cho identity ở phạm vi `vm-cliniccare-azure-test` trong `rg-cliniccare`. Run Command chạy với quyền quản trị trong VM. Giới hạn quyền sửa workflow và merge vào `main`.
 3. Trên GitHub, ở **Settings → Secrets and variables → Actions → Secrets**, thêm `AZURE_CLIENT_ID` (Client ID của identity), `AZURE_TENANT_ID` và `AZURE_SUBSCRIPTION_ID`. Khi VM sẵn sàng, thêm `AZURE_DEPLOY_ENABLED=true` trong tab **Variables**.
 4. Vào **Actions → Deploy ClinicCare to Azure → Run workflow**, chọn `main`. Kiểm tra log job deploy có `CLINICCARE_DEPLOY_OK` kèm SHA. Khi VM đã tắt lúc có push, bật VM, đợi **Agent status: Ready** rồi chạy workflow trên `main` để cập nhật bù.
