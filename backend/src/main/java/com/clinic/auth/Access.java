@@ -9,6 +9,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 @Service
 public class Access {
+  static final Set<String> STAFF_ROLES = Set.of("DOCTOR", "RECEPTIONIST", "ADMINISTRATOR", "AUDITOR");
   public record Actor(String id, Set<String> roles) {
     public void require(String... allowed) {
       Problem.require(
@@ -34,21 +35,24 @@ public class Access {
   public Actor actor(Jwt jwt) {
     String issuer = jwt.getIssuer().toString(), subject = jwt.getSubject();
     Problem.require(subject != null && !subject.isBlank(), 401, "Invalid identity");
+    String username = identityLabel(jwt.getClaimAsString("preferred_username"));
     var rows =
-        db.list("SELECT id,active FROM user_account WHERE issuer=? AND subject=?", issuer, subject);
+        db.list("SELECT id,active,username FROM user_account WHERE issuer=? AND subject=?", issuer, subject);
     if (rows.isEmpty()) {
       String id =
           UUID.nameUUIDFromBytes(
                   (issuer + "|" + subject).getBytes(java.nio.charset.StandardCharsets.UTF_8))
               .toString();
       // Only PATIENT is auto-provisioned. JWT role claims never grant internal privileges.
+      String displayName = identityLabel(jwt.getClaimAsString("name"));
       int inserted =
           db.update(
-              "INSERT IGNORE INTO user_account(id,issuer,subject,display_name) VALUES(?,?,?,?)",
+              "INSERT IGNORE INTO user_account(id,issuer,subject,display_name,username) VALUES(?,?,?,?,?)",
               id,
               issuer,
               subject,
-              "Patient");
+              displayName != null ? displayName : Objects.requireNonNullElse(username, "Patient"),
+              username);
       if (inserted == 1) {
         db.update("INSERT INTO user_role VALUES(?,'PATIENT')", id);
         db.update("INSERT INTO patient VALUES(?,?)", id, id);
@@ -56,7 +60,7 @@ public class Access {
       }
       rows =
           db.list(
-              "SELECT id,active FROM user_account WHERE issuer=? AND subject=?", issuer, subject);
+              "SELECT id,active,username FROM user_account WHERE issuer=? AND subject=?", issuer, subject);
     }
     var row = rows.getFirst();
     Problem.require(
@@ -64,10 +68,17 @@ public class Access {
         403,
         "Account disabled");
     String id = row.get("id").toString();
+    if (username != null && !username.equals(row.get("username"))) {
+      db.update("UPDATE user_account SET username=? WHERE id=?", username, id);
+    }
     Set<String> roles = new HashSet<>();
     db.list("SELECT role FROM user_role WHERE user_id=?", id)
         .forEach(x -> roles.add(x.get("role").toString()));
     return new Actor(id, roles);
+  }
+
+  private static String identityLabel(String value) {
+    return value == null || value.isBlank() || value.length() > 255 ? null : value.strip();
   }
 
   public String patient(Actor actor) {
@@ -85,21 +96,60 @@ public class Access {
   }
 
   @Transactional
+  public Map<String, Object> createStaff(Actor actor, String issuer, String subject, String username, String name) {
+    actor.require("ADMINISTRATOR");
+    String id = Db.id();
+    int inserted = db.update(
+        "INSERT IGNORE INTO user_account(id,issuer,subject,username,display_name,staff) VALUES(?,?,?,?,?,TRUE)",
+        id, issuer, subject, username.strip(), name.strip());
+    var account = db.one("SELECT id,staff,username FROM user_account WHERE issuer=? AND subject=? FOR UPDATE", issuer, subject);
+    Problem.require(enabled(account.get("staff")), 409, "Patient account cannot be enrolled as staff");
+    if (inserted == 0 && account.get("username") == null) {
+      db.update("UPDATE user_account SET username=? WHERE id=?", username.strip(), account.get("id"));
+    }
+    if (inserted == 1) audit.record(actor.id(), "STAFF_CREATED", id);
+    return Map.of("id", account.get("id"));
+  }
+
+  @Transactional
+  public void updateStaff(Actor actor, String userId, String displayName, boolean active) {
+    actor.require("ADMINISTRATOR");
+    var account = db.one("SELECT id,active FROM user_account WHERE id=? AND staff=TRUE FOR UPDATE", userId);
+    Problem.require(active || !actor.id().equals(userId), 409, "Cannot disable your own account");
+    if (!active && enabled(account.get("active"))) requireDoctorPaused(userId);
+    db.update("UPDATE user_account SET display_name=?,active=? WHERE id=?", displayName.strip(), active, userId);
+    audit.record(actor.id(), "STAFF_UPDATED", userId);
+  }
+
+  private static boolean enabled(Object value) {
+    return Boolean.TRUE.equals(value) || "1".equals(String.valueOf(value));
+  }
+
+  private void requireDoctorPaused(String userId) {
+    Problem.require(db.count("SELECT COUNT(*) FROM doctor WHERE user_id=? AND active=TRUE", userId) == 0,
+        409, "Pause doctor scheduling first");
+  }
+
+  @Transactional
   public void roles(Actor actor, String userId, Set<String> roles) {
     actor.require("ADMINISTRATOR");
-    var allowed = Set.of("PATIENT", "DOCTOR", "RECEPTIONIST", "ADMINISTRATOR", "AUDITOR");
-    Problem.require(!roles.isEmpty() && allowed.containsAll(roles), 422, "Invalid roles");
-    db.one("SELECT id FROM user_account WHERE id=? FOR UPDATE", userId);
+    db.one("SELECT id FROM user_account WHERE id=? AND staff=TRUE FOR UPDATE", userId);
     Problem.require(!actor.id().equals(userId), 409, "Self role changes are not allowed");
+    var staffRoles = new HashSet<>(roles);
+    staffRoles.remove("PATIENT");
+    Problem.require(STAFF_ROLES.containsAll(staffRoles)
+        && (!roles.contains("PATIENT") || db.count(
+            "SELECT COUNT(*) FROM user_role WHERE user_id=? AND role='PATIENT'", userId) == 1),
+        422, "Invalid roles");
     if (roles.contains("DOCTOR"))
       Problem.require(
           db.count("SELECT COUNT(*) FROM doctor WHERE user_id=?", userId) > 0,
           409,
           "Create doctor profile first");
+    else if (db.count("SELECT COUNT(*) FROM user_role WHERE user_id=? AND role='DOCTOR'", userId) == 1)
+      requireDoctorPaused(userId);
     db.update("DELETE FROM user_role WHERE user_id=?", userId);
     for (String role : roles) db.update("INSERT INTO user_role VALUES(?,?)", userId, role);
-    if (roles.contains("PATIENT"))
-      db.update("INSERT IGNORE INTO patient VALUES(?,?)", userId, userId);
     audit.record(actor.id(), "ROLES_CHANGED", userId);
   }
 
@@ -123,13 +173,30 @@ public class Access {
   }
 
   @Transactional
-  public List<Map<String, Object>> users(Actor actor, int limit, int offset) {
+  public List<Map<String, Object>> users(Actor actor, int limit, int offset, String query, String role, Boolean active) {
     actor.require("ADMINISTRATOR");
     Problem.require(limit > 0 && limit <= 100 && offset >= 0, 400, "Invalid pagination");
+    String term = query.strip().toLowerCase(Locale.ROOT);
+    Problem.require(term.length() <= 255, 400, "Invalid search query");
+    Problem.require(role.isEmpty() || STAFF_ROLES.contains(role) || "UNASSIGNED".equals(role), 400, "Invalid role filter");
     var users =
         db.list(
-            "SELECT id,display_name,active FROM user_account ORDER BY display_name,id LIMIT ?"
-                + " OFFSET ?",
+            "SELECT u.id,u.display_name,u.username,u.active,d.id AS doctor_id"
+                + " FROM user_account u LEFT JOIN doctor d ON d.user_id=u.id"
+                + " WHERE u.staff=TRUE AND (?='' OR LOCATE(?,LOWER(u.display_name))>0 OR LOCATE(?,LOWER(u.username))>0)"
+                + " AND (? IS NULL OR u.active=?)"
+                + " AND (?='' OR EXISTS (SELECT 1 FROM user_role r WHERE r.user_id=u.id AND r.role=?)"
+                + " OR (?='UNASSIGNED' AND NOT EXISTS"
+                + " (SELECT 1 FROM user_role r WHERE r.user_id=u.id AND r.role<>'PATIENT')))"
+                + " ORDER BY u.display_name,u.id LIMIT ? OFFSET ?",
+            term,
+            term,
+            term,
+            active,
+            active,
+            role,
+            role,
+            role,
             limit,
             offset);
     for (var user : users)

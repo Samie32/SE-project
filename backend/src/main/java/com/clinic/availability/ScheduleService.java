@@ -15,12 +15,14 @@ public class ScheduleService {
   private final Access access;
   private final Audit audit;
   private final Clock clock;
+  private final ClinicHours hours;
 
-  public ScheduleService(Db db, Access access, Audit audit, Clock clock) {
+  public ScheduleService(Db db, Access access, Audit audit, Clock clock, ClinicHours hours) {
     this.db = db;
     this.access = access;
     this.audit = audit;
     this.clock = clock;
+    this.hours = hours;
   }
 
   public void interval(Instant start, Instant end) {
@@ -30,15 +32,7 @@ public class ScheduleService {
             && end.equals(end.truncatedTo(java.time.temporal.ChronoUnit.MINUTES)),
         422,
         "Minute precision required");
-    var a = start.atZone(ZONE);
-    var b = end.atZone(ZONE);
-    Problem.require(
-        a.toLocalDate().equals(b.toLocalDate())
-            && a.getDayOfWeek() != DayOfWeek.SUNDAY
-            && !a.toLocalTime().isBefore(LocalTime.of(8, 0))
-            && !b.toLocalTime().isAfter(LocalTime.of(17, 0)),
-        422,
-        "Outside clinic hours");
+    hours.requireOpen(start, end);
   }
 
   @Transactional

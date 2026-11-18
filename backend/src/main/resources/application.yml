@@ -23,6 +23,8 @@ spring:
     problemdetails:
       enabled: true
 clinic:
+  staff-admin-base: ${OIDC_ADMIN_BASE:http://localhost:8180}
+  staff-client-secret: ${KEYCLOAK_STAFF_CLIENT_SECRET:}
   issuer: ${OIDC_ISSUER:http://localhost:8180/realms/clinic}
   jwks: ${OIDC_JWKS:http://localhost:8180/realms/clinic/protocol/openid-connect/certs}
   audience: clinic-api

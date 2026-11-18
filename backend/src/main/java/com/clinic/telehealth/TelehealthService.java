@@ -84,6 +84,14 @@ public class TelehealthService {
     return session(id);
   }
 
+  public Map<String, Object> readByAppointment(Access.Actor actor, String appointmentId) {
+    var a = care.lockAppointment(appointmentId);
+    care.participant(actor, a);
+    var room = db.one("SELECT * FROM telehealth_session WHERE appointment_id=?", appointmentId);
+    audit.record(actor.id(), "TELEHEALTH_READ", room.get("id").toString());
+    return room;
+  }
+
   public Map<String, Object> join(Access.Actor actor, String id, boolean consent) {
     var a = appointment(id);
     care.participant(actor, a);

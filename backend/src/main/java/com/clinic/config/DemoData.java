@@ -1,6 +1,7 @@
 package com.clinic.config;
 
 import com.clinic.auth.Access;
+import com.clinic.availability.ClinicHours;
 import com.clinic.availability.ScheduleService;
 import com.clinic.common.*;
 import java.time.*;
@@ -19,6 +20,7 @@ public class DemoData {
       Crypto crypto,
       TransactionTemplate tx,
       ScheduleService schedules,
+      ClinicHours hours,
       @Value("${clinic.issuer}") String issuer) {
     return args -> {
       tx.executeWithoutResult(
@@ -29,16 +31,22 @@ public class DemoData {
             };
             for (int i = 0; i < names.length; i++) {
               String id = String.format("00000000-0000-0000-0000-%012d", i + 1);
+              String username = names[i];
               int inserted =
                   db.update(
                       "INSERT IGNORE INTO"
-                          + " user_account(id,issuer,subject,display_name,email_encrypted)"
-                          + " VALUES(?,?,?,?,?)",
+                          + " user_account(id,issuer,subject,display_name,username,email_encrypted,staff)"
+                          + " VALUES(?,?,?,?,?,?,?)",
                       id,
                       issuer,
                       id,
-                      names[i],
-                      crypto.encrypt(names[i] + "@example.test"));
+                      username,
+                      username,
+                      crypto.encrypt(username + "@example.test"),
+                      !roles[i].equals("PATIENT"));
+              if (inserted == 0)
+                db.update("UPDATE user_account SET username=? WHERE issuer=? AND subject=? AND username IS NULL",
+                    username, issuer, id);
               if (inserted == 1) db.update("INSERT INTO user_role VALUES(?,?)", id, roles[i]);
               if (roles[i].equals("PATIENT"))
                 db.update("INSERT IGNORE INTO patient VALUES(?,?)", id, id);
@@ -53,35 +61,34 @@ public class DemoData {
                 "INSERT IGNORE INTO doctor_specialty"
                     + " VALUES('20000000-0000-0000-0000-000000000001','10000000-0000-0000-0000-000000000001')");
           });
+      var week = hours.read().days();
       LocalDate day = LocalDate.now(ScheduleService.ZONE).plusDays(1);
       for (int n = 0; n < 7; n++, day = day.plusDays(1)) {
-        if (day.getDayOfWeek() == DayOfWeek.SUNDAY) continue;
-        Instant start = day.atTime(8, 0).atZone(ScheduleService.ZONE).toInstant();
-        String doctor = "20000000-0000-0000-0000-000000000001";
-        if (db.count(
-                "SELECT COUNT(*) FROM availability WHERE doctor_id=? AND start_at=?", doctor, start)
-            == 0)
-          schedules.availability(
-              new Access.Actor("00000000-0000-0000-0000-000000000001", Set.of("ADMINISTRATOR")),
-              doctor,
-              start,
-              start.plusSeconds(3600 * 4),
-              20,
-              "IN_PERSON");
-        Instant remote = day.atTime(13, 0).atZone(ScheduleService.ZONE).toInstant();
-        if (db.count(
-                "SELECT COUNT(*) FROM availability WHERE doctor_id=? AND start_at=?",
-                doctor,
-                remote)
-            == 0)
-          schedules.availability(
-              new Access.Actor("00000000-0000-0000-0000-000000000001", Set.of("ADMINISTRATOR")),
-              doctor,
-              remote,
-              remote.plusSeconds(3600 * 4),
-              20,
-              "REMOTE");
+        var operatingHours = week.get(day.getDayOfWeek().getValue() - 1);
+        if (operatingHours.opensAt() == null) continue;
+        seedShift(db, schedules, day, operatingHours, LocalTime.of(8, 0), LocalTime.NOON, "IN_PERSON");
+        seedShift(db, schedules, day, operatingHours, LocalTime.of(13, 0), LocalTime.of(17, 0), "REMOTE");
       }
     };
+  }
+
+  private static void seedShift(Db db, ScheduleService schedules, LocalDate day,
+      ClinicHours.DayHours operatingHours, LocalTime shiftStart, LocalTime shiftEnd, String mode) {
+    var opening = LocalTime.parse(operatingHours.opensAt());
+    var closing = LocalTime.parse(operatingHours.closesAt());
+    var zone = ScheduleService.ZONE;
+    Instant start = day.atTime(opening.isAfter(shiftStart) ? opening : shiftStart).atZone(zone).toInstant();
+    Instant end = day.atTime(closing.isBefore(shiftEnd) ? closing : shiftEnd).atZone(zone).toInstant();
+    long minutes = Duration.between(start, end).toMinutes();
+    if (minutes < 20) return;
+
+    Instant alignedEnd = start.plusSeconds(minutes / 20 * 20 * 60);
+    String doctor = "20000000-0000-0000-0000-000000000001";
+    if (db.count("SELECT COUNT(*) FROM availability WHERE doctor_id=? AND start_at<? AND end_at>?",
+        doctor, alignedEnd, start) == 0) {
+      schedules.availability(
+          new Access.Actor("00000000-0000-0000-0000-000000000001", Set.of("ADMINISTRATOR")),
+          doctor, start, alignedEnd, 20, mode);
+    }
   }
 }
