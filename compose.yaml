@@ -6,6 +6,13 @@ services:
       args:
         VITE_OIDC_AUTHORITY: ${PATIENT_OIDC_AUTHORITY:-http://localhost:8180/realms/clinic}
         VITE_OIDC_CLIENT_ID: ${PATIENT_OIDC_CLIENT_ID:-clinic-web}
+        VITE_WEBRTC_ICE_CONFIG_URL: ${WEBRTC_ICE_CONFIG_URL:-/webrtc-config.json}
+        VITE_BACKEND_CHECKIN: ${FE_BACKEND_CHECKIN:-true}
+        VITE_BACKEND_QUEUE: ${FE_BACKEND_QUEUE:-true}
+        VITE_BACKEND_PROGRESS: ${FE_BACKEND_PROGRESS:-true}
+        VITE_BACKEND_CLINICAL: ${FE_BACKEND_CLINICAL:-true}
+        VITE_BACKEND_TELEHEALTH: ${FE_BACKEND_TELEHEALTH:-true}
+        VITE_BACKEND_AUDIT: ${FE_BACKEND_AUDIT:-true}
     ports: ["127.0.0.1:5173:80"]
     depends_on:
       backend: {condition: service_started}
@@ -49,6 +56,8 @@ services:
       DATA_ENCRYPTION_KEY: ${DATA_ENCRYPTION_KEY}
       OIDC_ISSUER: http://localhost:8180/realms/clinic
       OIDC_JWKS: http://keycloak:8080/realms/clinic/protocol/openid-connect/certs
+      OIDC_ADMIN_BASE: http://keycloak:8080
+      KEYCLOAK_STAFF_CLIENT_SECRET: ${KEYCLOAK_STAFF_CLIENT_SECRET:-}
       SMTP_HOST: mailpit
       SMTP_PORT: 1025
       FRONTEND_ORIGIN: http://localhost:5173

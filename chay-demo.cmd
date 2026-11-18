@@ -45,7 +45,11 @@ if not defined CLINIC_DEMO_FRONTEND (
     goto finish
 )
 
-docker compose -p %CLINIC_DEMO_PROJECT% up -d --no-recreate --wait --wait-timeout 150 %CLINIC_DEMO_FRONTEND% backend
+docker compose -p %CLINIC_DEMO_PROJECT% up -d --no-recreate keycloak
+if errorlevel 1 goto finish
+python.exe -B "%~dp0scripts\setup-staff-provisioning.py"
+if errorlevel 1 goto finish
+docker compose -p %CLINIC_DEMO_PROJECT% up -d --wait --wait-timeout 150 %CLINIC_DEMO_FRONTEND% backend
 if errorlevel 1 goto finish
 python.exe -B "%~dp0data_demo\load_local_demo.py" --apply %*
 set "CLINIC_DEMO_RESULT=%ERRORLEVEL%"

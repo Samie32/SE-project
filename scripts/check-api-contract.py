@@ -81,7 +81,7 @@ def check(spec, runtime):
         for status, response in op['responses'].items():
             if not status.startswith('2'):
                 continue
-            if status == '204' or key in {('put','/me/contact'), ('put','/users/{id}/roles')}:
+            if status == '204' or key in {('put','/me/contact'), ('put','/users/{id}/roles'), ('put','/staff/{id}')}:
                 if 'content' in response:
                     errors.append(f'{key}/{status}: empty response must not promise JSON')
             elif not response.get('content', {}).get('application/json', {}).get('schema'):

@@ -10,3 +10,6 @@
 infra/runtime/
 
 *.zip
+.playwright-cli/
+.claude/
+**/__pycache__/
