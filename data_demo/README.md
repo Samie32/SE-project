@@ -15,7 +15,7 @@ Cần Docker đang chạy và Python 3.10+. Từ thư mục gốc dự án:
 if (!(Test-Path .env) -or !(Test-Path infra/runtime/clinic-realm.json)) {
     powershell.exe -NoProfile -ExecutionPolicy Bypass -File scripts/setup-local.ps1
 }
-docker compose -p clinic-telehealth-integration up -d --build --wait backend patient-frontend
+docker compose -p clinic-telehealth-integration up -d --build --wait backend frontend
 
 $loader = 'data_demo/load_local_demo.py'
 python -B $loader           # In kế hoạch, chưa ghi dữ liệu
@@ -24,7 +24,7 @@ python -B $loader --apply   # Nạp lịch tương lai vào project tích hợp 
 
 Compose sẽ kéo theo MySQL, Keycloak và Mailpit. Trình nạp gọi BE qua API và chỉ ghi vào project `clinic-telehealth-integration` với BE/Keycloak bind loopback. Nếu cổng cần dùng đang bận, xác định và dừng phiên local cũ trước.
 
-Để xem giao diện tại **http://localhost:5173/**, chạy thêm service `patient-frontend` trên `main`, hoặc `frontend` nếu checkout dùng FE gộp. Dùng cùng project Docker để FE kết nối đúng BE. Hướng dẫn thao tác đủ năm vai trò tham chiếu FE gộp.
+Để xem giao diện tại **http://localhost:5173/**, chạy thêm service `frontend`. Dùng cùng project Docker để FE kết nối đúng BE. Hướng dẫn thao tác đủ năm vai trò tham chiếu FE gộp.
 
 Khi tạm dừng giữa các buổi, dùng `docker compose -p clinic-telehealth-integration stop` để giữ container Keycloak và volume MySQL. Nếu Keycloak bị tạo lại và mất tài khoản demo trong khi MySQL còn dữ liệu, khôi phục dữ liệu Keycloak tương ứng hoặc chuẩn bị môi trường demo sạch. Trình nạp sẽ dừng nếu phát hiện danh tính thiếu và hồ sơ bác sĩ demo đã tồn tại.
 

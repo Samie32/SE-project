@@ -1,6 +1,6 @@
 name: clinic-telehealth
 services:
-  patient-frontend:
+  frontend:
     build:
       context: ./frontend
       args:
