@@ -20,7 +20,24 @@ docker compose --env-file .env.internet -f compose.yaml -f compose.internet.yaml
 docker compose --env-file .env.internet -f compose.yaml -f compose.internet.yaml ps
 ```
 
-Trình tạo cấu hình sinh mật khẩu riêng cho từng tài khoản demo và giữ nguyên ID mà backend dùng để nạp dữ liệu. Tài khoản và mật khẩu nằm trong `infra/runtime/internet/clinic-realm.json`. Chia sẻ riêng tài khoản `doctor` và `patient` cho hai người kiểm thử. `.env.internet` và thư mục runtime chứa bí mật và đã được Git bỏ qua. Hãy giữ bản sao an toàn cùng các volume. Keycloak chỉ import realm khi realm chưa tồn tại, nên khi đổi domain hoặc tài khoản sau lần chạy đầu cần cập nhật realm đang sử dụng cùng các biến liên quan.
+Ở bản cài mới, `doctor` và `patient` mặc định dùng `DemoClinic`. Bạn có thể đặt `DEMO_PASSWORD` khi tạo cấu hình hoặc sửa biến trong `.env.internet` rồi chạy lệnh cập nhật bên dưới. Tài khoản quản trị và các tài khoản khởi tạo khác có mật khẩu riêng trong `infra/runtime/internet/clinic-realm.json`. Giữ các file cấu hình trên máy chủ. Chỉ dùng mật khẩu mặc định với dữ liệu mô phỏng.
+
+### Cập nhật VM đang chạy
+
+Chạy trên VM hoặc trong Azure **RunShellScript**. Ví dụ áp dụng cho bản thử cài tại `/opt/cliniccare`.
+
+```bash
+set -eu
+cd /opt/cliniccare
+git pull --ff-only origin deploy/azure-demo
+if ! grep -q '^DEMO_PASSWORD=' .env.internet; then
+  printf '\nDEMO_PASSWORD=DemoClinic\n' >> .env.internet
+fi
+docker compose --env-file .env.internet -f compose.yaml -f compose.internet.yaml up -d
+python3 -B data_demo/load_local_demo.py --internet --demo-logins --apply
+```
+
+Lệnh cuối xác thực lại hai tài khoản sau khi áp dụng mật khẩu. Keycloak lưu thay đổi trong volume đang dùng. File realm JSON là bản import ban đầu nên mật khẩu trong đó có thể cũ sau khi đổi trực tiếp. Bản cập nhật này dùng lại image đang có.
 
 Sau khi dịch vụ sẵn sàng, chạy `sudo python3 -B data_demo/load_local_demo.py --internet --apply` trên máy chủ để thêm chuyên khoa, bác sĩ và lịch mẫu. Xem [tài khoản và cách nạp](../data_demo/README.md#2-tài-khoản-và-mật-khẩu-demo).
 

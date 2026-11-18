@@ -69,7 +69,9 @@ Trên máy chủ Linux đã khởi động Internet Compose, chạy từ thư m�
 sudo python3 -B data_demo/load_local_demo.py --internet --apply
 ```
 
-Chế độ này dùng tài khoản quản trị demo và lễ tân hiện có để nạp dữ liệu. Các tài khoản bổ sung `patient3` và `doctor2` đến `doctor8` dùng chung mật khẩu do trình nạp sinh và lưu riêng tại `infra/runtime/internet/demo-seed-password`. Có thể đặt `DEMO_PASSWORD` trong `.env.internet` rồi chạy lại lệnh để đổi mật khẩu của các tài khoản bổ sung. Các tài khoản khởi tạo cùng realm giữ mật khẩu đang dùng. Cấu hình quản trị Keycloak được đọc trên máy chủ.
+Ở bản cài mới, `DEMO_PASSWORD` trong `.env.internet` mặc định là `DemoClinic` và được dùng cho `patient3`, `doctor2` đến `doctor8`. Nếu VM cũ chưa có biến này, trình nạp tiếp tục dùng mật khẩu lưu tại `infra/runtime/internet/demo-seed-password`. Đặt `DEMO_PASSWORD` rồi nạp lại để đồng bộ nhóm tài khoản bổ sung.
+
+Để đổi riêng mật khẩu `doctor` và `patient` trên VM đã cài, chạy `python3 -B data_demo/load_local_demo.py --internet --demo-logins --apply`. Lệnh dùng `DEMO_PASSWORD` nếu đã cấu hình, mặc định là `DemoClinic`. Xem [hướng dẫn cập nhật VM](../docs/deploy-internet-demo.md#cập-nhật-vm-đang-chạy).
 
 ## 3. Dữ liệu có sẵn
 

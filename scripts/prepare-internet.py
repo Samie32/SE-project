@@ -51,9 +51,13 @@ def main():
     origin = f"https://{args.app_host}"
     client.update(redirectUris=[f"{origin}/callback"], webOrigins=[origin])
     client["attributes"]["post.logout.redirect.uris"] = f"{origin}/login?loggedout=1"
+    demo_password = os.environ.get("DEMO_PASSWORD") or "DemoClinic"
+    if any(char in demo_password for char in "\r\n"):
+        parser.error("DEMO_PASSWORD must fit on one line.")
     for user in realm["users"]:
+        password = demo_password if user["username"] in {"doctor", "patient"} else secrets.token_urlsafe(24)
         user["credentials"] = [
-            {"type": "password", "value": secrets.token_urlsafe(24), "temporary": False}
+            {"type": "password", "value": password, "temporary": False}
         ]
 
     values = {
@@ -62,6 +66,7 @@ def main():
         "TURN_PUBLIC_IP": str(args.turn_public_ip),
         "TURN_BIND_IP": str(bind_ip),
         "ICE_POLICY": "all",
+        "DEMO_PASSWORD": demo_password,
         "DB_PASSWORD": secrets.token_urlsafe(32),
         "MYSQL_ROOT_PASSWORD": secrets.token_urlsafe(32),
         "KEYCLOAK_ADMIN_PASSWORD": secrets.token_urlsafe(32),

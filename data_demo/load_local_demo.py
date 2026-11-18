@@ -141,7 +141,7 @@ def login(user, password, *, realm="clinic", client="clinic-local-cli"):
 
 
 @contextmanager
-def internet_credentials():
+def internet_credentials(*, seed_data=True):
     global API, OIDC
     env = read_env(ROOT / ".env.internet")
     runtime = ROOT / "infra/runtime/internet"
@@ -163,7 +163,7 @@ def internet_credentials():
                          "X-Forwarded-Port": "443"})
     admin = login("admin", env["KEYCLOAK_ADMIN_PASSWORD"], realm="master", client="admin-cli")
     password = os.getenv("DEMO_PASSWORD") or env.get("DEMO_PASSWORD")
-    if not password:
+    if seed_data and not password:
         password_path = runtime / "demo-seed-password"
         try:
             fd = os.open(password_path, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
@@ -186,7 +186,8 @@ def internet_credentials():
     }, token=admin)
     DEMO_CLIENT.update(client_id=client_id, client_secret=client_secret)
     try:
-        tokens = {name: login(name, existing_passwords[name]) for name in ("admin", "receptionist")}
+        tokens = {name: login(name, existing_passwords[name])
+                  for name in ("admin", "receptionist")} if seed_data else {}
         yield admin, tokens, password
     finally:
         DEMO_CLIENT.clear()
@@ -413,9 +414,22 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--apply", action="store_true", help="Write demo data to the selected demo stack.")
     parser.add_argument("--internet", action="store_true", help="Use Internet Compose from its Linux host.")
+    parser.add_argument("--demo-logins", action="store_true",
+                        help="Set the Internet demo doctor and patient passwords without seeding data.")
     parser.add_argument("--date", type=date.fromisoformat, help="First future date (YYYY-MM-DD, Vietnam).")
     parser.add_argument("--clinical-at", help="Optional clinical example today at HH:MM Vietnam time.")
     args = parser.parse_args()
+    if args.demo_logins:
+        if not args.internet or not args.apply or args.date or args.clinical_at:
+            parser.error("--demo-logins requires --internet --apply and takes no scheduling options.")
+        realm = json.loads((ROOT / "infra/runtime/internet/clinic-realm.json").read_text(encoding="utf-8"))
+        ids = {user["username"]: user["id"] for user in realm["users"]}
+        with internet_credentials(seed_data=False) as (admin, _, password):
+            for username in ("doctor", "patient"):
+                demo_login(admin, username, password or "DemoClinic", ids[username])
+        print("Updated Keycloak demo logins: doctor, patient.")
+        return
+
     today = datetime.now(VN).date()
     first = args.date or next_workday(today)
     if first <= today or first.weekday() == 6:
