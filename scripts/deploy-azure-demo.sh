@@ -73,7 +73,8 @@ if [ "$mode" = frontend-only ]; then
   compose up -d --build --no-deps frontend
   app_host=$(compose exec -T gateway printenv APP_HOST)
 else
-  compose up -d --build
+  python3 scripts/run-with-azure-smtp.py docker compose --env-file .env.internet \
+    -f compose.yaml -f compose.internet.yaml up -d --build
   compose restart frontend
 fi
 

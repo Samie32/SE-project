@@ -39,10 +39,33 @@ jobs:
           subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
       - name: Deploy verified commit
         shell: bash
+        env:
+          BREVO_SMTP_CONFIG: ${{ secrets.BREVO_SMTP_CONFIG }}
         run: |
+          smtp_updated=0
+          if [ -n "$BREVO_SMTP_CONFIG" ]; then
+            smtp_script="$(printf '%s\n' '#!/bin/sh' "python3 - store <<'PY'"; cat scripts/run-with-azure-smtp.py; printf '\nPY\n')"
+            command=(--resource-group rg-cliniccare --vm-name vm-cliniccare-azure-test --name cliniccare-sync-smtp)
+            location="$(az vm show --resource-group rg-cliniccare --name vm-cliniccare-azure-test \
+              --query location -o tsv --only-show-errors)"
+            if ! az vm run-command create "${command[@]}" --location "$location" --async-execution false \
+              --parameters "CLINICCARE_SYNC_RUN=$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT" \
+              --script "$smtp_script" --protected-parameters "BREVO_SMTP_CONFIG=$BREVO_SMTP_CONFIG" \
+              --only-show-errors --output none 2>/dev/null; then
+              echo 'SMTP sync failed. Check Azure Managed Run Command permissions.' >&2
+              exit 1
+            fi
+            smtp_status="$(az vm run-command show "${command[@]}" --instance-view \
+              --query instanceView.output -o tsv --only-show-errors)"
+            case "$smtp_status" in
+              CLINICCARE_SMTP_UPDATED) smtp_updated=1 ;;
+              CLINICCARE_SMTP_UNCHANGED) ;;
+              *) echo 'VM did not confirm SMTP configuration. Check the format of BREVO_SMTP_CONFIG.' >&2; exit 1 ;;
+            esac
+          fi
           script="$RUNNER_TEMP/cliniccare-deploy.sh"
           printf 'DEPLOY_SHA=%s\n' "$GITHUB_SHA" > "$script"
-          if [ "$GITHUB_EVENT_NAME" = workflow_dispatch ]; then
+          if [ "$GITHUB_EVENT_NAME" = workflow_dispatch ] || [ "$smtp_updated" = 1 ]; then
             printf 'DEPLOY_FORCE_FULL=1\n' >> "$script"
           fi
           cat scripts/deploy-azure-demo.sh >> "$script"

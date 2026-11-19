@@ -9,6 +9,18 @@ Cấu hình này dùng cho **dữ liệu mô phỏng** trên một máy chủ Li
 - Cho phép **TCP 80/443** cho HTTPS, **UDP và TCP 3478** cho TURN và **UDP 49160–49200** cho media relay. Cấu hình cả firewall của nhà cung cấp và máy chủ. Nếu máy chủ có IP nội bộ ánh xạ sang IP công khai, giữ nguyên số cổng khi chuyển tiếp và dùng IP nội bộ của card mạng trong `--turn-bind-ip`. Ưu tiên máy chủ có IPv4 công khai gắn trực tiếp để giảm vấn đề NAT loopback khi cả hai phía dùng cùng TURN.
 - Giữ MySQL, Mailpit, backend, Keycloak trực tiếp và dịch vụ cấp ICE trong mạng Docker. Caddy công khai web, đường dẫn API và các đường dẫn cần cho đăng nhập realm `clinic`.
 
+## Tự nạp cấu hình Brevo trên Azure
+
+Trong repository GitHub, vào **Settings → Secrets and variables → Actions → New repository secret**. Tạo secret `BREVO_SMTP_CONFIG` với giá trị JSON dưới đây. SMTP Login lấy ở trang SMTP & API của Brevo. `from` là địa chỉ gửi đã xác minh.
+
+```json
+{"username":"<SMTP Login>","password":"<SMTP key>","from":"<sender đã xác minh>"}
+```
+
+Push lên `main` sẽ kích hoạt workflow **Deploy ClinicCare to Azure** nếu `AZURE_DEPLOY_ENABLED=true`. Workflow chuyển cấu hình qua **Protected Parameters** của Azure Managed Run Command, lưu trong `/var/lib/cliniccare/smtp.json` với quyền `0600` và cập nhật backend nếu SMTP thay đổi. Cấu hình được giữ khi VM khởi động lại. Khi đổi key, cập nhật secret trên GitHub và chạy **Deploy ClinicCare to Azure → Run workflow** từ `main`.
+
+Danh tính Azure của GitHub Actions cần quyền tạo và đọc **Managed Run Command** trên VM. Nếu workflow báo thiếu quyền, quản trị viên Azure cấp quyền cho danh tính triển khai hiện có. VM cần kết nối ra Brevo qua TCP 587. Khi chưa có cấu hình được đồng bộ, mặc định là Mailpit. Kiểm chứng bằng một lịch mô phỏng, theo dõi job `SENT` và xác nhận thư đến hộp nhận.
+
 ## Tạo môi trường và khởi động
 
 Từ thư mục gốc repository, thay hai hostname và IPv4 dưới đây bằng giá trị thật. Thêm `--turn-bind-ip IP_NOI_BO` nếu máy chủ nằm sau NAT.

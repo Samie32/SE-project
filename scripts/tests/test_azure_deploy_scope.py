@@ -27,6 +27,10 @@ class DeployScopeTests(unittest.TestCase):
         self.git("init", "-q", "-b", "main", str(self.source), cwd=self.root)
         self.git("config", "user.name", "Test")
         self.git("config", "user.email", "test@example.com")
+        loader = self.source / "scripts/run-with-azure-smtp.py"
+        loader.parent.mkdir()
+        loader.write_text("import os, sys\nos.execvp(sys.argv[1], sys.argv[1:])\n")
+        self.git("add", "--", str(loader))
         base = self.commit("infra/internet/cliniccare-boot-deploy.service")
         (self.state / "deployed-sha").write_text(base + "\n")
         self.git("clone", "-q", str(self.source), str(self.checkout), cwd=self.root)

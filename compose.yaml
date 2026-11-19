@@ -58,8 +58,13 @@ services:
       OIDC_JWKS: http://keycloak:8080/realms/clinic/protocol/openid-connect/certs
       OIDC_ADMIN_BASE: http://keycloak:8080
       KEYCLOAK_STAFF_CLIENT_SECRET: ${KEYCLOAK_STAFF_CLIENT_SECRET:-}
-      SMTP_HOST: mailpit
-      SMTP_PORT: 1025
+      SMTP_HOST: ${SMTP_HOST:-mailpit}
+      SMTP_PORT: ${SMTP_PORT:-1025}
+      SMTP_USERNAME: ${SMTP_USERNAME:-}
+      SMTP_PASSWORD: ${SMTP_PASSWORD:-}
+      SMTP_AUTH: ${SMTP_AUTH:-false}
+      SMTP_STARTTLS: ${SMTP_STARTTLS:-false}
+      SMTP_FROM: ${SMTP_FROM:-clinic@example.test}
       FRONTEND_ORIGIN: http://localhost:5173
     ports: ["127.0.0.1:8080:8080"]
     depends_on:

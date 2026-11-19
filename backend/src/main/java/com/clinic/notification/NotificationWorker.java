@@ -15,6 +15,7 @@ public class NotificationWorker {
   private final JavaMailSender mail;
   private final Crypto crypto;
   private final boolean enabled;
+  private final String mailFrom;
   private final Clock clock;
 
   public NotificationWorker(
@@ -22,12 +23,14 @@ public class NotificationWorker {
       JavaMailSender m,
       Crypto c,
       Clock clock,
-      @Value("${clinic.notifications-enabled}") boolean enabled) {
+      @Value("${clinic.notifications-enabled}") boolean enabled,
+      @Value("${clinic.mail-from}") String mailFrom) {
     store = s;
     mail = m;
     crypto = c;
     this.clock = clock;
     this.enabled = enabled;
+    this.mailFrom = mailFrom;
   }
 
   @Scheduled(fixedDelayString = "${clinic.notification-poll-ms:2000}")
@@ -58,7 +61,7 @@ public class NotificationWorker {
     }
     try {
       var message = new SimpleMailMessage();
-      message.setFrom("clinic@example.test");
+      message.setFrom(mailFrom);
       message.setTo(crypto.decrypt((byte[]) data.get("emailEncrypted")));
       message.setSubject("Clinic appointment " + job.get("eventType"));
       message.setText(

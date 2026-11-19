@@ -56,6 +56,7 @@ class SchedulingIntegrationTest {
     p.add("spring.flyway.password", mysql::getPassword);
     p.add("clinic.encryption-key", () -> Base64.getEncoder().encodeToString(new byte[32]));
     p.add("clinic.notifications-enabled", () -> false);
+    p.add("clinic.mail-from", () -> "reminders@cliniccare.example.test");
     p.add("management.health.mail.enabled", () -> false);
   }
 
@@ -544,6 +545,7 @@ class SchedulingIntegrationTest {
     worker.deliver(job);
     var captor = org.mockito.ArgumentCaptor.forClass(SimpleMailMessage.class);
     verify(mail).send(captor.capture());
+    assertEquals("reminders@cliniccare.example.test", captor.getValue().getFrom());
     assertTrue(captor.getValue().getText().contains(id(a)));
     assertFalse(captor.getValue().getText().contains("token"));
     assertEquals(
