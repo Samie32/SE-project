@@ -1,0 +1,94 @@
+@startuml erd-infrastructure
+skinparam entity {
+  BackgroundColor White
+  BorderColor #555
+  ArrowColor #333
+  FontName Arial
+  FontSize 10
+}
+skinparam shadowing false
+skinparam dpi 150
+title erd-infrastructure - MySQL / InnoDB
+
+entity "UserAccount" as UA {
+  * id : CHAR(36) <<PK>>
+  --
+  issuer : VARCHAR(255)
+  subject : VARCHAR(255)
+  status : VARCHAR(32)
+}
+
+entity "UserRole" as UR {
+  * user_id : CHAR(36) <<PK,FK>>
+  * role : VARCHAR(32) <<PK>>
+}
+
+entity "AuditEvent" as AE {
+  * id : CHAR(36) <<PK>>
+  --
+  actor_id : CHAR(36) <<FK,nullable>>
+  actor_type : VARCHAR(32)
+  actor_label : VARCHAR(255)
+  resource_type : VARCHAR(255)
+  resource_id : VARCHAR(255)
+  action : VARCHAR(255)
+  result : VARCHAR(32)
+  timestamp : DATETIME(6)
+  correlation_id : VARCHAR(255)
+}
+
+entity "IdempotencyRecord" as IR {
+  * actor_id : CHAR(36) <<PK,FK>>
+  * operation : VARCHAR(64) <<PK>>
+  * request_key : VARCHAR(128) <<PK>>
+  --
+  request_hash : VARCHAR(255)
+  result_resource_id : CHAR(36)
+  expires_at : DATETIME(6)
+}
+
+entity "OutboxEvent" as OE {
+  * id : CHAR(36) <<PK>>
+  --
+  aggregate_version : INT
+  aggregate_id : CHAR(36)
+  event_type : VARCHAR(64)
+  status : VARCHAR(32)
+  created_at : DATETIME(6)
+  lease_until : DATETIME(6)
+}
+
+entity "Appointment" as AP {
+  version : INT
+  cancellation_reason : TEXT
+  --
+  * id : CHAR(36) <<PK>>
+  patient_id : CHAR(36) <<FK>>
+  doctor_id : CHAR(36) <<FK>>
+  slot_id : CHAR(36) <<FK>>
+  start_at : DATETIME(6)
+  end_at : DATETIME(6)
+  status : VARCHAR(32)
+  mode : VARCHAR(32)
+}
+
+entity "NotificationJob" as NJ {
+  appointment_version : INT
+  attempts : INT
+  --
+  * id : CHAR(36) <<PK>>
+  appointment_id : CHAR(36) <<FK>>
+  due_at : DATETIME(6)
+  dedupe_key : VARCHAR(255) <<UK>>
+  status : VARCHAR(32)
+  channel : VARCHAR(32)
+  lease_until : DATETIME(6)
+  provider_message_id : VARCHAR(255)
+}
+
+UA ||--o{ UR
+UA ||--o{ AE : actor_id
+UA ||--o{ IR : actor_id
+AP ||--o{ NJ
+
+@enduml

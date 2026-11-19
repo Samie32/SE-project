@@ -1,4 +1,4 @@
-import { Route, Routes } from "react-router-dom";
+import { Navigate, Route, Routes } from "react-router-dom";
 import { Guard, HomeRedirect, NotFound } from "@/auth/Guard";
 import { CallbackPage, LoginPage } from "@/auth/LoginPage";
 import { AppShell } from "@/layouts/AppShell";
@@ -19,7 +19,7 @@ import { DoctorSchedulePage } from "@/features/doctor/Schedule";
 import { DoctorAppointmentsPage } from "@/features/doctor/Appointments";
 import { DoctorQueuePage } from "@/features/doctor/Queue";
 import { DoctorConsultationPage } from "@/features/doctor/Consultation";
-import { DoctorTelehealthPage } from "@/features/doctor/Telehealth";
+import { DoctorCallLayout } from "@/features/doctor/Telehealth";
 
 import { StaffDashboard } from "@/features/staff/Dashboard";
 import { ReceptionPage } from "@/features/staff/Reception";
@@ -27,10 +27,10 @@ import { StaffQueuePage } from "@/features/staff/Queue";
 import { NotificationsPage } from "@/features/staff/Notifications";
 import { AuditPage } from "@/features/staff/Audit";
 
-import { DoctorsPage } from "@/features/admin/Doctors";
 import { SpecialtiesPage } from "@/features/admin/Specialties";
 import { PermissionsPage } from "@/features/admin/Permissions";
 import { SchedulesPage } from "@/features/admin/Schedules";
+import { ClinicHoursPage } from "@/features/admin/ClinicHours";
 
 import { AccountPage } from "@/features/account/Account";
 
@@ -68,10 +68,10 @@ export default function App() {
           <Route path="schedule" element={<DoctorSchedulePage />} />
           <Route path="appointments" element={<DoctorAppointmentsPage />} />
           <Route path="queue" element={<DoctorQueuePage />} />
-          <Route path="consultation" element={<DoctorConsultationPage />} />
-          <Route path="consultation/:appointmentId" element={<DoctorConsultationPage />} />
-          <Route path="telehealth" element={<DoctorTelehealthPage />} />
-          <Route path="telehealth/:appointmentId" element={<DoctorTelehealthPage />} />
+          <Route element={<DoctorCallLayout />}>
+            <Route path="consultation/:appointmentId?" element={<DoctorConsultationPage />} />
+            <Route path="telehealth/:appointmentId?" element={null} />
+          </Route>
         </Route>
 
         {/* Nhân viên: lễ tân / quản trị */}
@@ -81,9 +81,10 @@ export default function App() {
         <Route path="staff/notifications" element={guard("notifications.view", <NotificationsPage />)} />
 
         {/* Quản trị */}
-        <Route path="admin/doctors" element={guard("doctors.manage", <DoctorsPage />)} />
+        <Route path="admin/doctors" element={<Navigate to="/admin/permissions?role=DOCTOR" replace />} />
         <Route path="admin/specialties" element={guard("specialties.manage", <SpecialtiesPage />)} />
         <Route path="admin/schedules" element={guard("schedules.manage", <SchedulesPage />)} />
+        <Route path="admin/clinic-hours" element={guard("schedules.manage", <ClinicHoursPage />)} />
         <Route path="admin/permissions" element={guard("permissions.manage", <PermissionsPage />)} />
 
         {/* Kiểm toán */}

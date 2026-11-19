@@ -3,7 +3,7 @@ import { setFetchImpl, setTokenGetter } from "@/core/client";
 import { resetDb } from "@/mock/db";
 import { mockFetch } from "@/mock/server";
 import { getMe } from "@/core/session";
-import { listDoctors, setUserRoles } from "@/api/catalog";
+import { createStaff, listDoctors, setUserRoles } from "@/api/catalog";
 import { listAvailability } from "@/api/schedule";
 import { scanAppointments } from "@/api/appointments";
 import { api } from "@/core/client";
@@ -49,8 +49,13 @@ describe("backend giả lập theo hợp đồng", () => {
     const admin = db.users.find((u) => u.roles.includes("ADMINISTRATOR"))!;
     const patient = db.users.find((u) => u.roles.includes("PATIENT"))!;
     setTokenGetter(() => "mock." + admin.id);
-    await expect(setUserRoles(patient.id, ["DOCTOR"])).rejects.toMatchObject({ status: 409 });
-    await expect(setUserRoles(patient.id, ["PATIENT"])).resolves.toBeUndefined();
+    await expect(setUserRoles(patient.id, ["DOCTOR"])).rejects.toMatchObject({ status: 404 });
+    const staff = await createStaff({
+      username: "staff-test", displayName: "Nhân sự mới", email: "staff-test@example.test",
+      temporaryPassword: "Temporary!Demo42", roles: ["AUDITOR"], specialtyIds: [],
+    });
+    await expect(setUserRoles(staff.id, ["DOCTOR"])).rejects.toMatchObject({ status: 409 });
+    await expect(setUserRoles(staff.id, ["RECEPTIONIST"])).resolves.toBeUndefined();
     expect((await listDoctors()).length).toBeGreaterThan(0);
     expect((await scanAppointments()).truncated).toBe(false);
   });

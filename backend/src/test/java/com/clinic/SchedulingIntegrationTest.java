@@ -93,6 +93,8 @@ class SchedulingIntegrationTest {
             .doctor(admin, doctorActor2.id(), List.of(UUID.fromString(specialty)))
             .get("id")
             .toString();
+    catalog.updateDoctor(admin, doctorId, true, "Test", List.of(UUID.fromString(specialty)));
+    catalog.updateDoctor(admin, doctor2, true, "Test", List.of(UUID.fromString(specialty)));
     schedule.availability(admin, doctorId, start, start.plusSeconds(3600), 20, "IN_PERSON");
     schedule.availability(admin, doctor2, start, start.plusSeconds(3600), 20, "IN_PERSON");
     var slots = db.list("SELECT * FROM slot WHERE doctor_id=? ORDER BY start_at", doctorId);
@@ -107,13 +109,14 @@ class SchedulingIntegrationTest {
   Access.Actor actor(String role) {
     String id = Db.id();
     db.update(
-        "INSERT INTO user_account(id,issuer,subject,display_name,email_encrypted)"
-            + " VALUES(?,?,?,?,?)",
+        "INSERT INTO user_account(id,issuer,subject,display_name,email_encrypted,staff)"
+            + " VALUES(?,?,?,?,?,?)",
         id,
         "http://localhost:8180/realms/clinic",
         id,
         "Test",
-        crypto.encrypt("test@example.test"));
+        crypto.encrypt("test@example.test"),
+        !role.equals("PATIENT"));
     db.update("INSERT INTO user_role VALUES(?,?)", id, role);
     if (role.equals("PATIENT")) db.update("INSERT INTO patient VALUES(?,?)", id, id);
     return new Access.Actor(id, Set.of(role));
@@ -130,6 +133,38 @@ class SchedulingIntegrationTest {
   void conflict(Runnable r) {
     assertEquals(409, assertThrows(Problem.class, r::run).status);
   }
+
+  @Test
+  void clinicHoursProtectExistingShiftsAndAllowNewOperatingDays() throws Exception {
+    var adminJwt = jwt().jwt(j -> j.subject(admin.id()).issuer("http://localhost:8180/realms/clinic"));
+    var doctorJwt = jwt().jwt(j -> j.subject(doctor.id()).issuer("http://localhost:8180/realms/clinic"));
+    String current = mvc.perform(get("/api/clinic/hours").with(doctorJwt))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.days[6].dayOfWeek").value(7))
+        .andExpect(jsonPath("$.days[6].opensAt").isEmpty())
+        .andReturn().getResponse().getContentAsString();
+    String allClosed = current.replaceAll("\"(?:08:00|17:00)\"", "null");
+    mvc.perform(put("/api/clinic/hours").with(adminJwt).contentType("application/json").content(allClosed))
+        .andExpect(status().isConflict());
+    mvc.perform(put("/api/clinic/hours").with(doctorJwt).contentType("application/json").content(current))
+        .andExpect(status().isForbidden());
+    String openSunday = current.replace("\"dayOfWeek\":7,\"opensAt\":null,\"closesAt\":null",
+        "\"dayOfWeek\":7,\"opensAt\":\"09:00\",\"closesAt\":\"12:00\"");
+    mvc.perform(put("/api/clinic/hours").with(adminJwt).contentType("application/json").content(openSunday))
+        .andExpect(status().isOk()).andExpect(jsonPath("$.days[6].opensAt").value("09:00"));
+    String shiftId = null;
+    try {
+      Instant sunday = Instant.parse("2030-01-13T02:00:00Z");
+      shiftId = id(schedule.availability(doctor, doctorId, sunday, sunday.plusSeconds(3600), 20, "REMOTE"));
+      assertEquals(422, assertThrows(Problem.class, () ->
+          schedule.availability(doctor, doctorId, sunday.minusSeconds(3600), sunday, 20, "REMOTE")).status);
+    } finally {
+      if (shiftId != null) schedule.remove(admin, shiftId, false);
+      mvc.perform(put("/api/clinic/hours").with(adminJwt).contentType("application/json").content(current))
+          .andExpect(status().isOk());
+    }
+  }
+
 
   @Test
   void bookingCreatesAuditAndOutboxAtomically() {
@@ -336,6 +371,47 @@ class SchedulingIntegrationTest {
   }
 
   @Test
+  void adminSearchesAccountsByUsernameWithCurrentRoles() throws Exception {
+    String subject = Db.id();
+    String username = "search-" + subject;
+    String issuer = "http://localhost:8180/realms/clinic";
+    var newLogin = jwt().jwt(j -> j.subject(subject).issuer(issuer)
+        .claim("preferred_username", username).claim("name", "Shared display name"));
+    var adminLogin = jwt().jwt(j -> j.subject(admin.id()).issuer(issuer));
+    var staff = access.createStaff(admin, issuer, subject, username, "Shared display name");
+    String staffId = staff.get("id").toString();
+    assertEquals(staffId, access.createStaff(admin, issuer, subject, username, "Shared display name").get("id"));
+    mvc.perform(get("/api/me").with(newLogin)).andExpect(status().isOk())
+        .andExpect(jsonPath("$.id").value(staffId)).andExpect(jsonPath("$.roles.length()").value(0));
+    assertEquals(0, db.count("SELECT COUNT(*) FROM patient WHERE user_id=?", staffId));
+    access.roles(admin, staffId, Set.of("RECEPTIONIST"));
+    mvc.perform(get("/api/users").param("q", username.toUpperCase(Locale.ROOT)).param("role", "RECEPTIONIST").with(adminLogin))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.length()").value(1))
+        .andExpect(jsonPath("$[0].username").value(username))
+        .andExpect(jsonPath("$[0].displayName").value("Shared display name"))
+        .andExpect(jsonPath("$[0].roles[0]").value("RECEPTIONIST"));
+    mvc.perform(get("/api/users").param("q", "Shared display name").param("offset", "1").with(adminLogin))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.length()").value(0));
+    mvc.perform(get("/api/users").param("q", username).with(newLogin))
+        .andExpect(status().isForbidden());
+    var specialties = List.of(UUID.fromString(specialty));
+    String profileId = catalog.doctor(admin, staffId, specialties).get("id").toString();
+    conflict(() -> catalog.updateDoctor(admin, profileId, true, "Updated staff", specialties));
+    access.roles(admin, staffId, Set.of("DOCTOR"));
+    catalog.updateDoctor(admin, profileId, true, "Updated staff", specialties);
+    conflict(() -> access.updateStaff(admin, staffId, "Updated staff", false));
+    conflict(() -> access.roles(admin, staffId, Set.of()));
+    catalog.updateDoctor(admin, profileId, false, "Updated staff", specialties);
+    access.updateStaff(admin, staffId, "Updated staff", false);
+    mvc.perform(get("/api/users").param("q", "Updated staff").param("active", "false").with(adminLogin))
+        .andExpect(status().isOk()).andExpect(jsonPath("$[0].id").value(staffId));
+    mvc.perform(get("/api/me").with(newLogin)).andExpect(status().isForbidden());
+    conflict(() -> access.updateStaff(admin, admin.id(), "Admin", false));
+  }
+
+  @Test
   void patientListAndDoctorSchedulePermissionsAreScoped() {
     appointments.book(patient, slot1, key());
     appointments.book(other, slot2, key());
@@ -456,14 +532,15 @@ class SchedulingIntegrationTest {
 
   @Test
   void rolesCanBeGrantedByAdminButNotByPatient() {
-    access.roles(admin, other.id(), Set.of("PATIENT", "RECEPTIONIST"));
-    assertEquals(2, db.count("SELECT COUNT(*) FROM user_role WHERE user_id=?", other.id()));
+    assertEquals(404, assertThrows(Problem.class,
+        () -> access.roles(admin, other.id(), Set.of("RECEPTIONIST"))).status);
     assertEquals(
         403,
         assertThrows(
                 Problem.class, () -> access.roles(patient, other.id(), Set.of("ADMINISTRATOR")))
             .status);
     conflict(() -> access.roles(admin, admin.id(), Set.of("PATIENT")));
+    conflict(() -> access.createStaff(admin, "http://localhost:8180/realms/clinic", other.id(), "patient", "Patient"));
   }
 
   @Test
@@ -742,6 +819,11 @@ class SchedulingIntegrationTest {
     clinical.save(doctor, e, 0, "Remote consultation", "FINAL");
     conflict(() -> workflow.progress(doctor, a, "COMPLETED", 1));
     telehealth.end(doctor, session, 4);
+    when(clock.instant()).thenReturn(start.plusSeconds(7200));
+    assertEquals("ENDED", telehealth.readByAppointment(doctor, a).get("status"));
+    assertEquals("ENDED", telehealth.readByAppointment(patient, a).get("status"));
+    assertEquals(404, assertThrows(Problem.class, () -> telehealth.readByAppointment(other, a)).status);
+    conflict(() -> telehealth.prepare(doctor, a));
     assertEquals(0, db.count("SELECT COUNT(*) FROM telehealth_token WHERE session_id=?", session));
     conflict(() -> telehealth.join(patient, session, true));
     assertEquals(

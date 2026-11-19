@@ -1,0 +1,50 @@
+@startuml consultation-progress
+title UC-11 — Bắt đầu, hoàn thành và vắng mặt (trực tiếp)
+
+skinparam sequenceMessageAlign center
+skinparam responseMessageBelowArrow true
+skinparam ParticipantPadding 10
+skinparam BoxPadding 8
+skinparam dpi 150
+
+actor       "Nhân viên được phép"   as S
+participant "Dịch vụ khám bệnh"    as SVC
+database    "MySQL"                 as DB
+
+S -> SVC : tiếnTrìnhLịchHẹn(targetStatus, version)
+SVC -> SVC : xác thực; kiểm tra vai trò và tài nguyên
+SVC -> DB : BEGIN; khóa Bác sĩ, rồi Bệnh nhân, rồi lịch hẹn
+SVC -> DB : kiểm tra version; khóa encounter / phiếu / phiên phụ thuộc
+
+alt [bắt đầu IN_PERSON]
+  SVC -> DB : yêu cầu bác sĩ được phân công, CHECKED_IN và phiếu CALLED
+  SVC -> DB : tạo encounter; đặt lịch IN_PROGRESS; phiếu IN_SERVICE
+end
+
+alt [hoàn thành]
+  SVC -> DB : yêu cầu bác sĩ được phân công, IN_PROGRESS, hồ sơ FINAL;\nphiên từ xa phải là ENDED
+  SVC -> DB : đặt encounter và lịch COMPLETED; phiếu DONE nếu có
+end
+
+alt [VANG_MAT]
+  SVC -> DB : yêu cầu CONFIRMED và hiện tại >= bắt đầu + 15min;\nlễ tân cho IN_PERSON, bác sĩ được phân công cho REMOTE
+  SVC -> DB : đặt lịch NO_SHOW; hủy phiên chưa dùng;\nenqueue đóng phòng nhà cung cấp nếu cần
+end
+
+alt [xác thực và tất cả ghi thành công]
+  SVC -> DB : tăng version; thêm audit; COMMIT
+  DB --> SVC : lịch hẹn đã cập nhật
+  SVC --> S : lịch hẹn đã cập nhật
+end
+
+alt [trạng thái / version không hợp lệ / lỗi lưu trữ]
+  SVC -> DB : ROLLBACK
+  SVC --> S : 409 / 503; không thay đổi
+end
+
+note over SVC
+  Bắt đầu từ xa dùng startSession, không dùng progressAppointment.
+  Chốt hồ sơ và kết thúc từ xa là các hành động trước độc lập.
+end note
+
+@enduml

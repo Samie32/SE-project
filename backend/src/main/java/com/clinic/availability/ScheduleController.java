@@ -14,10 +14,12 @@ import org.springframework.web.bind.annotation.*;
 public class ScheduleController {
   private final Access access;
   private final ScheduleService service;
+  private final ClinicHours hours;
 
-  public ScheduleController(Access a, ScheduleService s) {
+  public ScheduleController(Access a, ScheduleService s, ClinicHours hours) {
     access = a;
     service = s;
+    this.hours = hours;
   }
 
   public record Availability(
@@ -27,6 +29,37 @@ public class ScheduleController {
       @Pattern(regexp = "IN_PERSON|REMOTE") @NotNull String mode) {}
 
   public record TimeOff(@NotNull Instant startAt, @NotNull Instant endAt) {}
+
+  @GetMapping("/clinic/hours")
+  public ClinicHours.WeeklyHours clinicHours(@AuthenticationPrincipal Jwt j) {
+    access.actor(j);
+    return hours.read();
+  }
+
+  @PutMapping("/clinic/hours")
+  public ClinicHours.WeeklyHours updateClinicHours(
+      @AuthenticationPrincipal Jwt j, @Valid @RequestBody ClinicHours.WeeklyHours body) {
+    return hours.update(access.actor(j), body);
+  }
+
+  @GetMapping("/clinic/holidays")
+  public List<ClinicHours.Holiday> clinicHolidays(@AuthenticationPrincipal Jwt j) {
+    access.actor(j);
+    return hours.holidays();
+  }
+
+  @PostMapping("/clinic/holidays")
+  public ClinicHours.Holiday addClinicHoliday(
+      @AuthenticationPrincipal Jwt j, @Valid @RequestBody ClinicHours.HolidayInput body) {
+    return hours.addHoliday(access.actor(j), body);
+  }
+
+  @DeleteMapping("/clinic/holidays/{id}")
+  @ResponseStatus(org.springframework.http.HttpStatus.NO_CONTENT)
+  public void removeClinicHoliday(@AuthenticationPrincipal Jwt j, @PathVariable UUID id) {
+    hours.removeHoliday(access.actor(j), id.toString());
+  }
+
 
   @PostMapping("/doctors/{id}/availability")
   public Object availability(

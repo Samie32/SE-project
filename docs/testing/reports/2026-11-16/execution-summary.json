@@ -1,0 +1,61 @@
+{
+  "date": "2026-11-16",
+  "baseline": [
+    {
+      "name": "com.clinic.config.JwtValidationTest",
+      "tests": "5",
+      "failures": "0",
+      "errors": "0",
+      "skipped": "0"
+    },
+    {
+      "name": "com.clinic.SchedulingIntegrationTest",
+      "tests": "44",
+      "failures": "0",
+      "errors": "0",
+      "skipped": "0"
+    }
+  ],
+  "additional_probes": [
+    {
+      "name": "com.clinic.ZipContractAuditTest",
+      "tests": "13",
+      "failures": "3",
+      "errors": "0",
+      "skipped": "0"
+    }
+  ],
+  "jacoco": {
+    "INSTRUCTION": {
+      "missed": 2145,
+      "covered": 5787
+    },
+    "BRANCH": {
+      "missed": 161,
+      "covered": 254
+    },
+    "LINE": {
+      "missed": 266,
+      "covered": 914
+    },
+    "COMPLEXITY": {
+      "missed": 224,
+      "covered": 226
+    },
+    "METHOD": {
+      "missed": 93,
+      "covered": 147
+    },
+    "CLASS": {
+      "missed": 18,
+      "covered": 38
+    }
+  },
+  "frontend": {
+    "original_tests": 12,
+    "failures": 0,
+    "build_exit_code": 0,
+    "zip_sha256": "2cb1db54ed0e9379c0903c9947590115390e32a398f836e7f8a2ca7bf1391883"
+  },
+  "scope": "Snapshot review; MockMvc plus MySQL; no browser E2E or real media call"
+}

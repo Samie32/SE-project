@@ -1,0 +1,64 @@
+@startuml medical-record
+title UC-12/13 — Lịch sử lâm sàng, hồ sơ và bổ sung
+
+skinparam sequenceMessageAlign center
+skinparam responseMessageBelowArrow true
+skinparam ParticipantPadding 10
+skinparam BoxPadding 8
+skinparam dpi 150
+
+actor       "Bác sĩ"             as D
+participant "Dịch vụ lâm sàng"  as SVC
+database    "MySQL"              as DB
+
+D -> SVC : đọc lịch sử bệnh nhân
+SVC -> DB : xác thực quan hệ điều trị hiện tại
+
+alt [được phép]
+  SVC -> DB : đọc hồ sơ FINAL được phép; lưu audit ĐỌC
+
+  alt [audit durable]
+    DB --> SVC : lịch sử được phép
+    SVC --> D : lịch sử được phép
+  end
+
+  alt [audit không khả dụng]
+    SVC --> D : 503; không có dữ liệu lâm sàng
+  end
+end
+
+alt [bị từ chối]
+  SVC --> D : 403 / 404 không tiết lộ
+end
+
+D -> SVC : lưu/chốt(nội dung, version) HOẶC bổ sung(lý do, nội dung)
+SVC -> SVC : xác thực; phân quyền bác sĩ được phân công
+SVC -> DB : BEGIN; khóa encounter và hồ sơ hiện tại
+
+alt [lưu / chốt]
+  SVC -> DB : yêu cầu encounter IN_PROGRESS; nháp mới (version 0)\nhoặc DRAFT hiện có với version khớp
+  SVC -> DB : lưu DRAFT hoặc FINAL; tăng version
+end
+
+alt [bổ sung]
+  SVC -> DB : yêu cầu FINAL được tham chiếu, lý do không rỗng
+  SVC -> DB : chèn hồ sơ FINAL mới, version mới, supersedes_id;\ngiữ nguyên bản gốc; từ chối người kế nhiệm trùng lặp
+end
+
+alt [xác thực và audit thành công]
+  SVC -> DB : thêm audit; COMMIT
+  DB --> SVC : hồ sơ đã lưu
+  SVC --> D : hồ sơ đã lưu
+end
+
+alt [không hợp lệ / cũ / lỗi lưu trữ]
+  SVC -> DB : ROLLBACK
+  SVC --> D : 409 / 422 / 503
+end
+
+note over SVC
+  Chốt không tự hoàn thành encounter.
+  Hoàn thành encounter được hiển thị trong consultation-progress.
+end note
+
+@enduml

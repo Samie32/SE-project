@@ -1,6 +1,10 @@
 # Backend: triển khai và tích hợp
 
+> Cập nhật hợp đồng 16/11/2026: FE/BE triển khai tiếp theo [hợp đồng 1.0.0](api/integration-contract.md) và [OpenAPI YAML](api/openapi.yaml). Nội dung dưới mô tả baseline đang chạy. [Backlog](api/integration-backlog.md) ghi riêng audit từ chối, quyền đọc và queue rỗng 204 chưa được sửa; không coi việc chốt tài liệu là đã nghiệm thu.
+
 Backend Spring Boot có API cho chín phân hệ. Migration V2 bổ sung hàng đợi, lần khám, bệnh án, đơn thuốc và phiên khám từ xa; giữ nguyên V1 và dữ liệu đặt lịch hiện có.
+
+Frontend chính hiện là [bản gộp tại frontend/](frontend-unified.md); các frontend cũ giữ để đối chiếu. Đợt chuẩn bị FE không sửa backend hoặc khẳng định đã nghiệm thu media/E2E.
 
 ## Chạy local
 
@@ -94,7 +98,7 @@ Join trả sessionId, token, expiresAt, signalingUrl. Token ngẫu nhiên 256-bi
 - End chuyển ENDED, xóa token/message nguyên tử; không cấp lại token/mở lại phòng. Sau đó chốt bệnh án và gọi progress COMPLETED riêng.
 - NO_SHOW chuyển CREATED/WAITING → CANCELLED, thu hồi token.
 
-**Giới hạn:** frontend chưa có cuộc gọi WebRTC thật nối API này. Backend không chuyển tiếp media và không thể cưỡng chế ngắt luồng P2P đã thiết lập; client phải quan sát trạng thái và đóng RTCPeerConnection khi ENDED. Gọi xuyên NAT cần STUN/TURN, HTTPS và kiểm thử hai trình duyệt. Thiết kế callback/outbox đóng phòng nhà cung cấp trong đặc tả chưa áp dụng cho signaling nội bộ. Nếu cần cưỡng chế thu hồi media phía server, cần SFU/provider cùng outbox đóng phòng và webhook xác thực. Test signaling không phải nghiệm thu video/audio đầu cuối.
+**Giới hạn:** [frontend đã có media WebRTC](webrtc-client.md), nhưng chưa nghiệm thu nối API BE thật. Backend không chuyển tiếp media và không thể cưỡng chế ngắt luồng P2P đã thiết lập; client quan sát trạng thái và đóng RTCPeerConnection khi ENDED. Gọi xuyên NAT cần STUN/TURN, HTTPS và kiểm thử hai mạng. Thiết kế callback/outbox đóng phòng nhà cung cấp trong đặc tả chưa áp dụng cho signaling nội bộ. Nếu cần cưỡng chế thu hồi media phía server, cần SFU/provider cùng outbox đóng phòng và webhook xác thực. Test signaling không phải nghiệm thu video/audio đầu cuối.
 
 ## Email và tác vụ nền
 

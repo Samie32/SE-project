@@ -1,8 +1,11 @@
 # ClinicCare Web (bản gộp)
 
-Xem [hướng dẫn chạy mock](./HUONG-DAN-MOCK.md) để thử giao diện chỉ với Node.js và npm.
+**Chạy bản mock từ ZIP:** xem [HUONG-DAN-MOCK.md](./HUONG-DAN-MOCK.md) trong chính thư mục này. Chỉ cần Node.js/npm; không cần backend hoặc Keycloak.
 
-ClinicCare Web phục vụ các vai trò trong một ứng dụng, theo [hợp đồng API](../docs/api/integration-contract.md). Docker Compose build frontend từ thư mục này.
+Frontend chính từ `frontend-unified.zip`, đã chỉnh theo hợp đồng BE–FE 1.0.0.
+Xem [hướng dẫn chạy và giới hạn](../docs/frontend-unified.md) và [hợp đồng API](../docs/api/integration-contract.md).
+
+FE cũ được lưu riêng tại [archive/frontend/](../archive/frontend/README.md). Thư mục này chỉ chứa ứng dụng gộp; Compose build ngay tại đây.
 
 ```bash
 npm ci

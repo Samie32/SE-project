@@ -1,0 +1,116 @@
+@startuml use-case-diagram
+skinparam usecase {
+  BackgroundColor White
+  BorderColor #555
+  ArrowColor #333
+}
+skinparam packageStyle rectangle
+skinparam packageBackgroundColor #FAFAFA
+skinparam packageBorderColor #AAAAAA
+skinparam noteBackgroundColor #FFFDE7
+skinparam noteBorderColor #F9A825
+skinparam shadowing false
+skinparam defaultFontName Arial
+skinparam defaultFontSize 11
+skinparam dpi 150
+title Tổng quan Use Case — mục tiêu người dùng
+
+left to right direction
+
+actor "Người dùng" as User
+actor "Bệnh nhân" as Patient
+actor "Bác sĩ" as Doctor
+actor "Lễ tân" as Receptionist
+actor "Quản trị viên" as Admin
+actor "Kiểm toán viên" as Auditor
+actor "Nhà cung cấp\ndanh tính" as IdP
+actor "Nhà cung cấp\nvideo" as VideoProvider
+
+rectangle "Hệ thống phòng khám" {
+
+  package "Danh tính & danh mục" {
+    usecase "UC-01 Đăng nhập" as UC01
+    usecase "UC-02 Quản lý vai trò /\nKiểm soát truy cập" as UC02
+    usecase "UC-03 Quản lý bác sĩ\nvà chuyên khoa" as UC03
+    usecase "UC-04 Vô hiệu hóa bác sĩ" as UC04
+    usecase "UC-05 Quản lý lịch làm việc" as UC05
+    usecase "UC-06 Quản lý lịch nghỉ" as UC06
+  }
+
+  package "Lịch hẹn & hàng đợi" {
+    usecase "UC-07 Tìm slot khả dụng" as UC07
+    usecase "UC-08 Đặt lịch hẹn" as UC08
+    usecase "UC-09 Đổi lịch hẹn" as UC09
+    usecase "UC-10 Hủy lịch hẹn" as UC10
+    usecase "UC-11 Tiến trình lịch hẹn" as UC11
+    usecase "UC-19 Check-in bệnh nhân" as UC19
+    usecase "UC-20 Gọi bệnh nhân\ntiếp theo" as UC20
+    usecase "UC-21 Trả phiếu về\ncuối hàng đợi" as UC21
+  }
+
+  package "Chăm sóc lâm sàng & y tế từ xa" {
+    usecase "UC-12 Xem lịch sử được phép" as UC12
+    usecase "UC-13 Ghi / Chốt /\nBổ sung hồ sơ" as UC13
+    usecase "UC-14 Kê đơn thuốc" as UC14
+    usecase "UC-22 Chuẩn bị phiên\nkhám từ xa" as UC22
+    usecase "UC-23 Tham gia / Bắt đầu\nphiên từ xa" as UC23
+    usecase "UC-24 Nối lại / Kết thúc\nphiên từ xa" as UC24
+  }
+
+  package "Thông báo & kiểm toán" {
+    usecase "UC-15 Nhận nhắc lịch hẹn" as UC15
+    usecase "UC-16 Giám sát lỗi\ngửi thông báo" as UC16
+    usecase "UC-17 Ghi sự kiện kiểm toán" as UC17
+    usecase "UC-18 Tra cứu lịch sử\nkiểm toán" as UC18
+  }
+}
+
+note as N1
+  Audit là hành vi nội bộ, không phải hành động của Kiểm toán viên.
+  UC-02 phân quyền tài nguyên là điều kiện tiên quyết cho mọi mục tiêu được bảo vệ.
+  Xem đơn thuốc thuộc quyền truy cập lịch sử UC-12.
+end note
+
+User --> UC01
+IdP --> UC01
+UC01 ..> UC02 : <<include>>
+
+Admin --> UC03
+Admin --> UC04
+Admin --> UC16
+
+Doctor --> UC05
+Doctor --> UC06
+Doctor --> UC11
+Doctor --> UC12
+Doctor --> UC13
+Doctor --> UC14
+Doctor --> UC20
+Doctor --> UC21
+Doctor --> UC22
+Doctor --> UC23
+Doctor --> UC24
+
+Patient --> UC07
+Patient --> UC08
+Patient --> UC09
+Patient --> UC10
+Patient --> UC11
+Patient --> UC12
+Patient --> UC23
+Patient --> UC24
+
+Receptionist --> UC07
+Receptionist --> UC19
+Receptionist --> UC21
+
+Auditor --> UC18
+VideoProvider --> UC22
+
+UC08 ..> UC15 : <<include>>
+UC09 ..> UC15 : <<include>>
+UC13 ..> UC17 : <<include>>
+UC14 ..> UC17 : <<include>>
+UC12 ..> UC17 : <<include>>
+
+@enduml

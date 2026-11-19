@@ -11,6 +11,123 @@ servers:
 security:
 - bearerAuth: []
 paths:
+  /clinic/hours:
+    get:
+      tags: [M03]
+      operationId: clinicHours
+      summary: Đọc giờ hoạt động của phòng khám
+      x-access: Tài khoản đã xác thực
+      x-requirements: [FR-02]
+      responses:
+        '200':
+          description: Giờ hoạt động hằng tuần theo giờ Việt Nam
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WeeklyHours'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+    put:
+      tags: [M03]
+      operationId: updateClinicHours
+      summary: Cập nhật giờ hoạt động của phòng khám
+      x-access: ADMINISTRATOR
+      x-requirements: [FR-02]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/WeeklyHours'
+      responses:
+        '200':
+          description: Giờ mới đã được lưu
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WeeklyHours'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '422':
+          $ref: '#/components/responses/Unprocessable'
+  /clinic/holidays:
+    get:
+      tags: [M03]
+      operationId: clinicHolidays
+      summary: Đọc danh sách ngày nghỉ lễ và lịch đặc biệt của phòng khám
+      x-access: Tài khoản đã xác thực
+      x-requirements: [FR-02]
+      responses:
+        '200':
+          description: Danh sách ngày nghỉ lễ và khung giờ đặc biệt theo ngày Việt Nam
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Holiday'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+    post:
+      tags: [M03]
+      operationId: addClinicHoliday
+      summary: Thêm ngày nghỉ lễ hoặc lịch hoạt động đặc biệt
+      x-access: ADMINISTRATOR
+      x-requirements: [FR-02]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/HolidayInput'
+      responses:
+        '200':
+          description: Ngày nghỉ lễ đã được lưu
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Holiday'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '422':
+          $ref: '#/components/responses/Unprocessable'
+  /clinic/holidays/{id}:
+    delete:
+      tags: [M03]
+      operationId: removeClinicHoliday
+      summary: Xóa ngày nghỉ lễ hoặc lịch hoạt động đặc biệt
+      x-access: ADMINISTRATOR
+      x-requirements: [FR-02]
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        '204':
+          description: Đã xóa ngày nghỉ lễ
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
   /appointments:
     get:
       tags:
@@ -402,6 +519,33 @@ paths:
       - FR-09
       x-access: PATIENT chủ lịch
   /appointments/{id}/telehealth-session:
+    get:
+      tags:
+      - M09
+      operationId: readByAppointment
+      summary: Đọc phiên khám từ xa theo lịch hẹn
+      description: Đọc cả phiên đã kết thúc hoặc hủy. Trả 404 nếu chưa có phiên hoặc người gọi không thuộc lịch hẹn.
+      x-requirements:
+      - FR-22
+      x-access: PATIENT chủ lịch/DOCTOR phụ trách
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        '200':
+          description: Trạng thái hiện tại của phiên
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TelehealthSession'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
     post:
       tags:
       - M09
@@ -1854,6 +1998,14 @@ paths:
       tags:
       - M02
       operationId: listSpecialties
+      parameters:
+      - name: includeInactive
+        in: query
+        required: false
+        schema:
+          type: boolean
+          default: false
+        description: Khi true và người gọi là ADMINISTRATOR, trả về cả chuyên khoa đã ngừng hoạt động.
       responses:
         '200':
           description: Thành công
@@ -1932,6 +2084,56 @@ paths:
       summary: createSpecialty
       description: 'Quyền mục tiêu: ADMINISTRATOR. Xem integration-contract.md cho cửa sổ thời gian, giao dịch và
         phân quyền tài nguyên.'
+      x-requirements:
+      - FR-03
+      x-access: ADMINISTRATOR
+  /specialties/{id}:
+    put:
+      tags:
+      - M02
+      operationId: updateSpecialty
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateSpecialty'
+        required: true
+      responses:
+        '200':
+          description: Thành công
+          headers:
+            X-Request-Id:
+              description: Mã liên kết request/audit; baseline có thể thiếu trên lỗi security filter.
+              schema:
+                type: string
+                format: uuid
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SpecialtyView'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '422':
+          $ref: '#/components/responses/Unprocessable'
+        '503':
+          $ref: '#/components/responses/Unavailable'
+      summary: updateSpecialty
+      description: 'Quyền mục tiêu: ADMINISTRATOR. Cập nhật tên và trạng thái hoạt động của chuyên khoa.'
       x-requirements:
       - FR-03
       x-access: ADMINISTRATOR
@@ -2384,6 +2586,22 @@ paths:
       - M01
       operationId: listUsers
       parameters:
+      - name: q
+        in: query
+        required: false
+        description: Tìm tài khoản theo một phần username hoặc tên hiển thị, không phân biệt hoa thường.
+        schema:
+          type: string
+          maxLength: 255
+      - name: role
+        in: query
+        schema:
+          type: string
+          enum: [DOCTOR, RECEPTIONIST, ADMINISTRATOR, AUDITOR, UNASSIGNED]
+      - name: active
+        in: query
+        schema:
+          type: boolean
       - name: limit
         in: query
         required: false
@@ -2428,9 +2646,8 @@ paths:
           $ref: '#/components/responses/Unprocessable'
         '503':
           $ref: '#/components/responses/Unavailable'
-      summary: listUsers
-      description: 'Quyền mục tiêu: ADMINISTRATOR. Xem integration-contract.md cho cửa sổ thời gian, giao dịch và
-        phân quyền tài nguyên.'
+      summary: Danh sách tài khoản nhân sự
+      description: Chỉ trả tài khoản đã được đưa vào nhóm nhân sự trong ClinicCare.
       x-requirements:
       - FR-02
       x-access: ADMINISTRATOR
@@ -2482,8 +2699,215 @@ paths:
       - FR-02
       - FR-17
       x-access: ADMINISTRATOR; không tự đổi quyền
+  /staff:
+    post:
+      tags: [M01]
+      operationId: createStaff
+      summary: Thêm tài khoản nhân sự
+      description: Liên kết định danh Keycloak thuộc realm của ứng dụng. Tài khoản mới chờ cấp vai trò.
+      x-requirements: [FR-02, FR-17]
+      x-access: ADMINISTRATOR
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Staff'
+      responses:
+        '201':
+          description: Đã thêm nhân sự hoặc định danh đã liên kết trước đó.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [id]
+                properties:
+                  id: {type: string, format: uuid}
+        '400': {$ref: '#/components/responses/BadRequest'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '409': {$ref: '#/components/responses/Conflict'}
+  /staff/provision:
+    post:
+      tags: [M01]
+      operationId: provisionStaff
+      summary: Tạo tài khoản và cấp quyền nhân sự
+      x-requirements: [FR-02, FR-17]
+      x-access: ADMINISTRATOR
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/NewStaff'
+      responses:
+        '201':
+          description: Đã tạo tài khoản Keycloak, tài khoản ClinicCare và các vai trò đã chọn.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [id]
+                properties:
+                  id: {type: string, format: uuid}
+        '400': {$ref: '#/components/responses/BadRequest'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '409': {$ref: '#/components/responses/Conflict'}
+        '422': {$ref: '#/components/responses/Unprocessable'}
+        '503': {$ref: '#/components/responses/Unavailable'}
+  /staff/{id}:
+    put:
+      tags: [M01]
+      operationId: updateStaff
+      summary: Cập nhật họ tên và trạng thái trong ClinicCare
+      x-requirements: [FR-02, FR-17]
+      x-access: ADMINISTRATOR
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema: {type: string, format: uuid}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/StaffUpdate'
+      responses:
+        '200':
+          description: Đã cập nhật. Body rỗng.
+        '400': {$ref: '#/components/responses/BadRequest'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '409': {$ref: '#/components/responses/Conflict'}
 components:
   schemas:
+    NewStaff:
+      type: object
+      required: [username, displayName, email, temporaryPassword, roles, specialtyIds]
+      properties:
+        username: {type: string, pattern: '^[A-Za-z0-9][A-Za-z0-9._-]{2,63}$'}
+        displayName: {type: string, minLength: 1, maxLength: 120}
+        email: {type: string, format: email, maxLength: 254}
+        temporaryPassword: {type: string, format: password, minLength: 12, maxLength: 128, writeOnly: true}
+        roles:
+          type: array
+          minItems: 1
+          uniqueItems: true
+          items: {type: string, enum: [DOCTOR, RECEPTIONIST, ADMINISTRATOR, AUDITOR]}
+        specialtyIds:
+          type: array
+          description: Chuyên khoa bắt buộc khi cấp vai trò Bác sĩ và rỗng với các vai trò khác.
+          items: {type: string, format: uuid}
+    Staff:
+      type: object
+      required: [subject, username, displayName]
+      properties:
+        subject: {type: string, format: uuid}
+        username: {type: string, minLength: 1, maxLength: 255}
+        displayName: {type: string, minLength: 1, maxLength: 255}
+    StaffUpdate:
+      type: object
+      required: [displayName, active]
+      properties:
+        displayName: {type: string, minLength: 1, maxLength: 255}
+        active: {type: boolean}
+    WeeklyHours:
+      type: object
+      required: [days]
+      properties:
+        days:
+          type: array
+          minItems: 7
+          maxItems: 7
+          description: Mỗi thứ xuất hiện một lần, từ thứ Hai đến Chủ nhật.
+          items:
+            $ref: '#/components/schemas/DayHours'
+    DayHours:
+      type: object
+      required: [dayOfWeek, opensAt, closesAt]
+      properties:
+        dayOfWeek:
+          type: integer
+          minimum: 1
+          maximum: 7
+          description: Thứ Hai là 1. Chủ nhật là 7.
+        opensAt:
+          type: [string, 'null']
+          pattern: '^(?:[01][0-9]|2[0-3]):[0-5][0-9]$'
+          description: Giờ mở cửa ở định dạng HH:mm. Ngày nghỉ dùng null cho cả hai giờ.
+        closesAt:
+          type: [string, 'null']
+          pattern: '^(?:[01][0-9]|2[0-3]):[0-5][0-9]$'
+          description: Giờ đóng cửa ở định dạng HH:mm và phải sau giờ mở cửa trong cùng ngày.
+    HolidayInput:
+      type: object
+      required: [startDate, endDate, name, closed]
+      properties:
+        startDate:
+          type: string
+          format: date
+          description: Ngày bắt đầu áp dụng theo YYYY-MM-DD (giờ Việt Nam).
+        endDate:
+          type: string
+          format: date
+          description: Ngày kết thúc áp dụng (từ startDate trở đi).
+        name:
+          type: string
+          minLength: 1
+          maxLength: 255
+          description: Tên dịp lễ hoặc lý do thay đổi lịch.
+        closed:
+          type: boolean
+          description: true nếu nghỉ cả ngày; false nếu mở theo khung giờ đặc biệt.
+        opensAt:
+          type: [string, 'null']
+          pattern: '^(?:[01][0-9]|2[0-3]):[0-5][0-9]$'
+          description: Giờ mở cửa đặc biệt (HH:mm) khi closed=false; gửi null khi closed=true.
+        closesAt:
+          type: [string, 'null']
+          pattern: '^(?:[01][0-9]|2[0-3]):[0-5][0-9]$'
+          description: Giờ đóng cửa đặc biệt (HH:mm) khi closed=false; phải sau opensAt.
+      example:
+        startDate: '2026-09-02'
+        endDate: '2026-09-02'
+        name: Nghỉ lễ Quốc khánh
+        closed: true
+        opensAt: null
+        closesAt: null
+    Holiday:
+      type: object
+      required: [id, startDate, endDate, name, closed, opensAt, closesAt]
+      properties:
+        id:
+          type: string
+          format: uuid
+        startDate:
+          type: string
+          format: date
+        endDate:
+          type: string
+          format: date
+        name:
+          type: string
+        closed:
+          type: boolean
+        opensAt:
+          type: [string, 'null']
+          pattern: '^(?:[01][0-9]|2[0-3]):[0-5][0-9]$'
+        closesAt:
+          type: [string, 'null']
+          pattern: '^(?:[01][0-9]|2[0-3]):[0-5][0-9]$'
+      example:
+        id: 11111111-1111-1111-1111-111111111111
+        startDate: '2026-09-02'
+        endDate: '2026-09-02'
+        name: Nghỉ lễ Quốc khánh
+        closed: true
+        opensAt: null
+        closesAt: null
     Role:
       type: string
       enum:
@@ -2602,6 +3026,14 @@ components:
           minLength: 1
           maxLength: 255
           pattern: \S
+        username:
+          type: [string, 'null']
+          maxLength: 255
+          description: Username đã đồng bộ từ tài khoản đăng nhập.
+        doctorId:
+          type: [string, 'null']
+          format: uuid
+          description: ID hồ sơ bác sĩ nếu tài khoản đã có hồ sơ.
         active:
           $ref: '#/components/schemas/DbBoolean'
         roles:
@@ -2614,6 +3046,8 @@ components:
       - displayName
       - active
       - roles
+      - username
+      - doctorId
     SpecialtyView:
       type: object
       properties:
@@ -3327,7 +3761,7 @@ components:
           items:
             $ref: '#/components/schemas/Role'
           uniqueItems: true
-          minItems: 1
+          description: Mảng rỗng thu hồi vai trò. ClinicCare chỉ cấp vai trò nhân sự trong luồng này.
       required:
       - roles
       example:
@@ -3346,6 +3780,19 @@ components:
       - email
       example:
         email: patient@example.test
+    UpdateSpecialty:
+      type: object
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 255
+          pattern: \S
+        active:
+          type: boolean
+      required:
+      - name
+      - active
     Specialty:
       type: object
       properties:

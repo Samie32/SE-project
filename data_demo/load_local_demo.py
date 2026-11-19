@@ -463,6 +463,15 @@ def main():
     load_data(kc_admin, seeded_tokens, password, first, second, clinical)
 
 
+def enroll_demo_doctor(admin, kc_admin, username, display_name):
+    rows = keycloak_users(kc_admin, username)
+    if len(rows) != 1:
+        raise RuntimeError(f"Cannot identify the Keycloak account for {username}.")
+    api(admin, "/staff", "POST", {
+        "subject": rows[0]["id"], "username": username, "displayName": display_name,
+    })
+
+
 def load_data(kc_admin, seeded_tokens, password, first, second, clinical):
     admin = seeded_tokens["admin"]
     doctor_users = keycloak_users(kc_admin, DOCTOR)
@@ -474,6 +483,7 @@ def load_data(kc_admin, seeded_tokens, password, first, second, clinical):
                                "Restore the matching Keycloak data or start a fresh demo environment.")
     ensure_keycloak_user(kc_admin, DOCTOR, DOCTOR_GIVEN_NAME, DOCTOR_FAMILY_NAME, password, doctor_users)
     ensure_keycloak_user(kc_admin, PATIENT, PATIENT_GIVEN_NAME, PATIENT_FAMILY_NAME, password, patient_users)
+    enroll_demo_doctor(admin, kc_admin, DOCTOR, DOCTOR_NAME)
     doctor = demo_login(kc_admin, DOCTOR, password)
     patient = demo_login(kc_admin, PATIENT, password)
     if set(api(patient, "/me/profile")["roles"]) != {"PATIENT"}:
@@ -482,6 +492,7 @@ def load_data(kc_admin, seeded_tokens, password, first, second, clinical):
     for username, given_name, family_name, specialties in EXTRA_DOCTORS:
         rows = keycloak_users(kc_admin, username)
         ensure_keycloak_user(kc_admin, username, given_name, family_name, password, rows)
+        enroll_demo_doctor(admin, kc_admin, username, f"{family_name} {given_name}")
         extra_id = ensure_doctor(admin, demo_login(kc_admin, username, password),
                                  f"{family_name} {given_name}", specialties)
         for day in (first, second):

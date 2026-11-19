@@ -1,0 +1,72 @@
+@startuml book-appointment
+title UC-08/09 — Đặt lịch và đổi lịch nguyên tử
+
+skinparam sequenceMessageAlign center
+skinparam responseMessageBelowArrow true
+skinparam ParticipantPadding 10
+skinparam BoxPadding 8
+skinparam dpi 150
+
+actor       "Bệnh nhân"           as P
+participant "React UI"            as FE
+participant "Dịch vụ lịch hẹn"   as SVC
+database    "MySQL"               as DB
+
+P -> FE : xác nhận slot
+FE -> SVC : đặt lịch / đổi lịch + version + Idempotency-Key
+
+SVC -> SVC : xác thực token, chủ sở hữu và đầu vào
+
+break [yêu cầu không hợp lệ / không có quyền]
+  SVC --> FE : 401 / 403 / 404 / 400
+end
+
+SVC -> DB : BEGIN; giữ chỗ idempotency duy nhất
+
+alt [trùng lặp đã hoàn thành với cùng request hash]
+  DB --> SVC : kết quả đã lưu
+  SVC -> DB : COMMIT
+  SVC --> FE : kết quả trước
+end
+
+alt [payload khác cho cùng key]
+  SVC -> DB : ROLLBACK
+  SVC --> FE : 409
+end
+
+note over SVC, DB
+  [yêu cầu mới]
+  Khóa Doctor-ID trước, rồi Patient-ID
+end note
+
+SVC -> DB : tải lại lịch hẹn; kiểm tra version và hạn đổi lịch
+SVC -> DB : kiểm tra slot tương lai, khả dụng, nghỉ phép, trùng lặp\n(loại lịch hẹn hiện tại khi đổi lịch)
+
+alt [hợp lệ]
+  SVC -> DB : ghi lịch hẹn + audit + outbox + kết quả idempotency
+
+  alt [tất cả ghi thành công]
+    SVC -> DB : COMMIT
+    DB --> SVC : lịch hẹn
+    SVC --> FE : lịch hẹn
+  end
+
+  alt [lỗi lưu trữ / audit]
+    SVC -> DB : ROLLBACK
+    SVC --> FE : 503
+  end
+end
+
+alt [xung đột / version cũ / trạng thái không hợp lệ]
+  SVC -> DB : ROLLBACK
+  SVC --> FE : 409; lịch hẹn gốc giữ nguyên
+end
+
+note over SVC
+  Giữ chỗ và lưu kết quả trong cùng giao dịch.
+  Trùng lặp đồng thời xếp hàng trên khóa duy nhất.
+  Giữ key đã commit trong 24h.
+  Worker thông báo chạy sau commit.
+end note
+
+@enduml

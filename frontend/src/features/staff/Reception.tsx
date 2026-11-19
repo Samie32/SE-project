@@ -50,7 +50,7 @@ export function ReceptionPage() {
     if (a.mode !== "IN_PERSON") return { ok: false, why: "Chỉ check-in lịch khám trực tiếp" };
     if (a.status !== "CONFIRMED") return { ok: false, why: "Chỉ check-in lịch đã xác nhận" };
     if (!inCheckinWindow(a.startAt, now)) return { ok: false, why: "Ngoài khung giờ check-in (−15’ … +15’)" };
-    if (!config.backend.checkin) return { ok: false, why: "Check-in hiện không khả dụng" };
+    if (!config.backend.checkin) return { ok: false, why: "Chờ backend" };
     return { ok: true, why: "" };
   };
 

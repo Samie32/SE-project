@@ -1,0 +1,34 @@
+@startuml queue-ticket
+skinparam state {
+  BackgroundColor White
+  BorderColor #555
+  ArrowColor #333
+  FontName Arial
+  FontSize 11
+}
+skinparam noteBackgroundColor #FFFDE7
+skinparam noteBorderColor #F9A825
+skinparam shadowing false
+skinparam dpi 150
+title Vòng đời Phiếu hàng đợi — FR-19/20/21
+
+[*] --> WAITING : checkIn [lịch IN_PERSON hợp lệ]\n/ cấp vị trí; lịch hẹn CHECKED_IN
+
+WAITING --> CALLED : gọiTiếp [bác sĩ của mình / ngày, vị trí chờ thấp nhất]
+
+CALLED --> WAITING : bỏ qua [lễ tân, lý do]\n/ cấp vị trí cuối mới
+
+CALLED --> IN_SERVICE : bắt đầu [bác sĩ được phân công]\n/ lịch hẹn IN_PROGRESS; tạo encounter
+
+IN_SERVICE --> DONE : hoàn thành [hồ sơ FINAL]\n/ encounter và lịch hẹn COMPLETED
+
+DONE --> [*]
+
+note right of WAITING
+  Tuần tự hóa ghi hàng đợi bằng khóa Bác sĩ.
+  Cấp MAX(vị_trí) + 1 cho bác sĩ / ngày phục vụ cục bộ;
+  giữ lại phiếu cũ, kể cả DONE.
+  Retry check-in trả về phiếu hiện có.
+end note
+
+@enduml

@@ -1,0 +1,84 @@
+@startuml telehealth
+title UC-22/23/24 — Tiếp nhận và kết thúc từ xa
+
+skinparam sequenceMessageAlign center
+skinparam responseMessageBelowArrow true
+skinparam ParticipantPadding 10
+skinparam BoxPadding 8
+skinparam dpi 150
+
+actor       "Bệnh nhân"           as P
+actor       "Bác sĩ"              as D
+participant "Dịch vụ từ xa"       as SVC
+database    "MySQL"               as DB
+participant "Nhà cung cấp video"  as VP
+
+D -> SVC : chuẩnBịPhiên(appointmentId, Idempotency-Key)
+SVC -> DB : xác thực chủ sở hữu, REMOTE, CONFIRMED và cửa sổ tham gia;\ntạo / lấy phiên CREATED duy nhất + audit theo giao dịch
+
+SVC -> VP : tạo phòng idempotent theo session ID (ngoài giao dịch DB)
+
+alt [lỗi nhà cung cấp]
+  VP --> SVC : 503; CREATED vẫn có thể retry
+  break [yêu cầu chuẩn bị hiện tại thất bại]
+    SVC --> D : Retry chuẩn bị trước khi tham gia.
+  end
+end
+
+alt [phòng sẵn sàng]
+  SVC -> DB : khóa và kiểm tra lại lịch/phiên; lưu tham chiếu phòng + audit
+  DB --> SVC : phiên (không có token)
+  SVC --> D : phiên (không có token)
+end
+
+P -> SVC : thamGiaPhiên(participationConfirmed=true) sau kiểm tra thiết bị
+SVC -> DB : xác thực chủ sở hữu, consent, phòng sẵn sàng, cửa sổ tham gia;\nđặt WAITING và lưu audit tiếp nhận
+
+DB --> SVC : JoinToken (5 phút, gắn user/phiên)
+SVC --> P : JoinToken (5 phút, gắn user/phiên)
+P -> VP : vào phòng chờ
+
+D -> SVC : bắtĐầuPhiên(sessionId, version)
+SVC -> DB : BEGIN; khóa Bác sĩ, rồi Bệnh nhân, rồi lịch hẹn / phiên
+SVC -> DB : kiểm tra phân công, version, bệnh nhân WAITING,\nbắt đầu <= hiện tại < bắt đầu + 15min
+SVC -> DB : đặt ACTIVE, lịch IN_PROGRESS; tạo encounter; audit
+SVC -> DB : COMMIT
+DB --> SVC : phiên
+SVC --> D : phiên
+
+P -> SVC : thamGiaPhiên(sessionId, participationConfirmed=true)
+SVC -> DB : xác thực người tham gia được phân công, ACTIVE; lưu audit tiếp nhận
+DB --> SVC : JoinToken (5 phút)
+SVC --> P : JoinToken (5 phút)
+P -> VP : tham gia
+
+opt [ngắt kết nối và nối lại]
+  VP --> SVC : sự kiện đã ký (event ID)
+  SVC -> DB : loại trùng callback theo giao dịch; kiểm tra trạng thái / version;\nACTIVE -> RECONNECTING; audit
+
+  P -> SVC : thamGiaPhiên để nối lại
+  SVC -> DB : xác thực người tham gia và ACTIVE/RECONNECTING; audit
+  DB --> SVC : token mới; không giới hạn cửa sổ tham gia ban đầu
+  SVC --> P : token mới; không giới hạn cửa sổ tham gia ban đầu
+
+  SVC -> DB : sự kiện nối lại đã xác thực
+  SVC -> DB : RECONNECTING -> ACTIVE nếu vẫn mở; audit
+end
+
+D -> SVC : kếtThúcPhiên(sessionId, version)
+SVC -> DB : BEGIN; phân quyền; yêu cầu ACTIVE/RECONNECTING và version
+SVC -> DB : đặt ENDED; audit + outbox đóng phòng durable; COMMIT
+DB --> SVC : phiên ENDED (hồ sơ lâm sàng vẫn mở)
+SVC --> D : phiên ENDED (hồ sơ lâm sàng vẫn mở)
+SVC -> VP : thu hồi tiếp nhận / đóng phòng (retry job durable)
+
+note over SVC
+  Mọi lệnh từ chối phân quyền / trạng thái không hợp lệ trước khi thay đổi dữ liệu.
+  Lỗi DB / audit đều rollback và trả 503.
+  Cấp phát nhà cung cấp sau NO_SHOW được dọn dẹp; không phát hành token.
+  Phiên đã kết thúc / hủy từ chối token và callback cũ.
+  Việc đóng phòng nhà cung cấp vẫn đang chờ cho đến khi được xác nhận;
+  hết hạn giới hạn token đã phát hành, nhưng vẫn cần đóng phòng nhà cung cấp.
+end note
+
+@enduml

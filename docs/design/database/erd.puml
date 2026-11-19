@@ -1,0 +1,270 @@
+@startuml erd
+skinparam entity {
+  BackgroundColor White
+  BorderColor #555
+  ArrowColor #333
+  FontName Arial
+  FontSize 10
+}
+skinparam noteBackgroundColor #FFFDE7
+skinparam noteBorderColor #F9A825
+skinparam shadowing false
+skinparam dpi 150
+title Mo hinh du lieu logic - MySQL / InnoDB
+
+entity "UserAccount" as UA {
+  * id : CHAR(36) <<PK>>
+  --
+  issuer : VARCHAR(255)
+  subject : VARCHAR(255)
+  status : VARCHAR(32)
+}
+
+entity "UserRole" as UR {
+  * user_id : CHAR(36) <<PK,FK>>
+  * role : VARCHAR(32) <<PK>>
+}
+
+entity "AuditEvent" as AE {
+  * id : CHAR(36) <<PK>>
+  --
+  actor_id : CHAR(36) <<FK,nullable>>
+  actor_type : VARCHAR(32)
+  actor_label : VARCHAR(255)
+  resource_type : VARCHAR(255)
+  resource_id : VARCHAR(255)
+  action : VARCHAR(255)
+  result : VARCHAR(32)
+  timestamp : DATETIME(6)
+  correlation_id : VARCHAR(255)
+}
+
+entity "IdempotencyRecord" as IR {
+  * actor_id : CHAR(36) <<PK,FK>>
+  * operation : VARCHAR(64) <<PK>>
+  * request_key : VARCHAR(128) <<PK>>
+  --
+  request_hash : VARCHAR(255)
+  result_resource_id : CHAR(36)
+  expires_at : DATETIME(6)
+}
+
+entity "OutboxEvent" as OE {
+  * id : CHAR(36) <<PK>>
+  --
+  aggregate_version : INT
+  aggregate_id : CHAR(36)
+  event_type : VARCHAR(64)
+  status : VARCHAR(32)
+  created_at : DATETIME(6)
+  lease_until : DATETIME(6)
+}
+
+entity "Doctor" as D {
+  active : BOOLEAN
+  --
+  * id : CHAR(36) <<PK>>
+  user_id : CHAR(36) <<FK,UK>>
+  display_name : VARCHAR(255)
+}
+
+entity "Specialty" as SP {
+  active : BOOLEAN
+  --
+  * id : CHAR(36) <<PK>>
+  name : VARCHAR(255) <<UK>>
+}
+
+entity "DoctorSpecialty" as DS {
+  * doctor_id : CHAR(36) <<PK,FK>>
+  * specialty_id : CHAR(36) <<PK,FK>>
+}
+
+entity "TimeOff" as TO {
+  * id : CHAR(36) <<PK>>
+  --
+  doctor_id : CHAR(36) <<FK>>
+  start_at : DATETIME(6)
+  end_at : DATETIME(6)
+}
+
+entity "Availability" as AV {
+  slot_minutes : INT
+  --
+  * id : CHAR(36) <<PK>>
+  doctor_id : CHAR(36) <<FK>>
+  start_at : DATETIME(6)
+  end_at : DATETIME(6)
+  mode : VARCHAR(32)
+}
+
+entity "Slot" as SL {
+  * id : CHAR(36) <<PK>>
+  --
+  availability_id : CHAR(36) <<FK>>
+  doctor_id : CHAR(36) <<FK>>
+  start_at : DATETIME(6)
+  end_at : DATETIME(6)
+  mode : VARCHAR(32)
+}
+
+entity "ClinicHours" as CH {
+  * day_of_week : TINYINT <<PK>>
+  --
+  opens_at : CHAR(5)
+  closes_at : CHAR(5)
+}
+
+entity "ClinicHoliday" as HL {
+  * id : CHAR(36) <<PK>>
+  --
+  start_date : DATE
+  end_date : DATE
+  name : VARCHAR(255)
+  closed : BOOLEAN
+  opens_at : CHAR(5)
+  closes_at : CHAR(5)
+}
+
+entity "Patient" as P {
+  contact_encrypted : BLOB
+  --
+  * id : CHAR(36) <<PK>>
+  user_id : CHAR(36) <<FK,UK>>
+  display_name : VARCHAR(255)
+}
+
+entity "Appointment" as AP {
+  version : INT
+  cancellation_reason : TEXT
+  --
+  * id : CHAR(36) <<PK>>
+  patient_id : CHAR(36) <<FK>>
+  doctor_id : CHAR(36) <<FK>>
+  slot_id : CHAR(36) <<FK>>
+  start_at : DATETIME(6)
+  end_at : DATETIME(6)
+  status : VARCHAR(32)
+  mode : VARCHAR(32)
+}
+
+entity "NotificationJob" as NJ {
+  appointment_version : INT
+  attempts : INT
+  --
+  * id : CHAR(36) <<PK>>
+  appointment_id : CHAR(36) <<FK>>
+  due_at : DATETIME(6)
+  dedupe_key : VARCHAR(255) <<UK>>
+  status : VARCHAR(32)
+  channel : VARCHAR(32)
+  lease_until : DATETIME(6)
+  provider_message_id : VARCHAR(255)
+}
+
+entity "QueueTicket" as QT {
+  service_date : DATE
+  position : INT
+  --
+  * id : CHAR(36) <<PK>>
+  appointment_id : CHAR(36) <<FK,UK>>
+  doctor_id : CHAR(36) <<FK>>
+  status : VARCHAR(32)
+}
+
+entity "Encounter" as EN {
+  version : INT
+  --
+  * id : CHAR(36) <<PK>>
+  appointment_id : CHAR(36) <<FK,UK>>
+  status : VARCHAR(32)
+}
+
+entity "TelehealthSession" as TS {
+  version : INT
+  --
+  * id : CHAR(36) <<PK>>
+  appointment_id : CHAR(36) <<FK,UK>>
+  provider_room_id : VARCHAR(255) <<UK,nullable>>
+  status : VARCHAR(32)
+  ended_at : DATETIME(6)
+}
+
+entity "ProviderEvent" as PE {
+  * provider : VARCHAR(64) <<PK>>
+  * event_id : VARCHAR(255) <<PK>>
+  --
+  session_id : CHAR(36) <<FK>>
+  received_at : DATETIME(6)
+}
+
+entity "MedicalRecord" as MR {
+  version : INT
+  content_encrypted : BLOB
+  amendment_reason : TEXT
+  --
+  * id : CHAR(36) <<PK>>
+  encounter_id : CHAR(36) <<FK>>
+  author_id : CHAR(36) <<FK>>
+  status : VARCHAR(32)
+  supersedes_id : CHAR(36) <<FK,UK,nullable>>
+}
+
+entity "Prescription" as PR {
+  version : INT
+  --
+  * id : CHAR(36) <<PK>>
+  encounter_id : CHAR(36) <<FK>>
+  author_id : CHAR(36) <<FK>>
+  status : VARCHAR(32)
+  issued_at : DATETIME(6)
+}
+
+entity "PrescriptionItem" as PI {
+  * id : CHAR(36) <<PK>>
+  --
+  prescription_id : CHAR(36) <<FK>>
+  medicine_name : VARCHAR(255)
+  dose_text : VARCHAR(255)
+  route : VARCHAR(255)
+  frequency : VARCHAR(255)
+  duration_text : VARCHAR(255)
+}
+
+UA ||--o{ UR
+UA ||--o| D
+UA ||--o| P
+UA ||--o{ AE : actor_id
+
+D ||--o{ AV
+D ||--o{ TO
+D }o--o{ SP : DoctorSpecialty
+
+AV ||--o{ SL
+SL }o--o{ AP : author
+
+AP }o--|| D : author
+AP ||--o| QT
+AP ||--o| EN
+AP ||--o| TS
+AP ||--o{ NJ
+
+EN ||--o{ MR
+EN ||--o{ PR
+
+MR |o--o| MR : supersedes
+
+TS ||--o{ PE
+
+PR ||--o{ PI
+
+note bottom of AP
+  Composite UNIQUE: UserAccount(issuer,subject);
+  MedicalRecord(encounter_id,version);
+  QueueTicket(doctor_id,service_date,position).
+  Moc gio: UTC DATETIME(6); hang doi dung Asia/Ho_Chi_Minh.
+  Audit USER dung actor_id; SYSTEM dung actor_label va actor_id null.
+  Rang buoc null khac xem data-dictionary.md.
+end note
+
+@enduml

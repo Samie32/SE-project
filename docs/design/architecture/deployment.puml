@@ -1,0 +1,67 @@
+@startuml deployment
+skinparam node {
+  BackgroundColor White
+  BorderColor #555
+  FontName Arial
+  FontSize 11
+}
+skinparam component {
+  BackgroundColor #F5F5F5
+  BorderColor #777
+}
+skinparam database {
+  BackgroundColor White
+  BorderColor #555
+}
+skinparam noteBackgroundColor #FFFDE7
+skinparam noteBorderColor #F9A825
+skinparam cloud {
+  BackgroundColor #F5F5F5
+  BorderColor #888
+}
+skinparam shadowing false
+skinparam dpi 150
+title So do trien khai (Physical view)
+
+node "Thiet bi nguoi dung" as UserDevice {
+  component "Trinh duyet / React TS"
+}
+
+node "Cong vao cong khai / HTTPS" as Ingress {
+  component "Frontend tinh"
+  component "Dinh tuyen API"
+}
+
+node "Moi truong ung dung" as AppEnv {
+  component "Spring Boot API + worker"
+}
+
+node "Mang du lieu rieng" as PrivateNet {
+  database "MySQL"
+  component "Cau hinh khoa / bi mat ngoai"
+  component "Sao luu ma hoa"
+}
+
+cloud "Nha cung cap\ndanh tinh" as IdP
+cloud "Nha cung cap\nvideo" as VideoProvider
+cloud "Email / SMS" as EmailSMS
+
+UserDevice --> Ingress : HTTPS
+Ingress --> AppEnv : TLS
+AppEnv --> PrivateNet : TLS / tai khoan gioi han
+
+AppEnv --> IdP : xac thuc danh tinh
+AppEnv --> VideoProvider : kiem soat phien
+AppEnv --> EmailSMS : gui thong bao
+
+PrivateNet --> PrivateNet : sao luu ma hoa / kiem tra phuc hoi
+
+note right of AppEnv
+  Moi truong phat trien, kiem thu va demo
+  dung cau hinh / du lieu rieng biet.
+  Vong Ky Phong quan ly MySQL, moi truong va trien khai.
+  Thong tin dang nhap nha cung cap duoc tiem vao;
+  khong bao gio commit len repository.
+end note
+
+@enduml

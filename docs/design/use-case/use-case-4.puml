@@ -1,0 +1,47 @@
+@startuml use-case-4
+skinparam usecase {
+  BackgroundColor White
+  BorderColor #555
+  ArrowColor #333
+}
+skinparam packageStyle rectangle
+skinparam packageBackgroundColor #FAFAFA
+skinparam packageBorderColor #AAAAAA
+skinparam noteBackgroundColor #FFFDE7
+skinparam noteBorderColor #F9A825
+skinparam shadowing false
+skinparam defaultFontName Arial
+skinparam defaultFontSize 11
+skinparam dpi 150
+title Thông báo & kiểm toán — Use case chi tiết
+
+note as N1
+  Hành vi audit nội bộ được gọi bởi các dịch vụ được bảo vệ.
+  Kiểm toán viên chỉ tra cứu sự kiện qua UC-18.
+end note
+
+left to right direction
+
+actor "Bệnh nhân" as Patient
+actor "Lễ tân" as Receptionist
+actor "Quản trị viên" as Admin
+actor "Kiểm toán viên" as Auditor
+
+rectangle "Hệ thống phòng khám" {
+
+  package "M06 — Thông báo" {
+    usecase "UC-15\nNhận nhắc lịch hẹn" as UC15
+    usecase "UC-16\nGiám sát lỗi gửi thông báo" as UC16
+  }
+
+  package "M07 — Kiểm toán" {
+    usecase "UC-17\nGhi sự kiện kiểm toán" as UC17
+    usecase "UC-18\nTra cứu lịch sử kiểm toán" as UC18
+  }
+}
+
+Patient --> UC15
+Receptionist --> UC15
+Admin --> UC16
+Auditor --> UC18
+@enduml

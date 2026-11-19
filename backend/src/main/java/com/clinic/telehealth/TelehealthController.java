@@ -52,6 +52,11 @@ public class TelehealthController {
     return service.read(access.actor(j), id.toString());
   }
 
+  @GetMapping("/appointments/{id}/telehealth-session")
+  public Object readByAppointment(@AuthenticationPrincipal Jwt j, @PathVariable UUID id) {
+    return service.readByAppointment(access.actor(j), id.toString());
+  }
+
   @PostMapping("/telehealth-sessions/{id}/join")
   public Object join(
       @AuthenticationPrincipal Jwt j, @PathVariable UUID id, @Valid @RequestBody Join b) {

@@ -7,10 +7,10 @@ const ROLES: Record<string, { name: string; routes: string[] }> = {
   patient: { name: "Lê Thu Hà", routes: ["/patient", "/patient/booking", "/patient/appointments", "/patient/records", "/patient/telehealth", "/account"] },
   doctor: { name: "Nguyễn Minh Khoa", routes: ["/doctor", "/doctor/schedule", "/doctor/appointments", "/doctor/queue", "/doctor/consultation", "/doctor/telehealth", "/account"] },
   receptionist: { name: "Phạm Lan Anh", routes: ["/staff", "/staff/reception", "/staff/queue", "/staff/notifications", "/account"] },
-  admin: { name: "Trần Quản Trị", routes: ["/staff", "/admin/doctors", "/admin/specialties", "/admin/schedules", "/admin/permissions", "/staff/notifications", "/account"] },
+  admin: { name: "Trần Quản Trị", routes: ["/staff", "/admin/specialties", "/admin/schedules", "/admin/permissions", "/staff/notifications", "/account"] },
   auditor: { name: "Đặng Kiểm Toán", routes: ["/audit", "/account"] },
 };
-const ALL = ["/patient", "/doctor", "/staff/reception", "/admin/doctors", "/admin/permissions", "/audit"];
+const ALL = ["/patient", "/doctor", "/staff/reception", "/admin/permissions", "/audit"];
 const report: Record<string, unknown>[] = [];
 
 async function loginAs(page: Page, name: string) {

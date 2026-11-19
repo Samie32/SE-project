@@ -108,6 +108,44 @@ describe("WebRTC protocol", () => {
     messages=[{id:1,kind:"ANSWER",payload:envelope(old,{description:{type:"answer",sdp:"old"}})}];
     await call.pollOnce();expect(peers[0].setRemoteDescription).not.toHaveBeenCalled();call.close();
   });
+  it("giữ offer đang chờ khi nhận thêm yêu cầu nối lại trước answer", async () => {
+    const state = vi.fn();
+    const call = create("DOCTOR", {onState:state});
+    await call.admit(token(), local);
+    const initial = sent[0].negotiationId;
+    messages = [{id:1,kind:"ANSWER",payload:envelope(initial,{description:{type:"answer",sdp:"initial"}})}];
+    await call.pollOnce();
+
+    await call.restart();
+    const pending = sent.filter(x => x.kind === "OFFER").at(-1).negotiationId;
+    peers[0].connectionState = "connected";
+    peers[0].iceConnectionState = "connected";
+    peers[0].oniceconnectionstatechange();
+    expect(state).toHaveBeenLastCalledWith("reconnecting");
+    messages = [
+      {id:2,kind:"ICE",payload:envelope(initial,{control:"restart"})},
+      {id:3,kind:"ANSWER",payload:envelope(pending,{description:{type:"answer",sdp:"reconnected"}})},
+    ];
+    await call.pollOnce();
+
+    expect(sent.filter(x => x.kind === "OFFER")).toHaveLength(2);
+    expect(peers[0].remoteDescription?.sdp).toBe("reconnected");
+    expect(state).toHaveBeenLastCalledWith("connected");
+    call.close();
+  });
+  it("thử lại khi offer hết hạn dù ICE của kết nối cũ vẫn báo connected", async () => {
+    const call = create();
+    await call.admit(token(), local);
+    peers[0].connectionState = "connected";
+    peers[0].iceConnectionState = "connected";
+    await call.restart();
+
+    await vi.advanceTimersByTimeAsync(11999);
+    expect(peers[0].createOffer).toHaveBeenCalledTimes(2);
+    await vi.advanceTimersByTimeAsync(1);
+    expect(peers[0].createOffer).toHaveBeenCalledTimes(3);
+    call.close();
+  });
   it("ENDED đóng peer và không nhận tín hiệu đến trễ hoặc poll tiếp", async () => {
     const call=create("PATIENT");await call.admit(token(),local);
     let finish:any;transport.poll.mockImplementationOnce(() => new Promise(resolve=>{finish=resolve;}));

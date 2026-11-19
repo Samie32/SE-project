@@ -1,0 +1,6 @@
+<map id="telehealth_map" name="telehealth_map">
+<area shape="rect" id="id1" href="phòng" title="phòng" alt="" coords="263,581,338,603"/>
+<area shape="rect" id="id2" href="lỗi" title="lỗi" alt="" coords="248,385,359,407"/>
+<area shape="rect" id="id3" href="ngắt" title="ngắt" alt="" coords="140,1631,274,1653"/>
+<area shape="rect" id="id4" href="yêu" title="yêu" alt="" coords="294,472,530,494"/>
+</map>

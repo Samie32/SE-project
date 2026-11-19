@@ -1,8 +1,9 @@
-// Cơ sở dữ liệu trong bộ nhớ cho chế độ dev:mock.
+// Cơ sở dữ liệu trong bộ nhớ cho chế độ giả lập (chỉ nạp khi VITE_MOCK=true).
 import { addDays, localToIso, todayKey } from "@/core/datetime";
 import type { Role } from "@/core/types";
+import { DEFAULT_CLINIC_HOURS, type ClinicDayHours } from "@/core/clinic-hours";
 
-export interface MUser { id: string; name: string; email: string; roles: Role[]; active: boolean }
+export interface MUser { id: string; name: string; email: string; roles: Role[]; active: boolean; username?: string; staff?: boolean; subject?: string }
 export interface MDoctor { id: string; userId: string; active: boolean; specialtyIds: string[] }
 export interface MSpecialty { id: string; name: string; active: boolean }
 export interface MAvail { id: string; doctorId: string; startAt: string; endAt: string; slotMinutes: number; mode: string }
@@ -22,7 +23,11 @@ export interface MSession { id: string; appointmentId: string; status: string; v
 export interface MAudit { id: string; actorId: string | null; action: string; resourceId: string; createdAt: string; result: string; correlationId: string }
 export interface MNotif { id: string; appointmentId: string; eventType: string; status: string; attempts: number; lastError: string | null; dueAt: string; sendAt: number }
 
+export interface MHoliday { id: string; startDate: string; endDate: string; name: string; closed: boolean; opensAt: string | null; closesAt: string | null }
+
 export interface DB {
+  clinicHours: ClinicDayHours[];
+  clinicHolidays: MHoliday[];
   users: MUser[]; doctors: MDoctor[]; specialties: MSpecialty[]; avail: MAvail[]; timeoff: MTimeOff[]; slots: MSlot[];
   appts: MAppt[]; tickets: MTicket[]; records: MRecord[]; rx: MRx[]; sessions: MSession[]; audit: MAudit[]; notifs: MNotif[];
   idem: Record<string, { hash: string; status: number; body: unknown }>;
@@ -36,6 +41,11 @@ export const mid = () => {
   return `a${Math.random().toString(16).slice(2, 9).padEnd(7, "0")}-0000-4000-8000-${n}`.slice(0, 36);
 };
 const U = (n: number) => `00000000-0000-0000-0000-${String(n).padStart(12, "0")}`;
+const demoUsernames = new Map(
+  ["admin", "doctor", "patient", "patient2", "receptionist", "auditor", "doctor2"]
+    .map((username, index) => [U(index + 1), username]),
+);
+export const mockUsername = (user: MUser) => user.username ?? demoUsernames.get(user.id) ?? null;
 export const SP1 = "10000000-0000-0000-0000-000000000001";
 export const SP2 = "10000000-0000-0000-0000-000000000002";
 export const D1 = "20000000-0000-0000-0000-000000000001";
@@ -51,6 +61,8 @@ export function genSlots(a: MAvail): MSlot[] {
 
 function seed(): DB {
   const db: DB = {
+    clinicHours: DEFAULT_CLINIC_HOURS.map(day => ({ ...day })),
+    clinicHolidays: [],
     users: [
       { id: U(1), name: "Trần Quản Trị", email: "admin@example.test", roles: ["ADMINISTRATOR"], active: true },
       { id: U(2), name: "Nguyễn Minh Khoa", email: "doctor@example.test", roles: ["DOCTOR"], active: true },
@@ -139,7 +151,8 @@ export function getDb(): DB {
   try {
     const raw = sessionStorage.getItem(KEY);
     if (raw) {
-      db = JSON.parse(raw) as DB;
+      const saved = JSON.parse(raw) as DB;
+      db = { ...saved, clinicHours: saved.clinicHours ?? DEFAULT_CLINIC_HOURS };
       return db;
     }
   } catch { /* ignore */ }

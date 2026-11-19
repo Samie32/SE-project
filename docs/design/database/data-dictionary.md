@@ -13,6 +13,8 @@ Mô hình dữ liệu được thiết kế cho MySQL, bao gồm các thực th�
 | Availability | id, doctor_id, start_at, end_at, slot_minutes, mode | start < end; slot_minutes >0 |
 | TimeOff | id, doctor_id, start_at, end_at | không được chồng lịch hẹn hiệu lực |
 | Slot | id, availability_id, doctor_id, start_at, end_at, mode | bảo toàn quan hệ doctor/availability; không chồng khung giờ cùng bác sĩ |
+| ClinicHours | day_of_week, opens_at, closes_at | PK(day_of_week 1..7); giờ mở/đóng HH:mm hoặc cùng NULL khi nghỉ; M03 |
+| ClinicHoliday | id, start_date, end_date, name, closed, opens_at, closes_at | start_date <= end_date; không trùng khoảng ngày; ưu tiên trên ClinicHours khi kiểm tra mở ca; M03 |
 | Appointment | id, patient_id, doctor_id, slot_id, start_at, end_at, mode, status, version, cancellation_reason | FK; kiểm tra trùng khoảng doctor và patient; slot/doctor/mode nhất quán |
 | Encounter | id, appointment_id, status, version | appointment_id unique; một lần khám/lịch |
 | MedicalRecord | id, encounter_id, version, status, content_encrypted, author_id, supersedes_id, amendment_reason | UNIQUE(encounter_id,version), UNIQUE(supersedes_id); đã hoàn tất bất biến; bản bổ sung FINAL tham chiếu bản FINAL gần nhất, có lý do |

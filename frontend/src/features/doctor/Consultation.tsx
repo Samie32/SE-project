@@ -23,7 +23,7 @@ export function DoctorConsultationPage() {
   const nav = useNavigate();
   const { appointments, loading, reload } = useDoctor();
   const today = todayKey();
-  const picks = appointments.filter((a) => a.status === "IN_PROGRESS" || a.status === "CHECKED_IN" || a.status === "COMPLETED" || (a.status === "CONFIRMED" && dayKey(a.startAt) === today)).sort((a, b) => b.startAt.localeCompare(a.startAt));
+  const picks = appointments.filter((a) => a.status === "IN_PROGRESS" || a.status === "CHECKED_IN" || (a.status === "COMPLETED" && dayKey(a.startAt) === today)).sort((a, b) => a.startAt.localeCompare(b.startAt));
   const detail = useAsync(() => appointmentId ? getAppointment(appointmentId) : Promise.resolve(null), [appointmentId, appointments]);
   const appt = detail.data;
   const changed = async () => { await reload(); detail.reload(); };
@@ -38,7 +38,7 @@ export function DoctorConsultationPage() {
           {appointmentId && <Notice tone="error">Không tìm thấy lịch hẹn này trong danh sách của bạn.</Notice>}
           {picks.length === 0 ? <Empty title="Chưa có ca nào cần khám" text="Gọi bệnh nhân từ hàng đợi, hoặc bắt đầu phiên khám từ xa." /> : (
             <div className="tablewrap"><table><thead><tr><th>Giờ</th><th>Mã lịch</th><th>Bệnh nhân</th><th>Hình thức</th><th>Trạng thái</th><th /></tr></thead>
-              <tbody>{picks.map((a) => <tr key={a.id}><td><b>{formatDate(a.startAt)} {formatTime(a.startAt)}</b></td><td className="mono">{apptCode(a.id)}</td><td className="mono">{patientCode(a.patientId)}</td><td>{MODE_SHORT[a.mode]}</td><td><StatusPill status={a.status} /></td>
+              <tbody>{picks.map((a) => <tr key={a.id}><td><b>{formatTime(a.startAt)}</b></td><td className="mono">{apptCode(a.id)}</td><td className="mono">{patientCode(a.patientId)}</td><td>{MODE_SHORT[a.mode]}</td><td><StatusPill status={a.status} /></td>
                 <td><button className="btn sm primary" onClick={() => nav(`/doctor/consultation/${a.id}`)}>Mở</button></td></tr>)}</tbody></table></div>
           )}
         </Panel>
@@ -57,20 +57,13 @@ function Encounter({ appt, onChanged }: { appt: Appointment; onChanged: () => Pr
   const [finish, setFinish] = useState(false);
   const clinical = config.backend.clinical;
   const enc = appt.encounterId ?? undefined;
-  const canReadHistory = clinical && ["CONFIRMED", "CHECKED_IN", "IN_PROGRESS"].includes(appt.status);
   const recs = useAsync(() => clinical && enc ? getEncounterRecord(enc) : Promise.resolve(null), [enc, clinical]);
   const rxs = useAsync(() => clinical && enc ? listEncounterPrescriptions(enc) : Promise.resolve([] as Prescription[]), [enc, clinical]);
-  const past = useAsync(() => canReadHistory ? listPatientRecords(appt.patientId) : Promise.resolve([] as MedicalRecord[]), [appt.patientId, canReadHistory]);
+  const past = useAsync(() => clinical ? listPatientRecords(appt.patientId) : Promise.resolve([] as MedicalRecord[]), [appt.patientId, clinical]);
   const current = recs.data ?? undefined;
   const hasFinal = current?.status === "FINAL";
   const history = (past.data ?? []).filter(r => r.encounterId !== enc && !(past.data ?? []).some(o => o.supersedesId === r.id));
   const inProgress = appt.status === "IN_PROGRESS";
-  const canComplete = inProgress && hasFinal && config.backend.progress;
-  const historyPanel = <AsyncBlock loading={past.loading} error={past.error} onRetry={past.reload}>
-    {history.length === 0 ? <Panel><Empty title="Chưa có bệnh án trước đó" /></Panel> : history.map((r) => (
-      <Panel key={r.id} title={`Bệnh án v${r.version}`} subtitle={r.createdAt ? formatDate(r.createdAt) : undefined}><RecordView record={r} /></Panel>
-    ))}
-  </AsyncBlock>;
 
   const start = async () => {
     setBusy(true); setErr("");
@@ -78,7 +71,6 @@ function Encounter({ appt, onChanged }: { appt: Appointment; onChanged: () => Pr
     catch (e) { setErr(errorMessage(e)); } finally { setBusy(false); }
   };
   const complete = async () => {
-    if (!canComplete) return;
     setBusy(true); setErr("");
     try { await command(`progress:${appt.id}`, {targetStatus:"COMPLETED",version:appt.version}, key => progressAppointment(appt.id, "COMPLETED", appt.version, key)); toast.success("Đã hoàn tất ca khám."); setFinish(false); await onChanged(); }
     catch (e) { setErr(errorMessage(e)); } finally { setBusy(false); }
@@ -93,23 +85,21 @@ function Encounter({ appt, onChanged }: { appt: Appointment; onChanged: () => Pr
           {appt.mode === "IN_PERSON" && appt.status === "CHECKED_IN" && <button className="btn primary" disabled={busy || !config.backend.progress} onClick={() => void start()}>Bắt đầu khám</button>}
           {appt.mode === "REMOTE" && appt.status === "CONFIRMED" && <Link className="btn primary" to={`/doctor/telehealth/${appt.id}`}>Vào phòng khám từ xa</Link>}
           {appt.mode === "REMOTE" && inProgress && <Link className="btn" to={`/doctor/telehealth/${appt.id}`}>Phòng khám từ xa</Link>}
-          {inProgress && <button className="btn primary" disabled={!canComplete || busy} onClick={() => setFinish(true)}><CheckCircle2 size={15} aria-hidden /> Hoàn tất ca khám</button>}
-          {inProgress && !hasFinal && <span className="muted">Cần hoàn tất bệnh án trước khi hoàn tất ca khám.</span>}
-          {inProgress && appt.mode === "REMOTE" && <span className="muted">Hãy kết thúc phiên gọi trước khi hoàn tất ca khám.</span>}
+          {inProgress && <button className="btn primary" disabled={!hasFinal || busy || !config.backend.progress} title={hasFinal ? "" : "Cần hoàn tất hồ sơ (FINAL) trước"} onClick={() => setFinish(true)}><CheckCircle2 size={15} aria-hidden /> Hoàn tất ca khám</button>}
+          {inProgress && !hasFinal && <span className="muted">Cần hồ sơ ở trạng thái FINAL{appt.mode === "REMOTE" ? " và phiên khám từ xa đã kết thúc" : ""} để hoàn tất ca khám.</span>}
         </div>
       </Panel>
 
-      {!enc ? <>
-        <Panel><Empty title="Chưa bắt đầu khám" text="Bạn có thể ghi bệnh án của ca này sau khi bắt đầu khám." /></Panel>
-        {canReadHistory && <><h2>Tiền sử khám</h2>{historyPanel}</>}
-      </> : (
+      {!enc ? <Panel><Empty title="Chưa có phiên khám" text="Hồ sơ chỉ mở sau khi bắt đầu khám." /></Panel> : (
         <>
-          <Tabs<Tab> label="Mục hồ sơ" value={canReadHistory ? tab : tab === "history" ? "record" : tab} onChange={setTab} items={[{ id: "record", label: "Bệnh án" }, { id: "rx", label: "Đơn thuốc" }, ...(canReadHistory ? [{ id: "history" as const, label: `Lịch sử (${history.length})` }] : [])]} />
-          <AsyncBlock loading={clinical && (recs.loading || rxs.loading)} error={recs.error || rxs.error} onRetry={() => { recs.reload(); rxs.reload(); }}>
-            <div hidden={tab === "rx" || (tab === "history" && canReadHistory)}><RecordPanel encId={enc} current={current} editable={inProgress || appt.status === "COMPLETED"} onSaved={recs.reload} /></div>
+          <Tabs<Tab> label="Mục hồ sơ" value={tab} onChange={setTab} items={[{ id: "record", label: "Bệnh án" }, { id: "rx", label: "Đơn thuốc" }, { id: "history", label: `Lịch sử (${history.length})` }]} />
+          <AsyncBlock loading={clinical && (recs.loading || rxs.loading)} error={recs.error || rxs.error || (tab === "history" ? past.error : "")} onRetry={() => { recs.reload(); rxs.reload(); past.reload(); }}>
+            <div hidden={tab !== "record"}><RecordPanel encId={enc} current={current} editable={inProgress || appt.status === "COMPLETED"} onSaved={() => { recs.reload(); past.reload(); }} /></div>
             <div hidden={tab !== "rx"}><RxPanel encId={enc} list={rxs.data ?? []} editable={inProgress} onSaved={rxs.reload} /></div>
+            {tab === "history" && (history.length === 0 ? <Panel><Empty title="Chưa có bệnh án trước đó" /></Panel> : history.map((r) => (
+              <Panel key={r.id} title={`Bệnh án v${r.version}`} subtitle={r.createdAt ? formatDate(r.createdAt) : undefined}><RecordView record={r} /></Panel>
+            )))}
           </AsyncBlock>
-          {tab === "history" && canReadHistory && historyPanel}
         </>
       )}
       {finish && <ConfirmDialog title="Hoàn tất ca khám?" confirmLabel="Hoàn tất" busy={busy} error={err} message="Ca khám chuyển sang “Hoàn tất” và không thể mở lại." onCancel={() => setFinish(false)} onConfirm={() => void complete()} />}

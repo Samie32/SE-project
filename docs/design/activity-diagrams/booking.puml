@@ -1,0 +1,53 @@
+@startuml booking
+skinparam ActivityBorderColor #555
+skinparam ActivityBackgroundColor #FAFAFA
+skinparam ActivityDiamondBorderColor #555
+skinparam ActivityDiamondBackgroundColor #FAFAFA
+skinparam swimlaneBorderColor #AAAAAA
+skinparam shadowing false
+skinparam defaultFontName Arial
+skinparam defaultFontSize 11
+skinparam dpi 150
+title BP-02 — Đặt lịch, đổi lịch hoặc hủy lịch
+
+|Bệnh nhân|
+start
+:Chọn thao tác và xác nhận yêu cầu;
+
+|Hệ thống|
+:Xác thực; kiểm tra chủ sở hữu và đầu vào;
+if (Được phép và hợp lệ?) then (có)
+  :Bắt đầu giao dịch; giữ chỗ / replay idempotency key;
+  if (Yêu cầu đã hoàn thành tồn tại?) then (có)
+    :Hoàn tất giao dịch; trả kết quả trước;
+    stop
+  endif
+  :Khóa Doctor-ID trước, rồi Patient-ID;
+  :Tải lại lịch hẹn, slot và version;
+  if (Thao tác trên lịch hẹn hiện có?) then (có)
+    :Yêu cầu CONFIRMED, version khớp\nvà hiện tại ≤ bắt đầu - 2h;
+  endif
+  if (Hủy?) then (có)
+    :Kiểm tra lý do hủy;
+  else (đặt lịch / đổi lịch)
+    :Yêu cầu slot tương lai; kiểm tra lại\nkhả dụng, nghỉ phép, trùng lặp bác sĩ và bệnh nhân;
+  endif
+  if (Tất cả điều kiện nghiệp vụ thỏa mãn?) then (có)
+    :Tạo / cập nhật lịch hẹn; tăng version;\nghi audit, outbox và kết quả idempotency;
+    :Commit;
+    :Trả kết quả xác nhận;
+  else (không)
+    :Rollback; giữ nguyên lịch hẹn hiện có;
+    :Trả lỗi xung đột / kiểm tra;
+  endif
+else (không)
+  :Trả lỗi xác thực / phân quyền / đầu vào;
+endif
+
+note right
+  Gửi thông báo bất đồng bộ sau commit.
+  Xử lý retry và lỗi được mô hình riêng.
+end note
+
+stop
+@enduml

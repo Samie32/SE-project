@@ -1,0 +1,65 @@
+@startuml consultation
+skinparam ActivityBorderColor #555
+skinparam ActivityBackgroundColor #FAFAFA
+skinparam ActivityDiamondBorderColor #555
+skinparam ActivityDiamondBackgroundColor #FAFAFA
+skinparam swimlaneBorderColor #AAAAAA
+skinparam shadowing false
+skinparam defaultFontName Arial
+skinparam defaultFontSize 11
+skinparam dpi 150
+title BP-03 — Khám bệnh trực tiếp
+
+|Lễ tân|
+start
+:Xác minh bệnh nhân; yêu cầu check-in;
+
+|Hệ thống|
+if (Được phép, IN_PERSON và trong cửa sổ check-in?) then (có)
+  :Check-in nguyên tử; tạo hoặc trả phiếu duy nhất;
+else (không)
+  :Từ chối; giữ nguyên lịch hẹn;
+  stop
+endif
+
+|Bác sĩ|
+:Yêu cầu phiếu tiếp theo trong hàng đợi của mình;
+
+|Hệ thống|
+:Lấy phiếu WAITING đầu tiên nguyên tử;
+if (Phiếu khả dụng?) then (có)
+  :Đặt CALLED;
+else (không)
+  :Trả hàng đợi trống;
+  stop
+endif
+
+|Lễ tân|
+if (Bệnh nhân sẵn sàng?) then (có)
+
+|Hệ thống|
+  :Đặt phiếu IN_SERVICE, lịch IN_PROGRESS\nvà tạo encounter nguyên tử;
+
+|Bác sĩ|
+  :Bắt đầu ca khám được phân công;
+  :Xem lịch sử được phép; khám;
+  :Lưu nháp; phát hành đơn thuốc nếu cần;
+  if (Sẵn sàng chốt?) then (có)
+    :Chốt hồ sơ;
+    :Yêu cầu hoàn tất encounter;
+
+|Hệ thống|
+    :Kiểm tra hồ sơ FINAL; hoàn tất encounter,\nlịch hẹn và phiếu nguyên tử; audit;
+  else (không)
+    |Hệ thống|
+    :Giữ encounter mở; ghi hành động tiếp theo;
+  endif
+else (không)
+  |Hệ thống|
+  :Ghi lý do bỏ qua;
+  :Trả phiếu về WAITING ở cuối hàng đợi;
+  stop
+endif
+
+stop
+@enduml

@@ -26,6 +26,7 @@ export interface CallOptions {
 }
 const running = (s:TelehealthSession) => s.status === "ACTIVE" || s.status === "RECONNECTING";
 const terminal = (s:TelehealthSession) => s.status === "ENDED" || s.status === "CANCELLED";
+const RECOVERY_WAIT_MS = 12000;
 
 /** One participant/room. SDP and room credentials stay in memory. Doctor is the sole offerer. */
 export class WebRtcCall {
@@ -48,6 +49,7 @@ export class WebRtcCall {
   private cursor=0;
   private negotiationId="";
   private remoteNegotiationId="";
+  private offerPublishedAt:number|null=null;
   private descriptionSent=false;
   private localIce:RTCIceCandidateInit[]=[];
   private earlyIce=new Map<string,RTCIceCandidateInit[]>();
@@ -130,9 +132,7 @@ export class WebRtcCall {
     };
     const connected=()=>{
       if (this.stopped || this.pc !== peer) return;
-      clearTimeout(this.recoveryTimer);this.restarts=0;
-      this.state("connected");this.options.onError?.("");
-      void this.report("ACTIVE").catch(e=>this.fault(e));
+      this.confirmConnected();
     };
     peer.onconnectionstatechange=()=>{
       if (this.stopped || this.pc !== peer) return;
@@ -209,11 +209,12 @@ export class WebRtcCall {
   private async offerNow(restart:boolean) {
     if (this.publication) await this.publication.promise.catch(()=>{});
     const peer=this.pc;if (!peer || this.stopped) return;
-    this.negotiationId="";this.remoteNegotiationId="";this.readyDescription=null;this.localIce=[];this.earlyIce.clear();
+    this.negotiationId="";this.remoteNegotiationId="";this.offerPublishedAt=null;this.readyDescription=null;this.localIce=[];this.earlyIce.clear();
     if (peer.signalingState !== "stable") await peer.setLocalDescription({type:"rollback"});
-    this.alive();this.negotiationId=crypto.randomUUID();
+    this.alive();const id=crypto.randomUUID();this.negotiationId=id;
     const value=await peer.createOffer({iceRestart:restart});this.alive();
     await this.description("OFFER",value);
+    if (this.valid(peer,id)) this.offerPublishedAt=Date.now();
   }
   private async flushIce(id:string) {
     const pending=this.earlyIce.get(id) ?? [];this.earlyIce.clear();
@@ -289,8 +290,21 @@ export class WebRtcCall {
     });
     this.reporting=action;return action;
   }
+  private scheduleRecovery(delay=RECOVERY_WAIT_MS) {
+    clearTimeout(this.recoveryTimer);
+    this.recoveryTimer=setTimeout(()=>{
+      const peer=this.pc;
+      if (peer?.connectionState !== "connected" || peer.signalingState !== "stable") void this.restart(false);
+    },delay);
+  }
   async restart(manual=true) {
     if (this.stopped || this.restarting || !running(this.session)) return;
+    // Session polling and peer signaling can report the same disconnection.
+    // Let the peer answer the current offer before starting another negotiation.
+    if (!manual && this.options.role === "DOCTOR" && this.pc?.signalingState === "have-local-offer" && this.offerPublishedAt !== null) {
+      const remaining=RECOVERY_WAIT_MS-(Date.now()-this.offerPublishedAt);
+      if (remaining>0) {this.scheduleRecovery(remaining);return;}
+    }
     if (manual) {this.restarts=0;this.errors=0;this.paused=false;}
     if (!manual && ++this.restarts>3) {this.fail("Không thể nối lại cuộc gọi. Kiểm tra mạng rồi bấm thử lại.");return;}
     this.restarting=true;clearTimeout(this.recoveryTimer);this.state("reconnecting");
@@ -307,7 +321,7 @@ export class WebRtcCall {
         await this.send("ICE",{control:"restart"});
       }
       this.schedule();
-      this.recoveryTimer=setTimeout(()=>{if (this.pc?.connectionState !== "connected") void this.restart(false);},12000);
+      this.scheduleRecovery();
     } catch (e) {await this.fault(e);}
     finally {this.restarting=false;}
   }

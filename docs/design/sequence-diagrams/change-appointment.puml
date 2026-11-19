@@ -1,0 +1,100 @@
+@startuml change-appointment
+title UC-09 Đổi lịch (Change Appointment) · FR-09 · M04 · Bệnh nhân
+
+skinparam sequenceMessageAlign center
+skinparam responseMessageBelowArrow true
+skinparam ParticipantPadding 10
+skinparam BoxPadding 8
+skinparam dpi 150
+
+actor       "Bệnh nhân"              as P
+participant "Frontend"               as FE
+participant "AppointmentController"  as API
+participant "AppointmentService"     as SVC
+database    "MySQL (InnoDB)"         as DB
+participant "OutboxWorker"           as OUT
+
+P  -> FE  : Chọn lịch cũ + slot mới
+FE -> API : PATCH /appointments/{id}\nIdempotency-Key: K1\n{version: V, slotId: newSlot}
+
+API -> API : Xác thực JWT, ánh xạ bệnh nhân
+
+alt Idempotency: cùng key/payload đã xử lý
+    API --> FE : 200 (cached response)
+end
+
+API -> SVC : changeAppointment(id, newSlot, version, patientId)
+
+SVC -> DB : BEGIN TRANSACTION
+SVC -> DB : SELECT appointment WHERE id=? FOR UPDATE
+
+alt Không phải chủ sở hữu
+    SVC -> DB  : ROLLBACK
+    SVC --> API : 403 FORBIDDEN
+    API --> FE  : 403 — lịch cũ giữ nguyên
+    FE  --> P   : Báo lỗi quyền
+end
+
+alt Trạng thái ≠ CONFIRMED
+    SVC -> DB  : ROLLBACK
+    SVC --> API : 409 INVALID_STATE
+    API --> FE  : 409 — lịch cũ giữ nguyên
+    FE  --> P   : Báo lỗi trạng thái
+end
+
+SVC -> SVC : Kiểm tra còn ≥ 2h trước giờ bắt đầu
+
+alt Quá hạn đổi lịch (< 2h)
+    SVC -> DB  : ROLLBACK
+    SVC --> API : 409 CHANGE_WINDOW_EXPIRED
+    API --> FE  : 409 — lịch cũ giữ nguyên
+    FE  --> P   : Báo lỗi quá hạn
+end
+
+note over SVC, DB
+  Khóa theo thứ tự cố định:
+  Doctor-ID trước → Patient-ID sau
+  (tránh deadlock khi nhiều request đồng thời)
+end note
+
+SVC -> DB : SELECT slot mới + appointments xung đột FOR UPDATE
+
+alt Slot mới đã bị đặt
+    SVC -> DB  : ROLLBACK
+    SVC --> API : 409 SLOT_CONFLICT
+    API --> FE  : 409 — lịch cũ giữ nguyên
+    FE  --> P   : Báo lỗi slot đã có người đặt
+end
+
+alt Version không khớp (concurrent update)
+    SVC -> DB  : ROLLBACK
+    SVC --> API : 409 VERSION_CONFLICT
+    API --> FE  : 409 — lịch cũ giữ nguyên
+    FE  --> P   : Báo lỗi phiên bản
+end
+
+SVC -> DB : UPDATE appointment\n  SET slot_id = newSlot,\n      version  = V+1\n  WHERE id = ? AND version = V
+
+SVC -> DB : INSERT audit_event\n  (action='RESCHEDULE', actor, resource, correlationId)
+
+SVC -> DB : INSERT notification_job\n  (type='RESCHEDULE_CONFIRM', appointmentId, version=V+1)
+
+SVC -> DB : COMMIT
+
+SVC --> API : Appointment đã cập nhật {version: V+1}
+
+API -> API : Cache idempotency\n(key → response, TTL 24h)
+API --> FE  : 200 {appointment mới, version: V+1}
+FE  --> P   : Xác nhận đổi lịch thành công
+
+note over API
+  Sau COMMIT — lỗi gửi email
+  KHÔNG rollback lịch đã xác nhận
+end note
+
+OUT -> DB  : Lấy notification_job PENDING (type=RESCHEDULE_CONFIRM)
+OUT -> OUT : Kiểm tra version và trạng thái lịch hiện tại
+OUT -> OUT : Gửi email xác nhận thay đổi lịch
+OUT -> DB  : UPDATE notification_job SET status='SENT'
+
+@enduml

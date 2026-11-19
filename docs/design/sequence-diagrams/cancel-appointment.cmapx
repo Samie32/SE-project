@@ -1,0 +1,8 @@
+<map id="cancel-appointment_map" name="cancel-appointment_map">
+<area shape="rect" id="id1" href="đủ" title="đủ" alt="" coords="133,765,207,787"/>
+<area shape="rect" id="id2" href="ghi" title="ghi" alt="" coords="148,878,241,900"/>
+<area shape="rect" id="id3" href="không" title="không" alt="" coords="148,1227,248,1249"/>
+<area shape="rect" id="id4" href="lỗi" title="lỗi" alt="" coords="148,1071,261,1092"/>
+<area shape="rect" id="id5" href="danh" title="danh" alt="" coords="179,332,468,354"/>
+<area shape="rect" id="id6" href="trùng" title="trùng" alt="" coords="179,478,509,499"/>
+</map>

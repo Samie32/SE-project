@@ -66,24 +66,3 @@ it("sửa đơn nháp đang có bằng PUT thay vì tạo đơn mới", async ()
   expect(writes[0].body.version).toBe(3);
   expect(writes[0].headers.get("Idempotency-Key")).toBeTruthy();
 });
-
-it("hiển thị tiền sử khi lịch đã xác nhận nhưng chưa có encounter", async () => {
-  setFetchImpl(async (url) => new Response(JSON.stringify(url === "/api/appointments/appt"
-    ? { ...appt, status: "CONFIRMED" }
-    : [{ id: "past", encounterId: "old", version: 1, status: "FINAL", content: "Tiền sử mô phỏng" }])));
-  open();
-  expect(await screen.findByRole("heading", { name: "Tiền sử khám" })).toBeTruthy();
-  expect(await screen.findByText("Tiền sử mô phỏng")).toBeTruthy();
-});
-
-it("cho gửi yêu cầu hoàn tất ca từ xa có bệnh án FINAL với API chi tiết hiện tại", async () => {
-  setFetchImpl(async (url) => new Response(JSON.stringify(url === "/api/appointments/appt"
-    ? { ...appt, mode: "REMOTE", encounterId: "enc" }
-    : url === "/api/encounters/enc/record"
-      ? { id: "record", encounterId: "enc", version: 2, status: "FINAL", content: "Bệnh án mô phỏng" }
-      : [])));
-  open();
-  await screen.findByRole("button", { name: "Chỉnh sửa bổ sung" });
-  const finish = screen.getByRole<HTMLButtonElement>("button", { name: "Hoàn tất ca khám" });
-  expect(finish.disabled).toBe(false);
-});

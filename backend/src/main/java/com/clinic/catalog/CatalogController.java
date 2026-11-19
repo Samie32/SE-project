@@ -20,9 +20,11 @@ public class CatalogController {
   }
 
   @GetMapping("/specialties")
-  public Object specialties(@AuthenticationPrincipal Jwt j) {
-    access.actor(j);
-    return service.specialties();
+  public Object specialties(
+      @AuthenticationPrincipal Jwt j,
+      @RequestParam(defaultValue = "false") boolean includeInactive) {
+    var actor = access.actor(j);
+    return service.specialties(includeInactive && actor.roles().contains("ADMINISTRATOR"));
   }
 
   @GetMapping("/doctors")
@@ -32,6 +34,8 @@ public class CatalogController {
   }
 
   public record Specialty(@NotBlank @Size(max = 255) String name) {}
+
+  public record UpdateSpecialty(@NotBlank @Size(max = 255) String name, boolean active) {}
 
   public record Doctor(@NotNull UUID userId, @NotEmpty List<@NotNull UUID> specialtyIds) {}
 
@@ -43,6 +47,14 @@ public class CatalogController {
   @PostMapping("/specialties")
   public Object specialty(@AuthenticationPrincipal Jwt j, @Valid @RequestBody Specialty b) {
     return service.specialty(access.actor(j), b.name());
+  }
+
+  @PutMapping("/specialties/{id}")
+  public Object updateSpecialty(
+      @AuthenticationPrincipal Jwt j,
+      @PathVariable UUID id,
+      @Valid @RequestBody UpdateSpecialty b) {
+    return service.updateSpecialty(access.actor(j), id.toString(), b.name(), b.active());
   }
 
   @PostMapping("/doctors")

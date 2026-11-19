@@ -45,8 +45,7 @@ export function DoctorAppointmentsPage() {
         {a.mode === "REMOTE" && (a.status === "CONFIRMED" || a.status === "IN_PROGRESS") && (
           <Link className={"btn sm" + (inJoinWindow(a.startAt, now) || a.status === "IN_PROGRESS" ? " primary" : "")} to={`/doctor/telehealth/${a.id}`}>Phòng từ xa</Link>
         )}
-        {open && (a.mode === "IN_PERSON" || a.status === "COMPLETED") && <Link className="btn sm primary" to={`/doctor/consultation/${a.id}`}>{a.status === "COMPLETED" ? "Xem hồ sơ" : "Khám bệnh"}</Link>}
-        {a.status === "CONFIRMED" && <Link className="btn sm" to={`/doctor/consultation/${a.id}`}>Xem tiền sử</Link>}
+        {open && a.mode === "IN_PERSON" && <Link className="btn sm primary" to={`/doctor/consultation/${a.id}`}>{a.status === "COMPLETED" ? "Xem hồ sơ" : "Khám bệnh"}</Link>}
         {a.mode === "REMOTE" && a.status === "IN_PROGRESS" && <Link className="btn sm" to={`/doctor/consultation/${a.id}`}>Hồ sơ</Link>}
         {a.mode === "REMOTE" && a.status === "CONFIRMED" && canMarkNoShow(a.startAt, now) && config.backend.progress && (
           <button className="btn sm danger" onClick={() => { setNoShow(a); setErr(""); }}><UserX size={14} aria-hidden /> Vắng mặt</button>
