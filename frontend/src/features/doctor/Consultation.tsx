@@ -30,7 +30,7 @@ export function DoctorConsultationPage() {
 
   return (
     <>
-      <PageHead eyebrow="Bác sĩ" title="Khám bệnh & kê đơn" text="Ghi hồ sơ, kê đơn và hoàn tất ca khám. Hoàn tất hồ sơ không tự động hoàn tất ca khám." />
+      <PageHead title="Khám bệnh & kê đơn" />
       <PendingBackend feature="clinical" />
       {detail.error && <Notice tone="error">{detail.error} <button className="btn" onClick={detail.reload}>Tải lại</button></Notice>}
       {loading || (appointmentId && detail.loading) ? <div className="empty">Đang tải…</div> : !appt ? (

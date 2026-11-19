@@ -22,7 +22,7 @@ Vai trò cấp cao không tự động có quyền lâm sàng. Backend kiểm tr
 | Rủi ro | Kiểm soát | Kiểm chứng |
 |---|---|---|
 | IDOR hồ sơ/phiên | Phân quyền ở mức tài nguyên, không trả dữ liệu khi truy cập bị từ chối | TC-02/12/23 |
-| Lộ PHI qua log/SMS | Giới hạn trường dữ liệu được ghi nhật ký và nội dung mẫu thông báo | TC-N04 |
+| Lộ PHI qua log/email | Giới hạn trường dữ liệu được ghi nhật ký và nội dung mẫu thông báo | TC-N04 |
 | Cạnh tranh tạo lịch | Giao dịch, khóa và ràng buộc cơ sở dữ liệu | TC-08/09 |
 | Token bị dùng lại/sai người | Expiry, audience, session binding; revoke khi kết thúc | TC-23/24 |
 | Callback giả hoặc đến trễ | Chữ ký nhà cung cấp dịch vụ, event ID, kiểm tra trạng thái/version | TC-N06 |

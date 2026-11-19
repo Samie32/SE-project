@@ -56,7 +56,7 @@ export function ReceptionPage() {
 
   return (
     <>
-      <PageHead eyebrow="Tiếp đón" title="Tiếp đón / Check-in" text="Check-in bệnh nhân khám trực tiếp trong khung [giờ hẹn − 15 phút, giờ hẹn + 15 phút)." />
+      <PageHead title="Tiếp đón / Check-in" />
       <PendingBackend feature="checkin" />
       {err && <Notice tone="error">{err}</Notice>}
       {ticket && <Notice tone="ok"><span>Đã check-in <b>{apptCode(ticket.a.id)}</b> — số thứ tự <b>#{ticket.t.position}</b> ({dir.doctorName(ticket.a.doctorId)}).</span></Notice>}
@@ -65,18 +65,18 @@ export function ReceptionPage() {
           <SearchBox label="Tìm lịch hẹn" placeholder="Mã lịch, mã bệnh nhân, bác sĩ…" value={text} onChange={setText} />
           <input className="field" type="date" aria-label="Ngày" value={date} onChange={(e) => setDate(e.target.value || todayKey())} />
           <select className="field" aria-label="Bác sĩ" value={doctor} onChange={(e) => setDoctor(e.target.value)}>
-            <option value="">Tất cả bác sĩ</option>{dir.doctors.map((d) => <option key={d.id} value={d.id}>{dir.doctorName(d.id)}</option>)}
+            <option value="">Bác sĩ</option>{dir.doctors.map((d) => <option key={d.id} value={d.id}>{dir.doctorName(d.id)}</option>)}
           </select>
           <select className="field" aria-label="Trạng thái" value={status} onChange={(e) => setStatus(e.target.value as typeof status)}>
-            <option value="">Mọi trạng thái</option>{Object.entries(APPOINTMENT_STATUS).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}
+            <option value="">Trạng thái</option>{Object.entries(APPOINTMENT_STATUS).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}
           </select>
           <select className="field" aria-label="Hình thức" value={mode} onChange={(e) => setMode(e.target.value as typeof mode)}>
-            <option value="">Mọi hình thức</option><option value="IN_PERSON">{MODE_SHORT.IN_PERSON}</option><option value="REMOTE">{MODE_SHORT.REMOTE}</option>
+            <option value="">Hình thức</option><option value="IN_PERSON">{MODE_SHORT.IN_PERSON}</option><option value="REMOTE">{MODE_SHORT.REMOTE}</option>
           </select>
           <button className="btn" onClick={q.reload}><RefreshCw size={15} aria-hidden /> Làm mới</button>
         </div>
         <AsyncBlock loading={q.loading} error={q.error} onRetry={q.reload} empty={rows.length === 0} emptyTitle="Không có lịch hẹn phù hợp">
-          <div className="tablewrap"><table>
+          <div className="tablewrap table-scroll"><table>
             <thead><tr><th>Giờ</th><th>Mã lịch</th><th>Bệnh nhân</th><th>Bác sĩ</th><th>Hình thức</th><th>Trạng thái</th><th>Thao tác</th></tr></thead>
             <tbody>{rows.map((a) => {
               const c = checkInState(a);

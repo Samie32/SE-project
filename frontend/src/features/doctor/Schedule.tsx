@@ -536,7 +536,7 @@ function ScheduleCalendar({doctorId,hours,shiftFilter,modeFilter}:{doctorId:stri
 export function DoctorSchedulePage() {
   const {doctorId,resolving,error}=useDoctor();
   return <div className="schedule-page">
-    <PageHead eyebrow="Bác sĩ" title="Lịch làm việc"/>
+    <PageHead title="Lịch làm việc"/>
     {resolving?<p className="muted">Đang xác định hồ sơ bác sĩ…</p>:error||!doctorId?<Notice tone="error">{error||"Không xác định được hồ sơ bác sĩ."}</Notice>:<ScheduleManager key={doctorId} doctorId={doctorId}/>}
   </div>;
 }

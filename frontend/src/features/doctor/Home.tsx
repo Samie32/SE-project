@@ -1,6 +1,6 @@
 import { Link } from "react-router-dom";
 import { Activity, CalendarCheck, CheckCircle2, Users } from "lucide-react";
-import { dayKey, formatTime, longDate, todayKey } from "@/core/datetime";
+import { dayKey, formatTime, todayKey } from "@/core/datetime";
 import { MODE_SHORT, apptCode, patientCode } from "@/core/labels";
 import { useSession } from "@/core/session";
 import { Empty, Metric, Notice, PageHead, Panel, StatusPill } from "@/ui";
@@ -15,7 +15,7 @@ export function DoctorHome() {
   const next = list.find((a) => a.status === "CHECKED_IN" || a.status === "IN_PROGRESS") ?? list.find((a) => a.status === "CONFIRMED");
   return (
     <>
-      <PageHead eyebrow={longDate(today)} title={`Xin chào, ${displayName}`} text="Tổng quan công việc khám bệnh hôm nay." />
+      <PageHead title={`Xin chào, ${displayName}`} />
       {error && !resolving && <Notice tone="error">{error}</Notice>}
       {truncated && <Notice tone="warn">Dữ liệu lịch quá lớn, có thể chưa đầy đủ.</Notice>}
       <div className="metrics">

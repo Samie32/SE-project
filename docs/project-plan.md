@@ -47,7 +47,7 @@ Kế hoạch phân biệt công việc đã thực hiện với nhiệm vụ đ�
 
 | Thành viên | Phạm vi trách nhiệm | Sản phẩm bàn giao |
 |---|---|---|
-| **Vòng Kỷ Phong** | Backend của cả chín phân hệ; xác thực, phân quyền, logic nghiệp vụ, giao dịch chống trùng lịch, audit, kết nối Email/SMS/video phía máy chủ; toàn bộ MySQL từ cài đặt, cấu hình, schema, migration đến sao lưu/phục hồi; toàn bộ môi trường phát triển, kiểm thử, trình diễn và triển khai, cấu hình dịch vụ, đóng gói và CI/CD | Backend Spring Boot, API, migration, kiểm thử đơn vị logic nghiệp vụ, MySQL và các môi trường hoạt động, cấu hình đóng gói/CI/CD, quy trình sao lưu/phục hồi, OpenAPI và tài liệu kỹ thuật cập nhật |
+| **Vòng Kỷ Phong** | Backend của cả chín phân hệ; xác thực, phân quyền, logic nghiệp vụ, giao dịch chống trùng lịch, audit, kết nối Email/video phía máy chủ; toàn bộ MySQL từ cài đặt, cấu hình, schema, migration đến sao lưu/phục hồi; toàn bộ môi trường phát triển, kiểm thử, trình diễn và triển khai, cấu hình dịch vụ, đóng gói và CI/CD | Backend Spring Boot, API, migration, kiểm thử đơn vị logic nghiệp vụ, MySQL và các môi trường hoạt động, cấu hình đóng gói/CI/CD, quy trình sao lưu/phục hồi, OpenAPI và tài liệu kỹ thuật cập nhật |
 | **Vũ Trần Khắc Thuận** | Giao diện bệnh nhân: đăng nhập, tìm bác sĩ/lịch trống, đặt/đổi/hủy, xem hồ sơ/đơn thuốc, phòng chờ và tham gia khám từ xa | Frontend bệnh nhân, tích hợp API, kiểm thử thành phần và sửa lỗi giao diện |
 | **Nguyễn Huỳnh Anh Kiệt** | Giao diện bác sĩ: lịch làm việc/lịch nghỉ, lịch hẹn, gọi lượt, bắt đầu khám, nhập hồ sơ/đơn thuốc, phòng khám từ xa | Frontend bác sĩ, tích hợp API, kiểm thử thành phần và cập nhật đặc tả màn hình |
 | **Nguyễn Hiếu Nhân** | Giao diện lễ tân/quản trị: danh mục bác sĩ/chuyên khoa, check-in/hàng đợi, quản lý quyền, theo dõi thông báo và tra cứu audit theo quyền | Frontend lễ tân/quản trị/kiểm toán, tích hợp API và kiểm thử quyền hiển thị |
@@ -97,7 +97,7 @@ Tuần 1–2 tương ứng với khối lượng phân tích và thiết kế hi
 | Cấu trúc dự án, yêu cầu và quy tắc nghiệp vụ | Vòng Kỷ Phong | Tuần 1 | Đã có |
 | Mô hình, kiến trúc, dữ liệu và hợp đồng API | Vòng Kỷ Phong | Tuần 2 | Đã có tài liệu |
 | Đặc tả màn hình, kế hoạch kiểm thử và phân công | Vòng Kỷ Phong | Tuần 2 | Đã có tài liệu |
-| Backend của chín phân hệ | Vòng Kỷ Phong | Tuần 3–6 | Cập nhật 15/11/2026: đã có API nghiệp vụ M01–M08, gồm tiến trình khám, hồ sơ/đơn thuốc, hàng đợi, nhắc lịch qua email và tra cứu audit. M09 đã có vòng đời phiên, token và signaling WebRTC; media/TURN, SMS thật và nghiệm thu cuộc gọi đầu cuối còn lại. [Chi tiết](backend-completion.md) |
+| Backend của chín phân hệ | Vòng Kỷ Phong | Tuần 3–6 | Cập nhật 15/11/2026: đã có API nghiệp vụ M01–M08, gồm tiến trình khám, hồ sơ/đơn thuốc, hàng đợi, nhắc lịch qua email và tra cứu audit. M09 đã có vòng đời phiên, token và signaling WebRTC; media/TURN và nghiệm thu cuộc gọi đầu cuối còn lại. [Chi tiết](backend-completion.md) |
 | Kiểm thử và hợp đồng API backend | Vòng Kỷ Phong | Tuần 3–8 | Build sạch đạt 49/49 test, không bỏ qua test; hai kiểm tra bổ sung về nhắc lịch đúng 30 phút và OpenAPI đạt. Smoke test OIDC thật, phân quyền, check-in, audit, đặt/đổi/hủy và email đạt. OpenAPI xuất lại: 46 thao tác, 38 đường dẫn; health UP và Swagger HTTP 200 tại lần kiểm tra 15/11/2026 |
 | Frontend bệnh nhân | Vũ Trần Khắc Thuận | Tuần 3–6 | Đã xây lại giao diện bệnh nhân ClinicCare, nối API bệnh nhân thuộc M01–M04 và cấu hình theme đăng nhập/đóng gói frontend. 18 test đạt; build production và image Docker đạt; form đăng nhập → PKCE → /api/me thật đạt. Hồ sơ/đơn thuốc chờ nối API đã có; video chờ tích hợp signaling/media và nghiệm thu đầu cuối. Chưa nghiệm thu toàn trình đặt/đổi/hủy qua UI với MySQL. Báo cáo frontend cập nhật 08/11/2026, tổng hợp kiểm chứng 06/11/2026; trạng thái phụ thuộc backend cập nhật 15/11/2026 |
 | Frontend bác sĩ | Nguyễn Huỳnh Anh Kiệt | Tuần 3–6 | Đã hoàn thành giao diện tuần 3–4 (lịch làm việc, lịch hẹn) và sẵn sàng tích hợp API; đã chuẩn bị trước tuần 5–6 |
@@ -125,7 +125,7 @@ Tiến độ thực tế được ghi nhận theo sản phẩm bàn giao và k�
 
 Các phần cần tiếp tục theo phân công:
 
-- **Vòng Kỷ Phong:** cấu hình/tích hợp media, STUN/TURN và dịch vụ SMS thật; bổ sung cơ chế đóng phòng/webhook nếu dùng nhà cung cấp media; kiểm chứng sao lưu/phục hồi, CI/CD và môi trường triển khai. Chưa xác nhận đạt ngưỡng coverage 60% chỉ từ số lượng test đã chạy.
+- **Vòng Kỷ Phong:** cấu hình/tích hợp media, STUN/TURN; bổ sung cơ chế đóng phòng/webhook nếu dùng nhà cung cấp media; kiểm chứng sao lưu/phục hồi, CI/CD và môi trường triển khai. Chưa xác nhận đạt ngưỡng coverage 60% chỉ từ số lượng test đã chạy.
 - **Các thành viên frontend:** nối API hồ sơ, đơn thuốc, hàng đợi, audit và phiên từ xa; cập nhật JWT, version, Idempotency-Key và payload theo hợp đồng; thay dữ liệu mock trong các luồng tích hợp.
 - **Vũ Đức Thắng phối hợp cả nhóm:** kiểm thử toàn trình qua giao diện, cuộc gọi hai trình duyệt, mất mạng/nối lại, tải, bảo mật và nghiệm thu các tiêu chí còn lại.
 

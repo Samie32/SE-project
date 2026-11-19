@@ -76,17 +76,17 @@ public class CatalogService {
     db.one("SELECT id FROM user_account WHERE id=? FOR UPDATE", userId);
     db.one("SELECT id FROM doctor WHERE id=? FOR UPDATE", id);
     if (active)
-      Problem.require(db.count("SELECT COUNT(*) FROM user_account u JOIN user_role r ON r.user_id=u.id"
-          + " WHERE u.id=? AND u.staff=TRUE AND u.active=TRUE AND r.role='DOCTOR'", userId) == 1,
+      Problem.require(!db.list("SELECT u.id FROM user_account u JOIN user_role r ON r.user_id=u.id"
+          + " WHERE u.id=? AND u.staff=TRUE AND u.active=TRUE AND r.role='DOCTOR' FOR SHARE", userId).isEmpty(),
           409, "Doctor account must be active and have the doctor role");
     if (!active)
       Problem.require(
-          db.count(
-                  "SELECT COUNT(*) FROM appointment WHERE doctor_id=? AND end_at>? AND status IN"
-                      + " ('CONFIRMED','CHECKED_IN','IN_PROGRESS')",
+          db.list(
+                  "SELECT id FROM appointment WHERE doctor_id=? AND end_at>? AND status IN"
+                      + " ('CONFIRMED','CHECKED_IN','IN_PROGRESS') LIMIT 1 FOR SHARE",
                   id,
                   clock.instant())
-              == 0,
+              .isEmpty(),
           409,
           "Doctor has active appointments");
     db.update("UPDATE doctor SET active=? WHERE id=?", active, id);

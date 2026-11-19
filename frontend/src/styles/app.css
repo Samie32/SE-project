@@ -244,17 +244,13 @@ svg.ic { width: 1.15em; height: 1.15em; flex: none; vertical-align: -0.18em; }
 .pill.purple { background: var(--purple-bg); color: var(--purple); }
 
 /* ---------- Form ---------- */
-.filters { display: flex; gap: 8px; align-items: center; flex-wrap: nowrap; margin-bottom: 16px; }
-.filters .search { min-width: 90px; flex: 1 1 120px; }
-.filters select.field { min-width: 0; flex: 0 0 auto; width: auto; field-sizing: content; }
+.filters { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-bottom: 16px; }
+.filters .search { min-width: 150px; flex: 1 1 180px; }
+.filters select.field, .filters input[type="date"].field { min-width: 0; flex: 0 0 auto; width: auto; field-sizing: content; }
 .filters .btn { flex: none; white-space: nowrap; }
 .filters.schedules-filters select.field:not(.grow) { flex: 0 0 auto; width: auto; field-sizing: content; }
 .filters.schedules-filters select.field.grow { flex: 1 1 240px; min-width: 180px; }
-@media (max-width: 720px) {
-  .filters.schedules-filters { flex-wrap: wrap; }
-}
 @media (max-width: 520px) {
-  .filters { flex-wrap: wrap; }
   .filters .search { flex: 1 1 100%; }
 }
 .field {
@@ -267,7 +263,7 @@ svg.ic { width: 1.15em; height: 1.15em; flex: none; vertical-align: -0.18em; }
 textarea.field { width: 100%; min-height: 96px; resize: vertical; }
 .search { position: relative; flex: 1; min-width: 220px; }
 .search svg { position: absolute; left: 11px; top: 50%; transform: translateY(-50%); color: var(--muted); }
-.search .field { width: 100%; padding-left: 34px; }
+.search .field { width: 100%; min-width: 0; padding-left: 34px; }
 .formgrid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
 .formgrid .full { grid-column: 1 / -1; }
 .formfield label, label.formlabel { display: block; font-size: 13px; font-weight: 700; margin-bottom: 6px; color: var(--ink-2); }

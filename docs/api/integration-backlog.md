@@ -1,5 +1,7 @@
 # Công việc sau khi chốt hợp đồng 1.0.0
 
+**Cập nhật 19/11/2026:** BE-01 đến BE-04 đã được sửa trong mã backend và có ca hồi quy trong `SchedulingIntegrationTest`. `mvnw.cmd -B clean verify` chạy đạt 57 test trên workspace, gồm kiểm thử tích hợp với MySQL 8.4. Phần bên dưới ghi lại backlog và kết quả của mốc 16–17/11. Nghiệm thu qua giao diện và triển khai demo cần bằng chứng riêng.
+
 Ngày 16/11/2026. Chuẩn: [integration-contract.md](integration-contract.md), [openapi.yaml](openapi.yaml). Đây là việc cần thực hiện, không phải danh sách lỗi đã sửa. Thay đổi lần này chỉ đồng bộ nhánh, hợp đồng, tài liệu và kiểm tra tĩnh.
 
 **Phạm vi đưa lên main 17/11/2026:** chỉ hợp đồng và gói đóng góp 52400244, không chuyển mã frontend/backend. FE gộp/media đã chuẩn bị riêng tại nhánh tích hợp `98a02e1`: [hướng dẫn media](https://github.com/Samie32/SE-project/blob/98a02e19fa79414f6b4d63fbe9738969d261889b/docs/webrtc-client.md), [bằng chứng FE](https://github.com/Samie32/SE-project/blob/98a02e19fa79414f6b4d63fbe9738969d261889b/docs/frontend-unified.md). Những kết quả đó không xác nhận frontend trên main đã được thay hoặc tích hợp. BE-01…04, E2E BE thật và TURN/xuyên NAT vẫn mở.

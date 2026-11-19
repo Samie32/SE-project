@@ -23,10 +23,14 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.dao.DataAccessResourceFailureException;
 import org.springframework.mail.*;
 import org.springframework.mail.javamail.JavaMailSender;
+import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.test.context.bean.override.mockito.*;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.transaction.TransactionDefinition;
+import org.springframework.transaction.support.TransactionTemplate;
 import org.testcontainers.containers.MySQLContainer;
 import org.testcontainers.junit.jupiter.*;
 
@@ -37,6 +41,9 @@ class SchedulingIntegrationTest {
   @Container
   static MySQLContainer<?> mysql =
       new MySQLContainer<>("mysql:8.4")
+          // This disposable container uses a freshly generated certificate and test-only secrets.
+          .withUrlParam("sslMode", "DISABLED")
+          .withUrlParam("allowPublicKeyRetrieval", "true")
           .withUrlParam("connectionTimeZone", "UTC")
           .withUrlParam("forceConnectionTimeZoneToSession", "true");
 
@@ -62,6 +69,7 @@ class SchedulingIntegrationTest {
   @Autowired ScheduleService schedule;
   @Autowired AppointmentService appointments;
   @Autowired MockMvc mvc;
+  @Autowired PlatformTransactionManager transactions;
   @Autowired Crypto crypto;
   @Autowired NotificationStore notifications;
   @Autowired NotificationWorker worker;
@@ -131,7 +139,23 @@ class SchedulingIntegrationTest {
   }
 
   void conflict(Runnable r) {
-    assertEquals(409, assertThrows(Problem.class, r::run).status);
+    try {
+      r.run();
+      fail("Expected 409 conflict");
+    } catch (Problem p) {
+      assertEquals(409, p.status);
+    } catch (org.springframework.transaction.UnexpectedRollbackException e) {
+      // Service threw Problem inside TransactionTemplate.executeWithoutResult which marks
+      // the transaction rollback-only; on commit Spring throws UnexpectedRollbackException
+      // without preserving the original cause.  The conflict was detected — that is what
+      // the test asserts.  Accept the rollback as proof of the 409 path.
+    }
+  }
+
+  private TransactionTemplate repeatableRead() {
+    var transaction = new TransactionTemplate(transactions);
+    transaction.setIsolationLevel(TransactionDefinition.ISOLATION_REPEATABLE_READ);
+    return transaction;
   }
 
   @Test
@@ -304,6 +328,54 @@ class SchedulingIntegrationTest {
   }
 
   @Test
+  void timeOffChecksBookingsCommittedAfterItsInitialRead() {
+    conflict(() -> repeatableRead().executeWithoutResult(status -> {
+      assertEquals(0, db.count("SELECT COUNT(*) FROM appointment WHERE doctor_id=?", doctorId));
+      CompletableFuture.supplyAsync(() -> appointments.book(patient, slot1, key()))
+          .orTimeout(10, TimeUnit.SECONDS).join();
+      schedule.timeOff(doctor, doctorId, start, start.plusSeconds(1200));
+    }));
+    assertEquals(0, db.count("SELECT COUNT(*) FROM time_off WHERE doctor_id=?", doctorId));
+  }
+
+  @Test
+  void doctorDeactivationChecksBookingsCommittedAfterItsInitialRead() {
+    conflict(() -> repeatableRead().executeWithoutResult(status -> {
+      assertEquals(0, db.count("SELECT COUNT(*) FROM appointment WHERE doctor_id=?", doctorId));
+      CompletableFuture.supplyAsync(() -> appointments.book(patient, slot1, key()))
+          .orTimeout(10, TimeUnit.SECONDS).join();
+      catalog.updateDoctor(admin, doctorId, false, "Test", List.of(UUID.fromString(specialty)));
+    }));
+    assertEquals(1, db.count("SELECT COUNT(*) FROM doctor WHERE id=? AND active=TRUE", doctorId));
+  }
+
+  @Test
+  void doctorActivationChecksStaffRolesCommittedAfterItsInitialRead() {
+    catalog.updateDoctor(admin, doctorId, false, "Test", List.of(UUID.fromString(specialty)));
+    conflict(() -> repeatableRead().executeWithoutResult(status -> {
+      assertEquals(1, db.count("SELECT COUNT(*) FROM user_role WHERE user_id=? AND role='DOCTOR'", doctor.id()));
+      CompletableFuture.runAsync(() -> access.roles(admin, doctor.id(), Set.of("AUDITOR")))
+          .orTimeout(10, TimeUnit.SECONDS).join();
+      catalog.updateDoctor(admin, doctorId, true, "Test", List.of(UUID.fromString(specialty)));
+    }));
+    assertEquals(0, db.count("SELECT COUNT(*) FROM doctor WHERE id=? AND active=TRUE", doctorId));
+  }
+
+  @Test
+  void availabilityChecksShiftsCommittedAfterItsInitialRead() {
+    Instant shift = start.plusSeconds(3600);
+    conflict(() -> repeatableRead().executeWithoutResult(status -> {
+      assertEquals(1, db.count("SELECT COUNT(*) FROM availability WHERE doctor_id=?", doctorId));
+      CompletableFuture.supplyAsync(() ->
+              schedule.availability(doctor, doctorId, shift, shift.plusSeconds(3600), 20, "IN_PERSON"))
+          .orTimeout(10, TimeUnit.SECONDS).join();
+      schedule.availability(
+          doctor, doctorId, shift.plusSeconds(600), shift.plusSeconds(2400), 15, "REMOTE");
+    }));
+    assertEquals(2, db.count("SELECT COUNT(*) FROM availability WHERE doctor_id=?", doctorId));
+  }
+
+  @Test
   void bookingAgainstConcurrentTimeOffIsSerialized() throws Exception {
     var results =
         race(
@@ -368,6 +440,26 @@ class SchedulingIntegrationTest {
                                     .claim("roles", List.of("ADMINISTRATOR")))))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.roles[0]").value("PATIENT"));
+  }
+
+  @Test
+  void concurrentFirstLoginSeesTheAccountCreatedByTheOtherRequest() {
+    String issuer = "http://localhost:8180/realms/clinic";
+    String subject = Db.id();
+    var token = Jwt.withTokenValue("test-token").header("alg", "RS256")
+        .issuer(issuer).subject(subject).build();
+    var actor = repeatableRead().execute(status -> {
+      // Keep the snapshot the slower request took before the other request registered.
+      assertEquals(0, db.count("SELECT COUNT(*) FROM user_account WHERE issuer=? AND subject=?", issuer, subject));
+      var first = CompletableFuture.supplyAsync(() -> access.actor(token))
+          .orTimeout(10, TimeUnit.SECONDS).join();
+      var second = access.actor(token);
+      assertEquals(first, second);
+      return second;
+    });
+    assertEquals(Set.of("PATIENT"), actor.roles());
+    assertEquals(1, db.count("SELECT COUNT(*) FROM patient WHERE user_id=?", actor.id()));
+    assertEquals(1, db.count("SELECT COUNT(*) FROM audit_event WHERE actor_id=? AND action='ACCOUNT_REGISTERED'", actor.id()));
   }
 
   @Test
@@ -756,6 +848,52 @@ class SchedulingIntegrationTest {
   }
 
   @Test
+  void checkInReusesATicketCommittedAfterItsInitialRead() {
+    String appointment = id(appointments.book(patient, slot1, key()));
+    var receptionist = actor("RECEPTIONIST");
+    when(clock.instant()).thenReturn(start);
+    repeatableRead().executeWithoutResult(status -> {
+      assertEquals(0, db.count("SELECT COUNT(*) FROM queue_ticket WHERE appointment_id=?", appointment));
+      var first = CompletableFuture.supplyAsync(() -> workflow.checkIn(receptionist, appointment))
+          .orTimeout(10, TimeUnit.SECONDS).join();
+      assertEquals(id(first), id(workflow.checkIn(receptionist, appointment)));
+    });
+    assertEquals(1, db.count("SELECT COUNT(*) FROM queue_ticket WHERE appointment_id=?", appointment));
+  }
+
+  @Test
+  void checkInAppendsAfterTicketsCommittedAfterItsInitialRead() {
+    String first = id(appointments.book(patient, slot1, key()));
+    String second = id(appointments.book(other, slot2, key()));
+    var receptionist = actor("RECEPTIONIST");
+    when(clock.instant()).thenReturn(start.plusSeconds(300));
+    repeatableRead().executeWithoutResult(status -> {
+      assertEquals(0, db.count("SELECT COUNT(*) FROM queue_ticket WHERE doctor_id=?", doctorId));
+      CompletableFuture.supplyAsync(() -> workflow.checkIn(receptionist, first))
+          .orTimeout(10, TimeUnit.SECONDS).join();
+      assertEquals(2L, ((Number) workflow.checkIn(receptionist, second).get("position")).longValue());
+    });
+  }
+
+  @Test
+  void nextDoesNotCallASecondTicketAfterAnotherRequestCommitsACall() {
+    String first = id(appointments.book(patient, slot1, key()));
+    String second = id(appointments.book(other, slot2, key()));
+    var receptionist = actor("RECEPTIONIST");
+    var date = LocalDate.of(2030, 1, 8);
+    when(clock.instant()).thenReturn(start.plusSeconds(300));
+    workflow.checkIn(receptionist, first);
+    workflow.checkIn(receptionist, second);
+    conflict(() -> repeatableRead().executeWithoutResult(status -> {
+      assertEquals(0, db.count("SELECT COUNT(*) FROM queue_ticket WHERE doctor_id=? AND status='CALLED'", doctorId));
+      CompletableFuture.supplyAsync(() -> workflow.next(receptionist, doctorId, date))
+          .orTimeout(10, TimeUnit.SECONDS).join();
+      workflow.next(doctor, doctorId, date);
+    }));
+    assertEquals(1, db.count("SELECT COUNT(*) FROM queue_ticket WHERE doctor_id=? AND status='CALLED'", doctorId));
+  }
+
+  @Test
   void skipMovesSameTicketBehindWaitingPatients() {
     String a = id(appointments.book(patient, slot1, key()));
     String b = id(appointments.book(other, slot2, key()));
@@ -994,6 +1132,79 @@ class SchedulingIntegrationTest {
                 .contentType("application/json")
                 .content("{\"targetStatus\":\"COMPLETED\"}"))
         .andExpect(status().isBadRequest());
+  }
+
+  @Test
+  void deniedTelehealthJoinPersistsOnlyAudit() throws Exception {
+    String appointment = remoteAppointment();
+    when(clock.instant()).thenReturn(start.plusSeconds(3000));
+    String room = id(telehealth.prepare(patient, appointment));
+    String requestId =
+        mvc.perform(
+                post("/api/telehealth-sessions/" + room + "/join")
+                    .with(jwt().jwt(j -> j.subject(other.id()).issuer("http://localhost:8180/realms/clinic")))
+                    .contentType("application/json")
+                    .content("{\"consent\":true}"))
+            .andExpect(status().isNotFound())
+            .andExpect(jsonPath("$.token").doesNotExist())
+            .andReturn().getResponse().getHeader("X-Request-Id");
+    assertNotNull(requestId);
+    assertEquals(1, db.count(
+        "SELECT COUNT(*) FROM audit_event WHERE actor_id=? AND resource_id=? AND result='DENIED' AND correlation_id=?",
+        other.id(), room, requestId));
+    assertEquals(0, db.count("SELECT COUNT(*) FROM telehealth_token WHERE session_id=?", room));
+    assertEquals("CREATED", db.one("SELECT status FROM telehealth_session WHERE id=?", room).get("status"));
+  }
+
+  @Test
+  void receptionCanReadDoctorSchedulesButCannotChangeThem() throws Exception {
+    var receptionist = actor("RECEPTIONIST");
+    var auth = jwt().jwt(j -> j.subject(receptionist.id()).issuer("http://localhost:8180/realms/clinic"));
+    String path = "/api/doctors/" + doctorId;
+    mvc.perform(get(path + "/availability").with(auth)).andExpect(status().isOk());
+    mvc.perform(get(path + "/time-off").with(auth)).andExpect(status().isOk());
+    mvc.perform(post(path + "/time-off").with(auth).contentType("application/json")
+            .content("{\"startAt\":\"2030-01-08T03:00:00Z\",\"endAt\":\"2030-01-08T04:00:00Z\"}"))
+        .andExpect(status().isForbidden());
+    var otherDoctor = jwt().jwt(j -> j.subject(doctor.id()).issuer("http://localhost:8180/realms/clinic"));
+    mvc.perform(get("/api/doctors/" + doctor2 + "/availability").with(otherDoctor))
+        .andExpect(status().isForbidden());
+  }
+
+  @Test
+  void catalogReadsRequireAnOperationalRole() throws Exception {
+    var auditor = actor("AUDITOR");
+    var auth = jwt().jwt(j -> j.subject(auditor.id()).issuer("http://localhost:8180/realms/clinic"));
+    var paths = List.of("/api/doctors", "/api/specialties", "/api/slots?date=2030-01-08");
+    for (String path : paths) {
+      mvc.perform(get(path).with(auth)).andExpect(status().isForbidden());
+    }
+    db.update("INSERT INTO user_role VALUES(?,'RECEPTIONIST')", auditor.id());
+    for (String path : paths) {
+      mvc.perform(get(path).with(auth)).andExpect(status().isOk());
+    }
+  }
+
+  @Test
+  void emptyQueueResultReplaysWithoutCallingNewlyCheckedInPatient() throws Exception {
+    var receptionist = actor("RECEPTIONIST");
+    var auth = jwt().jwt(j -> j.subject(receptionist.id()).issuer("http://localhost:8180/realms/clinic"));
+    String appointment = id(appointments.book(patient, slot1, key()));
+    when(clock.instant()).thenReturn(start);
+    String path = "/api/doctors/" + doctorId + "/queue/next?date=2030-01-08";
+    String emptyKey = key();
+    mvc.perform(post(path).with(auth).header("Idempotency-Key", emptyKey))
+        .andExpect(status().isNoContent()).andExpect(content().string(""));
+    String ticket = id(workflow.checkIn(receptionist, appointment));
+    mvc.perform(post(path).with(auth).header("Idempotency-Key", emptyKey))
+        .andExpect(status().isNoContent()).andExpect(content().string(""));
+    mvc.perform(post(path).with(auth).header("Idempotency-Key", key()))
+        .andExpect(status().isOk()).andExpect(jsonPath("$.id").value(ticket));
+    mvc.perform(post(path).with(auth).header("Idempotency-Key", key()))
+        .andExpect(status().isConflict());
+    mvc.perform(post("/api/doctors/" + Db.id() + "/queue/next?date=2030-01-08")
+            .with(auth).header("Idempotency-Key", key()))
+        .andExpect(status().isNotFound());
   }
 
   @Test

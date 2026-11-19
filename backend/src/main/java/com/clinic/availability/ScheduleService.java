@@ -47,12 +47,13 @@ public class ScheduleService {
         "Slot duration must divide availability");
     lockDoctor(doctor);
     Problem.require(
-        db.count(
-                "SELECT COUNT(*) FROM availability WHERE doctor_id=? AND start_at<? AND end_at>?",
+        db.list(
+                "SELECT id FROM availability WHERE doctor_id=? AND start_at<? AND end_at>?"
+                    + " LIMIT 1 FOR SHARE",
                 doctor,
                 end,
                 start)
-            == 0,
+            .isEmpty(),
         409,
         "Overlapping availability");
     String id = Db.id();
@@ -87,13 +88,13 @@ public class ScheduleService {
     lockDoctor(doctor);
     Problem.require(start.isAfter(clock.instant()), 422, "Time off must be in the future");
     Problem.require(
-        db.count(
-                "SELECT COUNT(*) FROM appointment WHERE doctor_id=? AND start_at<? AND end_at>? AND"
-                    + " status IN ('CONFIRMED','CHECKED_IN','IN_PROGRESS')",
+        db.list(
+                "SELECT id FROM appointment WHERE doctor_id=? AND start_at<? AND end_at>? AND"
+                    + " status IN ('CONFIRMED','CHECKED_IN','IN_PROGRESS') LIMIT 1 FOR SHARE",
                 doctor,
                 end,
                 start)
-            == 0,
+            .isEmpty(),
         409,
         "Time off conflicts with appointments");
     String id = Db.id();
@@ -103,7 +104,7 @@ public class ScheduleService {
   }
 
   public List<Map<String, Object>> schedules(Access.Actor actor, String doctor, boolean off) {
-    access.doctor(actor, doctor);
+    if (!actor.has("RECEPTIONIST")) access.doctor(actor, doctor);
     return db.list(
         "SELECT * FROM "
             + (off ? "time_off" : "availability")

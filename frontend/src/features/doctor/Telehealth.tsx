@@ -21,7 +21,7 @@ export function DoctorCallLayout() {
   return (
     <>
       <div hidden={!roomRoute}>
-      <PageHead eyebrow="Khám từ xa" title="Phòng khám từ xa" text="Vào phòng trong khung [giờ hẹn − 10’, giờ hẹn + 15’). Bắt đầu khi bệnh nhân đã vào; kết thúc phiên rồi mới hoàn tất ca khám." />
+      <PageHead title="Phòng khám từ xa" />
       {loading ? <div className="empty">Đang tải…</div> : remote.length === 0 ? <Panel><Empty title="Không có lịch khám từ xa đang hiệu lực" /></Panel> : (
         <>
           <div className="filters"><select className="field" aria-label="Chọn lịch" value={selected?.id ?? ""} onChange={(e) => nav(`/doctor/telehealth/${e.target.value}`)}>

@@ -19,6 +19,10 @@ public class Access {
     public boolean has(String role) {
       return roles.contains(role);
     }
+
+    public void requireSchedulingCatalogRead() {
+      require("PATIENT", "DOCTOR", "RECEPTIONIST", "ADMINISTRATOR");
+    }
   }
 
   private final Db db;
@@ -36,9 +40,11 @@ public class Access {
     String issuer = jwt.getIssuer().toString(), subject = jwt.getSubject();
     Problem.require(subject != null && !subject.isBlank(), 401, "Invalid identity");
     String username = identityLabel(jwt.getClaimAsString("preferred_username"));
-    var rows =
-        db.list("SELECT id,active,username FROM user_account WHERE issuer=? AND subject=?", issuer, subject);
-    if (rows.isEmpty()) {
+    String byIdentity = "SELECT id,active,username FROM user_account WHERE issuer=? AND subject=?";
+    var rows = db.list(byIdentity, issuer, subject);
+    boolean firstLogin = rows.isEmpty();
+    Map<String, Object> row;
+    if (firstLogin) {
       String id =
           UUID.nameUUIDFromBytes(
                   (issuer + "|" + subject).getBytes(java.nio.charset.StandardCharsets.UTF_8))
@@ -58,11 +64,11 @@ public class Access {
         db.update("INSERT INTO patient VALUES(?,?)", id, id);
         audit.record(id, "ACCOUNT_REGISTERED", id);
       }
-      rows =
-          db.list(
-              "SELECT id,active,username FROM user_account WHERE issuer=? AND subject=?", issuer, subject);
+      // The original snapshot may predate a concurrent registration that won the insert.
+      row = db.one(byIdentity + " FOR SHARE", issuer, subject);
+    } else {
+      row = rows.getFirst();
     }
-    var row = rows.getFirst();
     Problem.require(
         Boolean.TRUE.equals(row.get("active")) || "1".equals(row.get("active").toString()),
         403,
@@ -72,7 +78,7 @@ public class Access {
       db.update("UPDATE user_account SET username=? WHERE id=?", username, id);
     }
     Set<String> roles = new HashSet<>();
-    db.list("SELECT role FROM user_role WHERE user_id=?", id)
+    db.list("SELECT role FROM user_role WHERE user_id=?" + (firstLogin ? " FOR SHARE" : ""), id)
         .forEach(x -> roles.add(x.get("role").toString()));
     return new Actor(id, roles);
   }

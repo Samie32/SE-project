@@ -17,6 +17,15 @@ public class Audit {
 
   @Transactional(propagation = Propagation.MANDATORY)
   public void record(String actor, String action, String resource) {
+    insert(actor, action, resource, "SUCCESS");
+  }
+
+  @Transactional(propagation = Propagation.REQUIRES_NEW)
+  public void denied(String actor, String action, String resource) {
+    insert(actor, action, resource, "DENIED");
+  }
+
+  private void insert(String actor, String action, String resource, String result) {
     var request =
         org.springframework.web.context.request.RequestContextHolder.getRequestAttributes();
     Object correlation =
@@ -26,12 +35,13 @@ public class Audit {
     db.update(
         "INSERT INTO"
             + " audit_event(id,actor_id,actor_type,action,resource_id,result,correlation_id,created_at,actor_label)"
-            + " VALUES(?,?,?,?,?,'SUCCESS',?,?,?)",
+            + " VALUES(?,?,?,?,?,?,?,?,?)",
         Db.id(),
         actor,
         actor == null ? "SYSTEM" : "USER",
         action,
         resource,
+        result,
         correlation == null ? Db.id() : correlation.toString(),
         clock.instant(),
         actor == null ? "clinic-background-worker" : null);

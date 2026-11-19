@@ -14,7 +14,7 @@ TC-12,M05/M07,IMPLEMENTED,NOT_RUN,Encounter record and patient history; FINAL vi
 TC-13,M05,IMPLEMENTED,NOT_RUN,PUT DRAFT/FINAL with current version then amendment on latest FINAL
 TC-14,M05,IMPLEMENTED,NOT_RUN,Create/update DRAFT rx then issue with five synthetic fields
 TC-15,M06,IMPLEMENTED,NOT_RUN,AppointmentService schedules REMINDER at start minus 1800s; NotificationWorker handles stale jobs; verify delivery with Mailpit at runtime
-TC-16,M06,PARTIAL,NOT_RUN,Notification retry/outbox exists; run worker fault-injection tests; no SMS integration
+TC-16,M06,PARTIAL,NOT_RUN,Notification retry/outbox exists; run worker fault-injection tests; chưa xác minh nhà cung cấp Email thật
 TC-17,M07,PARTIAL,NOT_RUN,Clinical read audit exists; fail-closed tests; denied-room audit BE-01 remains
 TC-18,M07,IMPLEMENTED,NOT_RUN,AUDITOR audit query; append-only policy; catalog gap BE-03
 TC-19,M08,IMPLEMENTED,NOT_RUN,Check-in replay must not create a second queue ticket

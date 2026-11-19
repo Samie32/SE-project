@@ -26,7 +26,7 @@ Một backend modular monolith Spring Boot, frontend React + TypeScript, MySQL; 
 | M03 availability | Availability, TimeOff, Slot | M02; M04 kiểm tra xung đột |
 | M04 appointment | Appointment | M01/M03, M07; phát sự kiện M06 |
 | M05 medicalrecord/prescription | Encounter, MedicalRecord, Prescription, Item | M04, M01, M07 |
-| M06 notification | NotificationJob, delivery attempts | Outbox; Email/SMS nhà cung cấp dịch vụ |
+| M06 notification | NotificationJob, delivery attempts | Outbox; Email nhà cung cấp dịch vụ |
 | M07 security/audit | AuditEvent | Chính sách truy cập, kho nhật ký kiểm toán |
 | M08 checkin/queue | QueueTicket | M04, M01, M07 |
 | M09 telehealth | TelehealthSession | M04, M01, M07; video nhà cung cấp dịch vụ |

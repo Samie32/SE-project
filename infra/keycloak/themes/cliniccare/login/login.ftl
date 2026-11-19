@@ -56,7 +56,6 @@
         <button id="kc-login" name="login" type="submit">Đăng nhập <@icon kind="arrow" /></button>
       </form>
       </#if>
-      <div class="demo"><@icon kind="info" /><span><b>Tài khoản dùng thử</b><small>patient · Mật khẩu do nhóm cung cấp</small></span></div>
     </div>
   </section>
 </main>

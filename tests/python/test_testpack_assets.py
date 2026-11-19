@@ -33,10 +33,15 @@ class TestPackAssets(unittest.TestCase):
         self.assertIn("rate<0.01", script)
         self.assertIn('/api/slots?date=', script)
 
-    def test_report_does_not_claim_unrun_tests_passed(self):
-        report = (ROOT / 'docs/testing/reports/2026-11-17-test-report.md').read_text(encoding='utf-8')
-        self.assertIn('Không có kết quả PASS mới', report)
-        self.assertIn('NOT RUN', report)
+    def test_regression_catalog_references_executable_cases(self):
+        report = (ROOT / 'docs/testing/reports/2026-11-19-test-report.md').read_text(encoding='utf-8')
+        java = (ROOT / 'backend/src/test/java/com/clinic/SchedulingIntegrationTest.java').read_text(encoding='utf-8')
+        rows = [line.split('|') for line in report.splitlines() if line.startswith('| RG-')]
+        self.assertTrue(rows, 'Expected RG rows in the regression catalog')
+        self.assertEqual(len(rows), len({row[1].strip() for row in rows}))
+        for row in rows:
+            method = row[4].strip().strip('`')
+            self.assertIn(f'void {method}(', java)
 
 
 if __name__ == '__main__':

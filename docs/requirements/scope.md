@@ -18,7 +18,7 @@ Hệ thống phục vụ một phòng khám ngoại trú, hỗ trợ khám trự
 | M03 | Lịch làm việc, lịch nghỉ, khung giờ | Đề gốc |
 | M04 | Đặt, đổi, hủy và trạng thái lịch hẹn | Đặt lịch theo đề bài; đổi và hủy lịch thuộc phạm vi mở rộng |
 | M05 | Hồ sơ bệnh án, lịch sử khám, đơn thuốc | Đề gốc |
-| M06 | Email/SMS và nhắc lịch | Đề gốc |
+| M06 | Nhắc lịch qua email | Đề gốc yêu cầu Email/SMS. Phiên bản nhóm triển khai email. |
 | M07 | Bảo mật và nhật ký kiểm toán | Đề gốc |
 | M08 | Check-in và hàng đợi | Phạm vi mở rộng của đồ án |
 | M09 | Phòng video/audio và phiên khám từ xa | Khám từ xa theo định hướng đề tài; quy trình phiên khám được đặc tả trong đồ án |
@@ -27,7 +27,7 @@ Vai trò: bệnh nhân, bác sĩ, lễ tân, quản trị và kiểm toán viên
 
 Ngoài phạm vi: thanh toán, bảo hiểm, kho thuốc, xét nghiệm, nội trú, cấp cứu, AI chẩn đoán/kê đơn, tích hợp EHR quốc gia, ghi âm/ghi hình, đa chi nhánh và ứng dụng mobile native.
 
-Dữ liệu sử dụng trong đồ án là dữ liệu mô phỏng. Dịch vụ OAuth2, Email/SMS và video được mô hình hóa qua giao diện tích hợp độc lập nhà cung cấp; các tình huống lỗi được kiểm thử bằng thành phần mô phỏng. Chức năng gửi thông báo và hội nghị trực tuyến được kiểm thử riêng với dịch vụ tích hợp.
+Dữ liệu sử dụng trong đồ án là dữ liệu mô phỏng. Dịch vụ OAuth2, Email và video được mô hình hóa qua giao diện tích hợp độc lập nhà cung cấp; các tình huống lỗi được kiểm thử bằng thành phần mô phỏng. Chức năng gửi thông báo và hội nghị trực tuyến được kiểm thử riêng với dịch vụ tích hợp.
 
 ## Tổ chức thực hiện
 

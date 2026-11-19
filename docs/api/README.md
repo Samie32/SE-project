@@ -1,12 +1,12 @@
 # API: hợp đồng tích hợp BE–FE
 
-**Nguồn chuẩn từ 16/11/2026:** [hợp đồng tích hợp 1.0.0](integration-contract.md) và [OpenAPI YAML](openapi.yaml), gồm 46 thao tác trên 38 đường dẫn, với kiểu request/response, header, quyền và truy vết 24 FR.
+**Nguồn chuẩn:** [hợp đồng tích hợp 1.0.0](integration-contract.md) và [OpenAPI YAML](openapi.yaml), gồm 56 thao tác trên 45 đường dẫn, với kiểu request/response, header, quyền và truy vết 24 FR.
 
 | Tài liệu | Mục đích |
 |---|---|
 | [integration-contract.md](integration-contract.md) | Các quyết định đã chốt: tên trường, danh tính, retry, version, queue, clinical, audit, signaling và cách FE nối |
 | [openapi.yaml](openapi.yaml) | Hợp đồng máy đọc 1.0.0; nguồn chuẩn cho adapter mới |
-| [integration-backlog.md](integration-backlog.md) | BE-01…04 và phần FE/E2E còn phải thực hiện; không phải kết quả đã sửa |
+| [integration-backlog.md](integration-backlog.md) | Backlog gốc, trạng thái BE-01 đến BE-04 và các phần FE/E2E |
 | [contract-verification.md](contract-verification.md) | Kết quả kiểm tra local sau merge, phạm vi và giới hạn bằng chứng |
 | [openapi.json](openapi.json) | Snapshot sinh từ backend; nhiều response Object/Map chưa có kiểu chi tiết; không dùng ghi đè hợp đồng YAML |
 | [Hướng dẫn backend](../backend-completion.md) | Khởi động và hành vi baseline, giới hạn media/SMTP |
@@ -19,7 +19,7 @@ Tên trường chốt: `consent`, `createdAt`, `targetStatus`, `version`, `doseT
 
 **Phạm vi main 17/11/2026:** chỉ đưa bộ hợp đồng và phần dữ liệu/tài liệu 52400244; không thay FE/BE. FE gộp/media trên nhánh tích hợp chưa chuyển vào main trong đợt này.
 
-**Tài liệu chốt không đồng nghĩa backend đã đạt toàn bộ:** audit từ chối, ma trận quyền đọc và queue rỗng 204 còn trong backlog. Chưa nối ZIP vào các frontend hiện có và chưa nghiệm thu video/audio hai phía.
+BE-01 đến BE-04 đã có kiểm thử hồi quy trên bản backend ngày 19/11. Phạm vi xác nhận và các điều kiện E2E còn chờ được ghi trong [báo cáo kiểm thử](../testing/reports/2026-11-19-test-report.md).
 
 ## Kiểm tra hợp đồng
 

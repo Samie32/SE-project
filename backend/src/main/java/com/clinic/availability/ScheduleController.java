@@ -91,7 +91,7 @@ public class ScheduleController {
       @RequestParam(required = false) UUID doctorId,
       @RequestParam(required = false) UUID specialtyId,
       @RequestParam(required = false) String mode) {
-    access.actor(j);
+    access.actor(j).requireSchedulingCatalogRead();
     return service.slots(
         doctorId == null ? null : doctorId.toString(),
         date,

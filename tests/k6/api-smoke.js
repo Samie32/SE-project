@@ -3,6 +3,7 @@ import { check, group, sleep } from 'k6';
 
 const BASE_URL = (__ENV.BASE_URL || 'http://localhost:8080').replace(/\/$/, '');
 const TOKEN = __ENV.ACCESS_TOKEN || '';
+const expectedUnauthorized = http.expectedStatuses(401);
 
 export const options = {
   vus: Number(__ENV.VUS || 1),
@@ -22,11 +23,14 @@ function headers(token = TOKEN) {
 
 export default function () {
   group('security boundary', () => {
-    const anonymous = http.get(`${BASE_URL}/api/me`, { headers: headers('') });
+    const anonymous = http.get(`${BASE_URL}/api/me`, {
+      headers: headers(''), responseCallback: expectedUnauthorized,
+    });
     check(anonymous, { 'anonymous request is rejected': (r) => r.status === 401 });
 
     const invalid = http.get(`${BASE_URL}/api/me`, {
       headers: { Authorization: 'Bearer invalid.token.value' },
+      responseCallback: expectedUnauthorized,
     });
     check(invalid, { 'invalid JWT is rejected': (r) => r.status === 401 });
   });

@@ -20,6 +20,13 @@ if errorlevel 1 (
     goto finish
 )
 
+if /i "%~1"=="--fresh" (
+    echo Dang xoa du lieu demo cu de nap lai bo moi...
+    docker compose -p %CLINIC_DEMO_PROJECT% down -v
+    if errorlevel 1 goto finish
+    shift
+)
+
 if not exist ".env" (
     docker volume inspect "%CLINIC_DEMO_PROJECT%_mysql-data" >nul 2>&1
     if not errorlevel 1 (
@@ -51,15 +58,17 @@ python.exe -B "%~dp0scripts\setup-staff-provisioning.py"
 if errorlevel 1 goto finish
 docker compose -p %CLINIC_DEMO_PROJECT% up -d --wait --wait-timeout 150 %CLINIC_DEMO_FRONTEND% backend
 if errorlevel 1 goto finish
-python.exe -B "%~dp0data_demo\load_local_demo.py" --apply %*
+python.exe -B "%~dp0data_demo\load_local_demo.py" --apply %1 %2 %3 %4 %5 %6
 set "CLINIC_DEMO_RESULT=%ERRORLEVEL%"
 
 :finish
 if defined CLINIC_DEMO_PUSHED popd
 echo.
 if "%CLINIC_DEMO_RESULT%"=="0" (
-    echo Mo http://localhost:5173/ va dang nhap bang patient3 hoac doctor2.
-    echo Mat khau demo la DEMO_PASSWORD trong file .env.
+    echo Mo http://localhost:5173/
+    echo Tai khoan mac dinh: admin, doctor, patient, receptionist, auditor.
+    echo Tai khoan demo bo sung: patient3, doctor2..doctor8 ^(mat khau DEMO_PASSWORD trong .env^).
+    echo Muon xoa du lieu cu va nap lai bo demo moi: chay-demo.cmd --fresh
 ) else (
     echo Chay demo that bai. Xem loi phia tren va huong dan data_demo\README.md.
 )

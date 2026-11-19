@@ -22,7 +22,7 @@ Giữ frontend, backend, Keycloak, API và responsive hiện có. Không phát s
 - Ca khám gồm chọn ca, bắt đầu, bệnh án, đơn thuốc và lịch sử. Hồ sơ DRAFT/FINAL, đơn DRAFT/ISSUED và hoàn tất ca khám là các thao tác riêng.
 - Hồ sơ có triệu chứng, chỉ số sinh tồn, chẩn đoán, hướng điều trị/lời dặn, ghi chú. Đơn thuốc có đủ năm trường: tên, liều, đường dùng, tần suất, thời gian dùng.
 - Lịch làm việc phản ánh thao tác thêm ca và thời gian nghỉ đang có; không đưa sửa/xóa hoặc quy trình duyệt nghỉ mới vào phạm vi.
-- Thông báo là màn hình theo dõi tác vụ gửi và chi tiết. Hệ thống tự thử lại; không có nút gửi lại thủ công hoặc kênh SMS bắt buộc trong nguồn chính.
+- Thông báo là màn hình theo dõi tác vụ gửi và chi tiết. Hệ thống tự thử lại; không có nút gửi lại thủ công trong nguồn chính.
 - Audit dùng ngày giờ đầy đủ, tác nhân, đối tượng, hành động, kết quả, correlation; lọc theo actorId/resourceId/thời gian. Dùng trước/sau, không giả định tổng trang. CSV và lọc action ngoài phạm vi hiện tại.
 - Bổ sung các màn hình Chuyên khoa, Phân quyền và Tài khoản đã có trong code.
 - Đăng nhập chuyển Keycloak; React không thu mật khẩu và không cho người dùng tự chọn vai trò.

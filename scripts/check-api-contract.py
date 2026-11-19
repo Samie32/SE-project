@@ -86,9 +86,8 @@ def check(spec, runtime):
                     errors.append(f'{key}/{status}: empty response must not promise JSON')
             elif not response.get('content', {}).get('application/json', {}).get('schema'):
                 errors.append(f'{key}/{status}: success response needs a typed schema')
-        if key == ('post','/doctors/{id}/queue/next'):
-            if '204' not in op['responses'] or 'BE-04' not in op.get('x-implementation-gaps', []):
-                errors.append('Queue-empty 204 must explicitly carry baseline gap BE-04')
+        if key == ('post','/doctors/{id}/queue/next') and '204' not in op['responses']:
+            errors.append('Queue next must document an empty 204 response')
     if covered != {f'FR-{i:02d}' for i in range(1,25)}:
         errors.append('FR traceability does not cover exactly FR-01 through FR-24')
     samples = 0
@@ -116,7 +115,7 @@ def main():
           f'{len(operations(spec))} operations / {len(spec["paths"])} paths; '
           f'{len(spec["components"]["schemas"])} schemas; {samples} valid examples.')
     print('PASS: controller request names, required headers, typed success responses, FR-01..24.')
-    print('NOTE: static check only. BE-01..04 and FE/E2E backlog remain open; not runtime acceptance.')
+    print('NOTE: static check only. Runtime acceptance requires integration tests.')
     return 0
 
 

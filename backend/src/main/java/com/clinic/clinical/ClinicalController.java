@@ -5,6 +5,7 @@ import jakarta.validation.Valid;
 import jakarta.validation.constraints.*;
 import java.time.LocalDate;
 import java.util.*;
+import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.web.bind.annotation.*;
@@ -94,18 +95,19 @@ public class ClinicalController {
   }
 
   @PostMapping("/doctors/{id}/queue/next")
-  public Object next(
+  public ResponseEntity<Map<String, Object>> next(
       @AuthenticationPrincipal Jwt j,
       @PathVariable UUID id,
       @RequestParam LocalDate date,
       @RequestHeader("Idempotency-Key") String key) {
     var actor = access.actor(j);
-    return commands.run(
+    var result = commands.run(
         actor,
         "QUEUE_NEXT:" + id,
         key,
         date.toString(),
         () -> workflow.next(actor, id.toString(), date));
+    return result.isEmpty() ? ResponseEntity.noContent().build() : ResponseEntity.ok(result);
   }
 
   @PostMapping("/queue-tickets/{id}/skip")

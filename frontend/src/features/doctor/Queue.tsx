@@ -37,7 +37,7 @@ export function DoctorQueuePage() {
 
   return (
     <>
-      <PageHead eyebrow="Bác sĩ" title="Hàng đợi khám" text="Gọi bệnh nhân theo thứ tự check-in (FIFO). Chỉ gọi được khi bạn không có ca đang khám dở."
+      <PageHead title="Hàng đợi khám"
         actions={<><button className="btn" onClick={q.reload}><RefreshCw size={15} aria-hidden /> Làm mới</button><button className="btn primary" disabled={busy || !doctorId || !config.backend.queue || q.loading || !!q.error || waiting.length === 0 || rows.some(t => t.status === "CALLED" || t.status === "IN_SERVICE")} onClick={() => void next()}><BellRing size={15} aria-hidden /> Gọi bệnh nhân tiếp theo</button></>} />
       <PendingBackend feature="queue" />
       {(err || q.error) && <Notice tone="error">{err || q.error}</Notice>}

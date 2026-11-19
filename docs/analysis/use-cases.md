@@ -308,7 +308,7 @@ Các ca sử dụng mô tả tương tác giữa người dùng, hệ thống v�
 
 | Thuộc tính | Nội dung |
 |---|---|
-| Tác nhân | Bệnh nhân (người nhận); dịch vụ Email/SMS (tác nhân hỗ trợ) |
+| Tác nhân | Bệnh nhân (người nhận); dịch vụ Email (tác nhân hỗ trợ) |
 | Mục tiêu | Nhận nhắc lịch qua kênh đã chọn |
 | Tiền điều kiện | Tác vụ nhắc thuộc phiên bản hiện tại của lịch CONFIRMED |
 | Kích hoạt | Đến thời điểm gửi nhắc lịch. |
@@ -330,7 +330,7 @@ Các ca sử dụng mô tả tương tác giữa người dùng, hệ thống v�
 
 | Thuộc tính | Nội dung |
 |---|---|
-| Tác nhân | Dịch vụ Email/SMS; nhân viên điều phối theo dõi kết quả |
+| Tác nhân | Dịch vụ Email; nhân viên điều phối theo dõi kết quả |
 | Mục tiêu | Theo dõi thông báo không gửi được |
 | Tiền điều kiện | Giao dịch lịch hẹn đã được xác nhận và tác vụ đang PENDING |
 | Kích hoạt | Gửi thông báo gặp lỗi tạm thời hoặc quá thời gian phản hồi. |

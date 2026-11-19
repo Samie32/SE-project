@@ -45,7 +45,7 @@ rectangle "Spring Boot - Monolith mo-dun" as Backend {
   component "M01 Xac thuc / Phan quyen" as M01
 }
 
-cloud "Nha cung cap\nEmail / SMS" as EmailSMS
+cloud "Nha cung cap\nEmail" as EmailSMS
 cloud "Nha cung cap\nvideo / audio" as VideoAudio
 cloud "Nha cung cap\ndanh tinh\nOAuth2 / OIDC" as IdP
 

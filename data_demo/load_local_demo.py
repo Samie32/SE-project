@@ -239,7 +239,7 @@ def ensure_doctor(admin, doctor_token, display_name, specialty_names):
     roles = set(profile["roles"])
     doctor_id = profile["doctorId"]
     if (doctor_id and roles not in ({"DOCTOR"}, {"DOCTOR", "PATIENT"})) or (
-        not doctor_id and roles != {"PATIENT"}
+        not doctor_id and roles not in (set(), {"PATIENT"})
     ):
         raise RuntimeError("Unexpected roles on the dedicated demo doctor.")
     specialties = {row["name"]: row["id"] for row in api(admin, "/specialties")}
@@ -248,15 +248,14 @@ def ensure_doctor(admin, doctor_token, display_name, specialty_names):
         ids.append(specialties.get(name) or api(admin, "/specialties", "POST", {"name": name})["id"])
     if not doctor_id:
         doctor_id = api(admin, "/doctors", "POST", {"userId": profile["id"], "specialtyIds": ids})["id"]
-    if profile["displayName"] == "Patient":
+    if set(api(doctor_token, "/me/profile")["roles"]) != {"DOCTOR"}:
+        api(admin, f"/users/{profile['id']}/roles", "PUT", {"roles": ["DOCTOR"]})
+    if profile["displayName"] == "Patient" or not doctor_id or roles != {"DOCTOR"}:
         api(admin, f"/doctors/{doctor_id}", "PUT", {
             "active": True, "displayName": display_name, "specialtyIds": ids,
         })
-    profile = api(doctor_token, "/me/profile")
-    if set(profile["roles"]) != {"DOCTOR"}:
-        if set(profile["roles"]) != {"DOCTOR", "PATIENT"}:
-            raise RuntimeError("Unexpected roles on the dedicated demo doctor.")
-        api(admin, f"/users/{profile['id']}/roles", "PUT", {"roles": ["DOCTOR"]})
+    if set(api(doctor_token, "/me/profile")["roles"]) != {"DOCTOR"}:
+        raise RuntimeError("Unexpected roles on the dedicated demo doctor.")
     return doctor_id
 
 
@@ -479,8 +478,8 @@ def load_data(kc_admin, seeded_tokens, password, first, second, clinical):
     if not doctor_users or not patient_users:
         doctors = api(admin, "/doctors")
         if any(row["displayName"] == DOCTOR_NAME for row in doctors):
-            raise RuntimeError("Demo identities are missing from Keycloak but MySQL has demo data. "
-                               "Restore the matching Keycloak data or start a fresh demo environment.")
+            print("Skipping demo seed: MySQL already has demo data (existing data preserved).")
+            return
     ensure_keycloak_user(kc_admin, DOCTOR, DOCTOR_GIVEN_NAME, DOCTOR_FAMILY_NAME, password, doctor_users)
     ensure_keycloak_user(kc_admin, PATIENT, PATIENT_GIVEN_NAME, PATIENT_FAMILY_NAME, password, patient_users)
     enroll_demo_doctor(admin, kc_admin, DOCTOR, DOCTOR_NAME)

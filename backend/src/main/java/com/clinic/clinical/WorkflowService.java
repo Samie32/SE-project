@@ -27,7 +27,7 @@ public class WorkflowService {
     actor.require("RECEPTIONIST");
     var a = care.lockAppointment(id);
     Problem.require("IN_PERSON".equals(a.get("mode")), 409, "In-person appointment required");
-    var existing = db.list("SELECT * FROM queue_ticket WHERE appointment_id=?", id);
+    var existing = db.list("SELECT * FROM queue_ticket WHERE appointment_id=? FOR SHARE", id);
     if (!existing.isEmpty()) return existing.getFirst();
     Problem.require("CONFIRMED".equals(a.get("status")), 409, "Appointment is not CONFIRMED");
     Instant start = Db.instant(a, "startAt"), now = clock.instant();
@@ -53,10 +53,11 @@ public class WorkflowService {
   }
 
   private long nextPosition(Object doctor, Object date) {
-    return db.count(
-        "SELECT COALESCE(MAX(position),0)+1 FROM queue_ticket WHERE doctor_id=? AND queue_date=?",
-        doctor,
-        date);
+    var last = db.list(
+        "SELECT position FROM queue_ticket WHERE doctor_id=? AND queue_date=?"
+            + " ORDER BY position DESC LIMIT 1 FOR SHARE",
+        doctor, date);
+    return last.isEmpty() ? 1 : ((Number) last.getFirst().get("position")).longValue() + 1;
   }
 
   private void queueAccess(Access.Actor actor, String doctor) {
@@ -81,20 +82,23 @@ public class WorkflowService {
     queueAccess(actor, doctor);
     db.one("SELECT id FROM doctor WHERE id=? FOR UPDATE", doctor);
     Problem.require(
-        db.count(
-                "SELECT COUNT(*) FROM queue_ticket WHERE doctor_id=? AND queue_date=? AND status IN"
-                    + " ('CALLED','IN_SERVICE')",
+        db.list(
+                "SELECT id FROM queue_ticket WHERE doctor_id=? AND queue_date=? AND status IN"
+                    + " ('CALLED','IN_SERVICE') LIMIT 1 FOR SHARE",
                 doctor,
                 date.toString())
-            == 0,
+            .isEmpty(),
         409,
         "Finish or skip the current ticket first");
-    var q =
-        db.one(
+    var waiting =
+        db.list(
             "SELECT * FROM queue_ticket WHERE doctor_id=? AND queue_date=? AND status='WAITING'"
                 + " ORDER BY position LIMIT 1 FOR UPDATE",
             doctor,
             date.toString());
+    // Persist an empty result so retrying the same command cannot call a later arrival.
+    if (waiting.isEmpty()) return Map.of();
+    var q = waiting.getFirst();
     db.update("UPDATE queue_ticket SET status='CALLED',version=version+1 WHERE id=?", q.get("id"));
     audit.record(actor.id(), "QUEUE_CALLED", q.get("id").toString());
     return db.one("SELECT * FROM queue_ticket WHERE id=?", q.get("id"));

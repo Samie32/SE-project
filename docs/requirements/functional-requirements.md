@@ -18,7 +18,7 @@ Các yêu cầu được đặc tả theo điều kiện kích hoạt và hành 
 | FR-12 | M05 | Đề bài | Khi bác sĩ có quan hệ điều trị truy cập lịch sử, hệ thống phải trả các bản được phép xem và ghi nhật ký kiểm toán trước phản hồi. |
 | FR-13 | M05 | Đề bài | Khi bác sĩ lưu hồ sơ của lần khám, hệ thống phải kiểm tra quyền, phiên bản và giữ bản đã hoàn tất bất biến. |
 | FR-14 | M05 | Đề bài | Khi bác sĩ phát hành đơn, hệ thống phải yêu cầu ít nhất một dòng thuốc đủ tên, mô tả liều dùng, đường dùng, tần suất và thời gian dùng. |
-| FR-15 | M06 | Đề bài | Khi đến hạn nhắc, hệ thống phải gửi Email/SMS cho lịch còn CONFIRMED theo các mốc thời gian trong quy tắc nghiệp vụ. |
+| FR-15 | M06 | Đề bài yêu cầu Email/SMS. Phạm vi phiên bản này dùng email. | Khi đến hạn nhắc, hệ thống phải gửi Email cho lịch còn CONFIRMED theo các mốc thời gian trong quy tắc nghiệp vụ. |
 | FR-16 | M06 | Cụ thể hóa yêu cầu đề bài | Nếu nhà cung cấp lỗi tạm thời, hệ thống phải thử lại có giới hạn và hiển thị thất bại mà không hoàn tác giao dịch lịch hẹn đã hoàn thành. |
 | FR-17 | M07 | Đề bài | Khi đọc/ghi dữ liệu nhạy cảm hoặc đổi quyền, hệ thống phải ghi nhật ký kiểm toán theo BR-13/16. |
 | FR-18 | M07 | Đề bài | Khi người kiểm toán tìm nhật ký kiểm toán, hệ thống phải hỗ trợ lọc thời gian/tác nhân/tài nguyên và cấm sửa/xóa từ ứng dụng. |

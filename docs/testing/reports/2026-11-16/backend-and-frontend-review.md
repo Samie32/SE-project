@@ -90,7 +90,7 @@ Các mức P1/P2 ở đây là ưu tiên khắc phục trong dự án, không ph
 | 12 | Có bằng chứng | clinicalAuditFailureRollsBackAndBlocksSensitiveReads; history scoped theo quan hệ điều trị |
 | 13 | Có bằng chứng | FINAL immutable bằng trigger; concurrentAmendmentsCannotBranch; version conflict |
 | 14 | Có bằng chứng | draftHiddenFromPatientAndEmptyPrescriptionCannotIssue; full clinical workflow; validate 5 trường thuốc |
-| 15 | Có bằng chứng cho Email local | reminderIsScheduledAndSkippedAfterCheckIn; bookingInsideThirtyMinutesDoesNotEnqueueReminder; chưa xác minh SMS thật |
+| 15 | Có bằng chứng cho Email local | reminderIsScheduledAndSkippedAfterCheckIn; bookingInsideThirtyMinutesDoesNotEnqueueReminder; chưa xác minh nhà cung cấp Email thật |
 | 16 | Có bằng chứng cho SMTP mock | notificationRetriesStopAfterThreeRetries; lỗi SMTP không rollback lịch; chưa thử nhà cung cấp thật |
 | 17 | Có bằng chứng với thao tác thành công; còn thiếu | Audit atomic/read fail-closed đạt; sự kiện từ chối ở BE-01 thiếu theo AC-23 |
 | 18 | Có bằng chứng BE | auditIsAppendOnlyAtDatabaseLevel; auditSearchRequiresAuditorAndFiltersByResource; FE lệch tên trường thời gian |
@@ -116,7 +116,7 @@ Các mức P1/P2 ở đây là ưu tiên khắc phục trong dự án, không ph
 | 09 | Chưa chứng minh hiển thị lỗi ≤10 giây khi mất media/network; chỉ có test trạng thái BE. |
 | 10 | Đúng stack; OpenAPI runtime 3.1. Thiếu Git metadata trong snapshot nên không xác nhận quản lý UML bằng Git; hợp đồng thiết kế và runtime chưa đồng bộ. |
 | 11 | Tổng line coverage 77,46%, service được chọn 86,46%, có test concurrency/auth. Chưa tách coverage unit-test để khẳng định đúng nguyên văn tiêu chí unit ≥60%. |
-| 12 | Fixture dùng dữ liệu giả; có test Email không chứa clinical content, dữ liệu lưu mã hóa. Chưa kiểm toán đầy đủ log/Email/SMS ở môi trường chạy thật. |
+| 12 | Fixture dùng dữ liệu giả; có test Email không chứa clinical content, dữ liệu lưu mã hóa. Chưa kiểm toán đầy đủ log/Email ở môi trường chạy thật. |
 
 ## 6. Đánh giá khả năng nối frontend ZIP
 

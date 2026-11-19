@@ -9,7 +9,7 @@ skinparam dpi 150
 
 participant "Worker thông báo"        as W
 database    "MySQL"                   as DB
-participant "Nhà cung cấp Email/SMS"  as ESP
+participant "Nhà cung cấp Email"  as ESP
 
 W -> DB : lấy sự kiện outbox đã commit; tạo job đã loại trùng lặp
 W -> DB : lấy job đến hạn với lease; tải lịch hẹn hiện tại

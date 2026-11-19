@@ -94,7 +94,10 @@ public class TelehealthService {
 
   public Map<String, Object> join(Access.Actor actor, String id, boolean consent) {
     var a = appointment(id);
-    care.participant(actor, a);
+    if (!care.isParticipant(actor, a)) {
+      audit.denied(actor.id(), "TELEHEALTH_JOINED", id);
+      throw Problem.notFound();
+    }
     var s = session(id);
     open(s);
     boolean patient = care.isPatient(actor, a);

@@ -7,14 +7,14 @@ tests/
 ├── backend/                 # Bản sao test JUnit và test resources
 ├── frontend_patient/        # Bản sao test Vitest
 ├── python/                  # Test API contract và kiểm tra test pack
-│   └── legacy/              # Các regression/demo test hiện có trong gói tập trung
+│   └── legacy/              # Kiểm tra fixtures và hợp đồng tại mốc bàn giao cũ
 ├── k6/                      # Smoke, load và appointment contention
 └── README.md
 ```
 
-## Lưu ý về cách chạy
+## Nguồn thực thi và bàn giao QA
 
-Các file trong `tests/` là bản sao tập trung để tra cứu/bàn giao. Vì cấu hình gốc được giữ nguyên, các runner hiện tại vẫn sử dụng vị trí test ban đầu trong `backend/src/test/`, `frontend/frontend_patient/tests/` và `scripts/tests/`. Chạy theo cấu hình sẵn có của từng thành phần:
+Xem [báo cáo bàn giao cho Vũ Đức Thắng](../docs/testing/reports/2026-11-19-test-report.md) để chọn ca theo mã RG, FR/NFR, nhóm nghiệp vụ và mức kiểm thử. Các thư mục `tests/backend/` và `tests/frontend_patient/` giữ bản sao của gói bàn giao cũ. Maven và Vitest chạy nguồn hiện hành trong `backend/src/test/` và `frontend/tests/`.
 
 ### Backend Java (từ `backend/`)
 
@@ -26,21 +26,39 @@ file xuất nằm ở backend/target/surefire-reports/
 backend/target/site/jacoco/index.html
 ```
 
-### Frontend patient (từ `frontend/frontend_patient/`)
+### Frontend đa vai trò (từ `frontend/`)
 
 ```powershell
-npm install
+npm ci
 npm test
+npm run typecheck
+npm run build
+npm run test:rtc
+npm run test:scan
 ```
+
+Trên stack demo riêng đã chạy, đặt `CLINIC_QA_BASE_URL` và `CLINIC_QA_DEMO_PASSWORD` cho phiên chạy, rồi dùng `npm run test:auth-runtime` để kiểm thử đăng nhập Keycloak cho năm vai trò. Dùng mật khẩu tài khoản demo và lưu kết quả trong `frontend/test-results/runtime/`.
 ```test
-file xuất nằm ở frontend/frontend_patient/tests/
+frontend/test-results/
 ```
 
 ### Python API  (từ thư mục gốc)
 
 ```powershell
 python scripts/check-api-contract.py
-python -m unittest discover -s scripts/tests -p "test_api_contract.py" -v
+python -m unittest discover -s scripts/tests -v
+python -m unittest discover -s tests/python -v
+```
+
+`tests/python/legacy/` kiểm tra snapshot hợp đồng cũ. Chạy nhóm này với `docs/api/openapi.yaml` từ `eb568ad` theo checksum đã ghi trong gói đóng góp. Dùng thư mục tạm để giữ nguyên hợp đồng hiện hành:
+
+```powershell
+$legacy = Join-Path $env:TEMP ('cliniccare-legacy-' + (New-Guid).ToString())
+New-Item -ItemType Directory "$legacy/docs/contributions", "$legacy/docs/api", "$legacy/tests/python" | Out-Null
+Copy-Item -Recurse docs/contributions/52400244_NguyenThuong "$legacy/docs/contributions"
+Copy-Item -Recurse tests/python/legacy "$legacy/tests/python"
+python -B -c "import pathlib,subprocess,sys; pathlib.Path(sys.argv[1]).write_bytes(subprocess.check_output(['git','show','eb568ad:docs/api/openapi.yaml']))" "$legacy/docs/api/openapi.yaml"
+python -B -m unittest discover -s "$legacy/tests/python/legacy" -v
 ```
 
 ### k6 (từ thư mục gốc)
@@ -51,12 +69,4 @@ k6 run tests/k6/appointment-load.js
 k6 run tests/k6/appointment-contention.js
 ```
 
-### Danh sách lỗi
-
-```text
-BE-01: Thiếu audit DENIED khi người ngoài truy cập phòng.
-BE-02: Quyền GET availability/time-off của lễ tân.
-BE-03: Quyền đọc doctors/specialties/slots của AUDITOR.
-BE-04: Xử lý hàng đợi rỗng bằng HTTP 204.
-Các mục E2E, tải, bảo mật và WebRTC còn chờ xác minh.
-```
+Chạy trên stack thử nghiệm với dữ liệu mô phỏng. Cấu hình `BASE_URL` và `ACCESS_TOKEN`. Bài tải đọc thêm `APPOINTMENT_DATE`. Bài tranh chấp cần `PATIENT_TOKEN_A`, `PATIENT_TOKEN_B` của hai bệnh nhân khác nhau và `SLOT_ID` chưa được đặt. Mặc định bài tranh chấp dùng 100 yêu cầu và xác minh đúng một lượt thành công. Dùng slot mới cho mỗi lần chạy.

@@ -13,8 +13,14 @@ const ROLES: Record<string, { name: string; routes: string[] }> = {
 const ALL = ["/patient", "/doctor", "/staff/reception", "/admin/permissions", "/audit"];
 const report: Record<string, unknown>[] = [];
 
+test.beforeEach(async ({ page }) => {
+  await page.route("https://fonts.googleapis.com/**", (route) =>
+    route.fulfill({ contentType: "text/css", body: "" }),
+  );
+});
+
 async function loginAs(page: Page, name: string) {
-  await page.goto("/");
+  await page.goto("/", { waitUntil: "domcontentloaded" });
   await page.getByRole("button", { name: new RegExp(name) }).click();
   await expect(page.locator("main#main-content")).toBeVisible();
 }
@@ -30,10 +36,11 @@ for (const [role, cfg] of Object.entries(ROLES)) {
         for (const vp of [{ width: 1280, height: 800 }, { width: 375, height: 800 }]) {
           errors.length = 0;
           await page.setViewportSize(vp);
-          await page.goto(route);
-          await page.waitForLoadState("networkidle");
-          await expect(page.locator("main#main-content")).toBeVisible();
-          const h1 = await page.locator("main h1").first().textContent().catch(() => null);
+          await page.goto(route, { waitUntil: "domcontentloaded" });
+          const main = page.locator("main#main-content");
+          await expect(main).toBeVisible();
+          await expect(main.locator('[aria-busy="true"]').or(main.getByText(/^Đang tải(?: dữ liệu)?…$/))).toHaveCount(0);
+          const [h1 = null] = await main.locator("h1").allTextContents();
           const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
           const failedAsync = await page.locator(".errbox,[role=alert]").allTextContents();
           const axe = vp.width === 1280 ? await new AxeBuilder({ page }).withTags(["wcag2a", "wcag2aa"]).analyze() : null;
@@ -51,12 +58,10 @@ for (const [role, cfg] of Object.entries(ROLES)) {
       await loginAs(page, cfg.name);
       const denied: string[] = [];
       for (const route of ALL.filter((r) => !cfg.routes.some((c) => c.startsWith(r)))) {
-        await page.goto(route);
-        await page.waitForLoadState("networkidle");
+        await page.goto(route, { waitUntil: "domcontentloaded" });
+        await expect(page.locator("main#main-content")).toBeVisible();
         const text = (await page.locator("main#main-content").textContent()) ?? "";
-        const sidebar = await page.locator("aside nav").textContent();
         if (!/không có quyền|Không tìm thấy|403|không được phép/i.test(text)) denied.push(`${role} thấy nội dung ${route}: ${text.slice(0, 60)}`);
-        void sidebar;
       }
       expect(denied, denied.join("\n")).toEqual([]);
     });

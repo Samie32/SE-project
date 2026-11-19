@@ -15,7 +15,7 @@ Các quy tắc xác định điều kiện xử lý và ràng buộc nghiệp v�
 | BR-09 | Chỉ bác sĩ phụ trách được ghi/phát hành hồ sơ; bản đã hoàn tất không được ghi đè. Bản bổ sung tham chiếu phiên bản cũ và lý do | M05 |
 | BR-10 | Mỗi lịch hẹn tương ứng với tối đa một lần khám; đơn thuốc có ít nhất một dòng trước phát hành; không tự động đề xuất thuốc hoặc liều dùng | M05 |
 | BR-11 | Gửi thông báo sau khi giao dịch được xác nhận; lỗi gửi không hoàn tác lịch. Trước gửi thông báo nhắc lịch phải kiểm tra phiên bản/trạng thái hiện tại để bỏ tác vụ cũ | M06 |
-| BR-12 | Không đưa chẩn đoán, nội dung đơn thuốc, token phòng hoặc token đăng nhập vào SMS/Email hay log kỹ thuật | M06/M07 |
+| BR-12 | Không đưa chẩn đoán, nội dung đơn thuốc, token phòng hoặc token đăng nhập vào Email hay log kỹ thuật | M06/M07 |
 | BR-13 | Sự kiện kiểm toán gồm tác nhân, thao tác, mã tài nguyên, thời điểm, kết quả và mã liên kết yêu cầu; không lưu toàn bộ bệnh án trong log | M07 |
 | BR-14 | Chỉ bệnh nhân của lịch và bác sĩ được phân công được vào phiên từ xa đang hợp lệ; mã truy cập có thời hạn ngắn, gắn với phiên khám và người tham gia | M09 |
 | BR-15 | Mất luồng âm thanh, hình ảnh không tự hoàn tất khám. Kết thúc phiên và hoàn tất lần khám là hai hành động riêng, có kiểm tra quyền/trạng thái | M09/M05 |

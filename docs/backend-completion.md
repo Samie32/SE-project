@@ -104,7 +104,7 @@ Join trả sessionId, token, expiresAt, signalingUrl. Token ngẫu nhiên 256-bi
 
 Đặt/đổi lịch từ ít nhất 30 phút trước giờ hẹn tạo REMINDER đến hạn start -30 phút. Đặt khi còn ít hơn 30 phút chỉ tạo xác nhận. Reminder cũ bỏ khi version đổi, lịch không còn CONFIRMED hoặc đã đến giờ khám. Worker gửi sau commit, lease 60 giây, retry 1/5/15 phút; thất bại cuối là FAILED và có audit. Email không chứa bệnh án/thuốc/token.
 
-Kênh local là SMTP/Mailpit; chưa cấu hình SMS thật. Lịch tồn tại trước nâng cấp không tự thêm reminder. Notification-jobs cho lễ tân/quản trị theo dõi kết quả.
+Kênh local là SMTP/Mailpit. Lịch tồn tại trước nâng cấp không tự thêm reminder. Notification-jobs cho lễ tân/quản trị theo dõi kết quả.
 
 ## Kiểm thử và frontend
 

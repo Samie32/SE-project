@@ -1,6 +1,6 @@
 import sys
 from pathlib import Path as _Path
-sys.path.insert(0, str(_Path(__file__).resolve().parents[3] / 'docs' / 'contributions' / '52400244_NguyenThuong' / 'tools'))
+sys.path.append(str(_Path(__file__).resolve().parents[3] / 'docs' / 'contributions' / '52400244_NguyenThuong' / 'tools'))
 """Regression cho bộ request backend; không gọi API thật."""
 import copy
 import io

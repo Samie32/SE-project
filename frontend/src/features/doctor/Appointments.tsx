@@ -56,13 +56,13 @@ export function DoctorAppointmentsPage() {
 
   return (
     <>
-      <PageHead eyebrow="Bác sĩ" title="Lịch hẹn của tôi" text="Khám trực tiếp: lễ tân check-in rồi bạn gọi từ hàng đợi. Khám từ xa: vào phòng trong khung [giờ hẹn − 10’, giờ hẹn + 15’)." />
+      <PageHead title="Lịch hẹn của tôi" />
       {truncated && <Notice tone="warn">Dữ liệu lịch quá lớn, có thể chưa đầy đủ.</Notice>}
       <Panel>
         <div className="filters">
           <Tabs<Tab> label="Khoảng thời gian" value={tab} onChange={setTab} items={[{ id: "today", label: "Hôm nay" }, { id: "upcoming", label: "Sắp tới" }, { id: "past", label: "Đã qua" }]} />
-          <select className="field" aria-label="Trạng thái" value={status} onChange={(e) => setStatus(e.target.value as typeof status)}><option value="">Mọi trạng thái</option>{Object.entries(APPOINTMENT_STATUS).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}</select>
-          <select className="field" aria-label="Hình thức" value={mode} onChange={(e) => setMode(e.target.value)}><option value="">Mọi hình thức</option><option value="IN_PERSON">{MODE_SHORT.IN_PERSON}</option><option value="REMOTE">{MODE_SHORT.REMOTE}</option></select>
+          <select className="field" aria-label="Trạng thái" value={status} onChange={(e) => setStatus(e.target.value as typeof status)}><option value="">Trạng thái</option>{Object.entries(APPOINTMENT_STATUS).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}</select>
+          <select className="field" aria-label="Hình thức" value={mode} onChange={(e) => setMode(e.target.value)}><option value="">Hình thức</option><option value="IN_PERSON">{MODE_SHORT.IN_PERSON}</option><option value="REMOTE">{MODE_SHORT.REMOTE}</option></select>
         </div>
         <AsyncBlock loading={loading} error="" empty={rows.length === 0} emptyTitle="Không có lịch hẹn">
           {rows.length === 0 ? <Empty title="Không có lịch hẹn" /> : <div className="list">{rows.map((a) => <AppointmentRow key={a.id} item={a} subject="patient" actions={actions(a)} />)}</div>}

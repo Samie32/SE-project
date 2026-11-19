@@ -24,12 +24,13 @@ public class CatalogController {
       @AuthenticationPrincipal Jwt j,
       @RequestParam(defaultValue = "false") boolean includeInactive) {
     var actor = access.actor(j);
+    actor.requireSchedulingCatalogRead();
     return service.specialties(includeInactive && actor.roles().contains("ADMINISTRATOR"));
   }
 
   @GetMapping("/doctors")
   public Object doctors(@AuthenticationPrincipal Jwt j) {
-    access.actor(j);
+    access.actor(j).requireSchedulingCatalogRead();
     return service.doctors();
   }
 

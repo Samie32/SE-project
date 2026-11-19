@@ -15,6 +15,6 @@ Các yêu cầu xác định mục tiêu chất lượng và phương pháp ki�
 | NFR-09 | Giao diện hiển thị lỗi trong tối đa 10 giây sau khi phát hiện mất kết nối; dữ liệu hồ sơ đã lưu được bảo toàn | Mô phỏng ngắt kết nối mạng |
 | NFR-10 | Hệ thống sử dụng React + TypeScript, Spring Boot và MySQL; giao diện API được đặc tả bằng OpenAPI 3.1, các mô hình UML được quản lý phiên bản bằng Git | Kiểm tra tài liệu và cấu hình công nghệ |
 | NFR-11 | Độ bao phủ kiểm thử đơn vị đối với logic nghiệp vụ đạt tối thiểu 60%; có các ca kiểm thử chống trùng lịch và phân quyền | Đánh giá báo cáo độ bao phủ và kết quả kiểm thử |
-| NFR-12 | Dữ liệu trình diễn là dữ liệu mô phỏng; hồ sơ bệnh án, mật khẩu và mã truy cập không xuất hiện trong SMS, Email hoặc nhật ký kỹ thuật | Kiểm tra dữ liệu, mẫu thông báo và nhật ký |
+| NFR-12 | Dữ liệu trình diễn là dữ liệu mô phỏng; hồ sơ bệnh án, mật khẩu và mã truy cập không xuất hiện trong Email hoặc nhật ký kỹ thuật | Kiểm tra dữ liệu, mẫu thông báo và nhật ký |
 
 Phạm vi đánh giá bảo mật bao gồm phân quyền, nhật ký kiểm toán và bảo vệ dữ liệu; không bao gồm chứng nhận tuân thủ pháp lý.

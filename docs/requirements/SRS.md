@@ -10,7 +10,7 @@ Tài liệu xác định các yêu cầu đối với hệ thống quản lý ph
 
 Hệ thống phục vụ một phòng khám với năm vai trò: bệnh nhân, bác sĩ, lễ tân, quản trị viên và kiểm toán viên. Chức năng và giới hạn của chín phân hệ được xác định trong [phạm vi hệ thống](scope.md).
 
-Nền tảng công nghệ gồm React + TypeScript, Java Spring Boot và MySQL. Các dịch vụ xác thực, Email/SMS và hội nghị trực tuyến được tích hợp thông qua lớp kết nối độc lập với nhà cung cấp.
+Nền tảng công nghệ gồm React + TypeScript, Java Spring Boot và MySQL. Các dịch vụ xác thực, Email và hội nghị trực tuyến được tích hợp thông qua lớp kết nối độc lập với nhà cung cấp.
 
 Phiên bản tài liệu này bao gồm phân tích và thiết kế, chưa bao gồm kết quả triển khai.
 
@@ -26,7 +26,7 @@ Phiên bản tài liệu này bao gồm phân tích và thiết kế, chưa bao 
 
 [Giao diện người dùng](../design/gui-mockups/screen-specifications.md) mô tả các màn hình và hành vi tương tác. Giao diện lập trình được đặc tả bằng [OpenAPI](../api/openapi.yaml), sử dụng HTTPS và JSON.
 
-[Mô hình dữ liệu](../design/database/data-dictionary.md) xác định các thực thể, quan hệ và ràng buộc toàn vẹn. Email/SMS chỉ chứa thông tin thông báo cần thiết; nội dung hồ sơ bệnh án và mã truy cập không được đưa vào thông báo. Dữ liệu âm thanh và hình ảnh của phiên khám không được lưu trong MySQL.
+[Mô hình dữ liệu](../design/database/data-dictionary.md) xác định các thực thể, quan hệ và ràng buộc toàn vẹn. Email chỉ chứa thông tin thông báo cần thiết; nội dung hồ sơ bệnh án và mã truy cập không được đưa vào thông báo. Dữ liệu âm thanh và hình ảnh của phiên khám không được lưu trong MySQL.
 
 ## 5. Truy vết và kiểm chứng
 

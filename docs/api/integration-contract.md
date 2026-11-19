@@ -46,7 +46,7 @@ Khi thay tên trường, endpoint, mã thành công hoặc điều kiện quyề
 | HTTP | Cách FE xử lý |
 |---|---|
 | 200 | Thành công. PUT `/me/contact`, `/users/{id}/roles` và `/staff/{id}` có body rỗng. |
-| 204 | Không body: DELETE lịch; queue/next khi hết người WAITING **sau BE-04** |
+| 204 | Không body: DELETE lịch; queue/next khi hết người WAITING |
 | 400 | Thiếu/sai query/header/body; kiểm tra payload trước khi gửi lại |
 | 401 | Token không hợp lệ/hết hạn; đăng nhập lại; không giả định có JSON error body |
 | 403 | Thiếu quyền hoặc token phòng không hợp lệ; không tự động coi là hết hạn OIDC |
@@ -83,7 +83,7 @@ Tạo/sửa danh mục, lịch làm/nghỉ, contact và role không dùng key tr
 3. GET `/appointments` trả `AppointmentView`, **không cam kết encounterId**. Mở trang khám bằng GET **`/appointments/{id}`** lấy `AppointmentDetail` và encounterId. Sau progress phải dùng response detail hoặc tải lại detail; không chỉ reload danh sách.
 4. RECEPTIONIST POST `/appointments/{id}/check-in`, không body, có key; chỉ IN_PERSON CONFIRMED trong `[start-15 phút,start+15 phút)`. Trả `QueueTicket`, không phải appointment; tải lại detail để lấy version mới.
 5. GET **`/doctors/{id}/queue?date=YYYY-MM-DD`**: DOCTOR sở hữu/RECEPTIONIST; trả mọi trạng thái, FE tự lọc. **Không có GET `/queue-tickets`** và không có endpoint patient đọc hàng riêng trong bản này. Ticket có `createdAt`, `queueDate`, `version`; `patientId` có trong danh sách nhưng không bắt buộc ở response check-in/next/skip.
-6. POST `/doctors/{id}/queue/next?date=...`, không body, có key: 200 với ticket CALLED; 409 nếu đang có CALLED/IN_SERVICE; **204 nếu không có WAITING**. Baseline đang trả 404 cho hết hàng; **BE-04 phải sửa trước khi FE dựa vào 204**. Không nuốt mọi 404 thành “hết hàng”.
+6. POST `/doctors/{id}/queue/next?date=...`, không body, có key: 200 với ticket CALLED; 409 nếu đang có CALLED/IN_SERVICE; **204 nếu không có WAITING**. Request thử lại với cùng khóa và ngày giữ kết quả 204. Client dùng 404 cho tài nguyên không tồn tại.
 7. Skip gửi `{reason,version}` tới `/queue-tickets/{id}/skip` có key; giữ ticket ID, chuyển WAITING cuối hàng. DOCTOR sở hữu hoặc RECEPTIONIST được thực hiện.
 8. Bác sĩ POST progress `{targetStatus:"IN_PROGRESS",version}` có key; cần CHECKED_IN và ticket CALLED. Tạo encounter, chuyển lịch IN_PROGRESS và ticket IN_SERVICE nguyên tử. Đã check-in đúng giờ vẫn được bắt đầu khám sau start+15 phút.
 9. Hoàn tất: lưu record FINAL trước; progress `{targetStatus:"COMPLETED",version}` cập nhật encounter, appointment, queue nguyên tử. FINAL không tự hoàn tất ca.
@@ -113,9 +113,9 @@ Patient chỉ đọc FINAL/ISSUED của mình. DOCTOR phụ trách đọc draft 
 
 - GET `/audit-events` chỉ AUDITOR; filter `from` inclusive, `to` exclusive, `actorId`, `resourceId`, limit/offset. Lọc đến hết một ngày dùng `to` bằng 00:00 ngày kế tiếp theo giờ Việt Nam rồi đổi UTC; không dùng 23:59 làm mất dữ liệu cuối ngày.
 - Audit dùng **createdAt**; `actorType=SYSTEM` có `actorId=null`, `actorLabel` chỉ dịch vụ. Không có PHI/token trong audit.
-- Ghi audit nghiệp vụ cùng transaction; đọc dữ liệu nhạy cảm chỉ trả khi audit lưu được. Theo AC-23 phải lưu sự kiện DENIED khi người ngoài bị chặn vào phòng, không bị mất vì rollback; **BE-01 còn phải triển khai**.
+- Ghi audit nghiệp vụ cùng transaction; đọc dữ liệu nhạy cảm chỉ trả khi audit lưu được. Theo AC-23, backend ghi sự kiện DENIED khi người ngoài bị chặn vào phòng. Audit này được lưu qua giao dịch riêng.
 - Notification-jobs cho lễ tân/quản trị, status `PENDING/PROCESSING/SENT/SKIPPED/FAILED`; eventType `BOOKED/RESCHEDULED/CANCELLED/REMINDER`. `attempts` là số lần gửi thất bại, không phải tổng lượt gửi. SENT là SMTP chấp nhận, không xác nhận người nhận đã đọc.
-- Nhắc trước 30 phút; lịch đặt dưới 30 phút chỉ có xác nhận; retry thêm 1/5/15 phút, bỏ tác vụ sai version/trạng thái. Email local dùng Mailpit; chưa nghiệm thu SMS thật.
+- Nhắc trước 30 phút; lịch đặt dưới 30 phút chỉ có xác nhận; retry thêm 1/5/15 phút, bỏ tác vụ sai version/trạng thái. Email local dùng Mailpit.
 
 ## 8. Telehealth và WebRTC
 
@@ -142,7 +142,7 @@ Không lưu SDP, room token hoặc TURN credentials vào log/localStorage. Clien
 
 ## 9. Bàn giao và kiểm chứng
 
-BE sửa BE-01…04; FE chuyển adapter và dữ liệu theo [backlog](integration-backlog.md). Các cờ `VITE_BACKEND_*` chỉ bật cho luồng đã sửa và kiểm tra; Docker cần truyền build args và rebuild.
+BE-01 đến BE-04 có kết quả kiểm thử hồi quy trong [báo cáo ngày 19/11](../testing/reports/2026-11-19-test-report.md). Phạm vi FE và E2E tiếp tục theo [backlog](integration-backlog.md). Các cờ `VITE_BACKEND_*` chỉ bật cho luồng đã sửa và kiểm tra; Docker cần truyền build args và rebuild.
 
 ```powershell
 python -m pip install -r scripts/requirements-api-contract.txt

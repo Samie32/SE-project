@@ -43,7 +43,11 @@ public class CareAccess {
   }
 
   public void participant(Access.Actor actor, Map<String, Object> a) {
-    Problem.require(isDoctor(actor, a) || isPatient(actor, a), 404, "Resource not found");
+    if (!isParticipant(actor, a)) throw Problem.notFound();
+  }
+
+  public boolean isParticipant(Access.Actor actor, Map<String, Object> a) {
+    return isDoctor(actor, a) || isPatient(actor, a);
   }
 
   public Map<String, Object> encounter(Access.Actor actor, String id) {

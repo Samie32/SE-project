@@ -26,7 +26,7 @@ notification_job là transactional outbox chuyên biệt cho BOOKED, RESCHEDULED
 
 Trước gửi kiểm tra version hiện tại, tác vụ cũ chuyển SKIPPED. Lỗi SMTP thử lại thêm tối đa 3 lần sau 1, 5 và 15 phút. SMTP timeout giới hạn 5 giây. Worker phục hồi tác vụ PROCESSING khi lease hết hạn.
 
-Cơ chế gửi là at-least-once: nếu SMTP đã nhận nhưng DB chưa lưu SENT, lần phục hồi có thể gửi lại. SMTP không bảo đảm exactly-once. Nhắc trước giờ khám và SMS thật thuộc giai đoạn sau.
+Cơ chế gửi là at-least-once: nếu SMTP đã nhận nhưng DB chưa lưu SENT, lần phục hồi có thể gửi lại. SMTP không bảo đảm exactly-once.
 
 ## Môi trường và giới hạn
 

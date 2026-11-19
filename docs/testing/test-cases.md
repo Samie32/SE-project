@@ -40,7 +40,7 @@ TC-N06: mất mạng video, callback trùng/đảo thứ tự, token phòng hế
 TC-N07: đối chiếu cấu hình mã hóa, phân quyền khóa và backup; kiểm tra truy cập trái quyền bị chặn.
 TC-N08: ngắt DB/provider; kiểm tra báo lỗi rõ và không xác nhận giao dịch chưa commit.
 TC-N09: kiểm tra OpenAPI/sơ đồ UML/stack và báo cáo coverage package sau triển khai; xác định rõ các thành phần được loại trừ.
-TC-N10: kiểm tra dữ liệu trình diễn giả và không có nội dung hồ sơ/token trong SMS, Email hoặc log kỹ thuật.
+TC-N10: kiểm tra dữ liệu trình diễn giả và không có nội dung hồ sơ/token trong Email hoặc log kỹ thuật.
 
 ## Kiểm thử giá trị biên
 

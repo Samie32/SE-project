@@ -44,7 +44,7 @@ node "Mang du lieu rieng" as PrivateNet {
 
 cloud "Nha cung cap\ndanh tinh" as IdP
 cloud "Nha cung cap\nvideo" as VideoProvider
-cloud "Email / SMS" as EmailSMS
+cloud "Email" as EmailSMS
 
 UserDevice --> Ingress : HTTPS
 Ingress --> AppEnv : TLS

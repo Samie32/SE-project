@@ -53,7 +53,7 @@ export function StaffQueuePage() {
 
   return (
     <>
-      <PageHead eyebrow="Vận hành" title="Hàng đợi khám" text="Theo dõi thứ tự khám trong ngày. Bác sĩ gọi lượt; lễ tân đưa lượt đã gọi mà không đến về cuối hàng." />
+      <PageHead title="Hàng đợi khám" />
       <PendingBackend feature="queue" />
       <Panel>
         <div className="filters">
