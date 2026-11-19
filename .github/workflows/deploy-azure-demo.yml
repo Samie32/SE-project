@@ -48,11 +48,21 @@ jobs:
             command=(--resource-group rg-cliniccare --vm-name vm-cliniccare-azure-test --name cliniccare-sync-smtp)
             location="$(az vm show --resource-group rg-cliniccare --name vm-cliniccare-azure-test \
               --query location -o tsv --only-show-errors)"
-            if ! az vm run-command create "${command[@]}" --location "$location" --async-execution false \
+            if ! smtp_error="$(az vm run-command create "${command[@]}" --location "$location" --async-execution false \
               --parameters "CLINICCARE_SYNC_RUN=$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT" \
               --script "$smtp_script" --protected-parameters "BREVO_SMTP_CONFIG=$BREVO_SMTP_CONFIG" \
-              --only-show-errors --output none 2>/dev/null; then
-              echo 'SMTP sync failed. Check Azure Managed Run Command permissions.' >&2
+              --only-show-errors --output none 2>&1)"; then
+              # CLI errors can include input arguments. Report only recognized error codes.
+              case "$smtp_error" in
+                *AuthorizationFailed*)
+                  echo '::error::Azure AuthorizationFailed. Grant the deployment identity Microsoft.Compute/virtualMachines/runCommands/read and Microsoft.Compute/virtualMachines/runCommands/write at the VM scope.' ;;
+                *OperationNotAllowed*|*VMNotRunning*|*VMDeallocated*)
+                  echo '::error::Azure rejected the operation. Check that the demo VM is running and its agent is ready.' ;;
+                *"unrecognized arguments"*)
+                  echo '::error::Azure CLI rejected the Managed Run Command arguments.' ;;
+                *)
+                  echo '::error::Azure could not create the Managed Run Command. See the VM or resource group Activity Log for operation details.' ;;
+              esac
               exit 1
             fi
             smtp_status="$(az vm run-command show "${command[@]}" --instance-view \

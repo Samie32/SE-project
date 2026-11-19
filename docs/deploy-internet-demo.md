@@ -19,7 +19,7 @@ Trong repository GitHub, vào **Settings → Secrets and variables → Actions �
 
 Push lên `main` sẽ kích hoạt workflow **Deploy ClinicCare to Azure** nếu `AZURE_DEPLOY_ENABLED=true`. Workflow chuyển cấu hình qua **Protected Parameters** của Azure Managed Run Command, lưu trong `/var/lib/cliniccare/smtp.json` với quyền `0600` và cập nhật backend nếu SMTP thay đổi. Cấu hình được giữ khi VM khởi động lại. Khi đổi key, cập nhật secret trên GitHub và chạy **Deploy ClinicCare to Azure → Run workflow** từ `main`.
 
-Danh tính Azure của GitHub Actions cần quyền tạo và đọc **Managed Run Command** trên VM. Nếu workflow báo thiếu quyền, quản trị viên Azure cấp quyền cho danh tính triển khai hiện có. VM cần kết nối ra Brevo qua TCP 587. Khi chưa có cấu hình được đồng bộ, mặc định là Mailpit. Kiểm chứng bằng một lịch mô phỏng, theo dõi job `SENT` và xác nhận thư đến hộp nhận.
+Để đồng bộ SMTP, danh tính Azure của GitHub Actions cần thêm `Microsoft.Compute/virtualMachines/runCommands/read` và `Microsoft.Compute/virtualMachines/runCommands/write` ở phạm vi VM `vm-cliniccare-azure-test`. Giữ các quyền triển khai hiện có. Nếu workflow báo `AuthorizationFailed`, quản trị viên Azure cập nhật quyền cho cùng danh tính mà workflow dùng qua `AZURE_CLIENT_ID`. VM cần kết nối ra Brevo qua TCP 587. Khi chưa có cấu hình được đồng bộ, mặc định là Mailpit. Kiểm chứng bằng một lịch mô phỏng, theo dõi job `SENT` và xác nhận thư đến hộp nhận.
 
 ## Tạo môi trường và khởi động
 
