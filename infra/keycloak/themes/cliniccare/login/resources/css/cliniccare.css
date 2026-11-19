@@ -12,3 +12,13 @@ button { display:flex;align-items:center;justify-content:center;gap:10px;width:1
 @media(max-width:760px) { .login { grid-template-columns:1fr }.visual { display:none }.form-panel { min-height:100vh;padding:32px 22px }.mobile-brand { display:block;margin-bottom:45px }.brand b { color:#10233f } h2 { font-size:28px } }
 
 .input input:focus-visible { outline:none; }
+
+.account-link { margin:20px 0 0;text-align:center;font-size:13px;color:#52637a }
+.account-link a { color:#2563eb;font-weight:600;text-decoration:none }
+.account-link a:hover { text-decoration:underline }
+.registration { min-height:100vh;background:#f5f8fd }
+.registration .form-wrap { padding:28px clamp(18px,5vw,32px);background:white;border:1px solid #dce4ed;border-radius:14px }
+.registration .subtitle { margin-bottom:16px }
+.registration form button { margin-top:22px }
+.registration button:disabled { opacity:.55;cursor:not-allowed }
+.field-error { margin:6px 0 0;color:#b93648;font-size:12px }

@@ -24,7 +24,7 @@ Get-Content -LiteralPath $envPath | ForEach-Object {
 }
 $runtime = Join-Path $projectRoot 'infra/runtime'
 New-Item -ItemType Directory -Path $runtime -Force | Out-Null
-$realm = Get-Content -Raw -LiteralPath (Join-Path $projectRoot 'infra/keycloak/realm-template.json')
+$realm = Get-Content -Raw -Encoding UTF8 -LiteralPath (Join-Path $projectRoot 'infra/keycloak/realm-template.json')
 $demoPassword = if ($env:DEMO_PASSWORD) {
     $env:DEMO_PASSWORD
 } elseif ($settings['DEMO_PASSWORD']) {
@@ -32,6 +32,7 @@ $demoPassword = if ($env:DEMO_PASSWORD) {
 } else {
     'DemoClinic'
 }
+$realm = $realm.Replace('"registrationAllowed": false', '"registrationAllowed": true')
 $realm = $realm.Replace('"__DEMO_PASSWORD__"', (ConvertTo-Json -InputObject $demoPassword -Compress))
 [IO.File]::WriteAllText((Join-Path $runtime 'clinic-realm.json'), $realm, (New-Object Text.UTF8Encoding $false))
 Write-Output 'Local environment and demo realm ready. Secrets are stored in ignored .env.'

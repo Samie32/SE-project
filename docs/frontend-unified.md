@@ -21,6 +21,20 @@ FE: `http://localhost:5173`. Vite proxy `/api` tới `API_PROXY_TARGET`, mặc �
 
 Không cần copy `.env` nếu dùng toàn bộ giá trị mặc định. Khi đã có `.env` riêng, giữ cấu hình hiện có và đối chiếu các cờ BACKEND; không ghi đè máy móc. `VITE_BACKEND_*` mặc định true vì BE đã có API. Đặt false chỉ để tắt một chức năng; không tạo dữ liệu giả khi tắt.
 
+## Đăng ký tài khoản bệnh nhân
+
+Chọn **Tạo tài khoản** dưới nút đăng nhập. Keycloak lưu email, họ tên và các thông tin tự nguyện trong hồ sơ danh tính. Khi tài khoản đăng nhập lần đầu, backend cấp vai trò `PATIENT` qua luồng xác thực hiện có. Bản local cho phép đăng ký và đăng nhập ngay bằng email.
+
+`setup-local.ps1` bật đăng ký trong cấu hình dùng để tạo realm local. Với realm local đã chạy trước đó, đợi Keycloak sẵn sàng rồi cập nhật tại chỗ:
+
+```powershell
+.\scripts\apply-login-theme.ps1 -EnableRegistration
+# Nếu đang dùng project Compose riêng:
+.\scripts\apply-login-theme.ps1 -ProjectName clinic-telehealth-integration -EnableRegistration
+```
+
+Chạy lệnh tương ứng với project đang dùng. Với bản dùng ngoài môi trường thử nghiệm, nhóm cần quyết định cấu hình xác minh email và SMTP trước khi mở đăng ký công khai.
+
 ## Chạy Docker
 
 ```powershell

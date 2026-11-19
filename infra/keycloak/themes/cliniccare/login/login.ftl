@@ -55,6 +55,9 @@
         <input type="hidden" name="credentialId" <#if auth.selectedCredential?has_content>value="${auth.selectedCredential}"</#if>>
         <button id="kc-login" name="login" type="submit">Đăng nhập <@icon kind="arrow" /></button>
       </form>
+      <#if realm.registrationAllowed && !registrationDisabled??>
+        <p class="account-link"><a href="${url.registrationUrl}">Tạo tài khoản</a></p>
+      </#if>
       </#if>
     </div>
   </section>
