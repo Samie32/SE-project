@@ -1,16 +1,17 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
 import { UserX } from "lucide-react";
-import { progressAppointment } from "@/api/appointments";
+import { progressAppointment, type NoShowFollowUp } from "@/api/appointments";
 import { useCommand } from "@/core/useCommand";
 import { config } from "@/core/config";
 import { errorMessage } from "@/core/client";
 import { useNow } from "@/core/useAsync";
 import { canMarkNoShow, dayKey, inJoinWindow, todayKey } from "@/core/datetime";
-import { APPOINTMENT_STATUS, MODE_SHORT } from "@/core/labels";
+import { APPOINTMENT_STATUS, MODE_SHORT, NO_SHOW_REASON } from "@/core/labels";
 import type { Appointment, AppointmentStatus } from "@/core/types";
-import { AsyncBlock, ConfirmDialog, Empty, Notice, PageHead, Panel, Tabs, useToast } from "@/ui";
+import { AsyncBlock, Empty, Notice, PageHead, Panel, Tabs, useToast } from "@/ui";
 import { AppointmentRow } from "../shared/AppointmentRow";
+import { NoShowDialog } from "../shared/NoShowDialog";
 import { useDoctor } from "./DoctorContext";
 
 type Tab = "today" | "upcoming" | "past";
@@ -31,10 +32,18 @@ export function DoctorAppointmentsPage() {
   const rows = appointments.filter((a) => inTab(a) && (!status || a.status === status) && (!mode || a.mode === mode))
     .sort((a, b) => (tab === "past" ? b.startAt.localeCompare(a.startAt) : a.startAt.localeCompare(b.startAt)));
 
-  const doNoShow = async () => {
+  const doNoShow = async (followUp: NoShowFollowUp) => {
     if (!noShow) return;
     setBusy(true); setErr("");
-    try { await command(`progress:${noShow.id}`, {targetStatus:"NO_SHOW",version:noShow.version}, key => progressAppointment(noShow.id, "NO_SHOW", noShow.version, key)); toast.success("Đã ghi nhận vắng mặt."); setNoShow(null); await reload(); }
+    try {
+      await command(`progress:${noShow.id}`, { version: noShow.version, ...followUp },
+        key => progressAppointment(noShow.id, "NO_SHOW", noShow.version, key, followUp));
+      toast.success(followUp.sendRebookingEmail
+        ? "Đã ghi nhận vắng mặt và đưa email vào hàng chờ gửi."
+        : "Đã ghi nhận vắng mặt.");
+      setNoShow(null);
+      await reload();
+    }
     catch (e) { setErr(errorMessage(e)); } finally { setBusy(false); }
   };
 
@@ -50,6 +59,7 @@ export function DoctorAppointmentsPage() {
         {a.mode === "REMOTE" && a.status === "CONFIRMED" && canMarkNoShow(a.startAt, now) && config.backend.progress && (
           <button className="btn sm danger" onClick={() => { setNoShow(a); setErr(""); }}><UserX size={14} aria-hidden /> Vắng mặt</button>
         )}
+        {a.status === "NO_SHOW" && <span className="muted">{a.noShowReason ? NO_SHOW_REASON[a.noShowReason] : "Chưa rõ lý do"}</span>}
       </>
     );
   };
@@ -68,7 +78,8 @@ export function DoctorAppointmentsPage() {
           {rows.length === 0 ? <Empty title="Không có lịch hẹn" /> : <div className="list">{rows.map((a) => <AppointmentRow key={a.id} item={a} subject="patient" actions={actions(a)} />)}</div>}
         </AsyncBlock>
       </Panel>
-      {noShow && <ConfirmDialog title="Ghi nhận vắng mặt?" danger confirmLabel="Ghi nhận" busy={busy} error={err} message="Lịch khám từ xa sẽ chuyển sang “Vắng mặt”. Chỉ thực hiện từ giờ hẹn + 15 phút." onCancel={() => setNoShow(null)} onConfirm={() => void doNoShow()} />}
+      {noShow && <NoShowDialog appointment={noShow} busy={busy} error={err}
+        onCancel={() => setNoShow(null)} onConfirm={(followUp) => void doNoShow(followUp)} />}
     </>
   );
 }

@@ -4189,6 +4189,127 @@
           }
         }
       }
+    },
+    "/patient-accounts/{id}": {
+      "get": {
+        "tags": [
+          "auth-controller"
+        ],
+        "operationId": "patientAccount",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/PatientAccount"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/patient-accounts/{id}/access": {
+      "put": {
+        "tags": [
+          "auth-controller"
+        ],
+        "operationId": "updatePatientAccount",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PatientAccountAccessUpdate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/PatientAccount"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/appointments/{id}/delay-notice": {
+      "post": {
+        "tags": [
+          "clinical-controller"
+        ],
+        "operationId": "delayNotice",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DelayNotice"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
@@ -5806,25 +5927,30 @@
         "properties": {
           "targetStatus": {
             "type": "string",
-            "enum": [
-              "IN_PROGRESS",
-              "COMPLETED",
-              "NO_SHOW"
-            ]
+            "minLength": 1
           },
           "version": {
             "type": "integer",
+            "format": "int32",
             "minimum": 0
+          },
+          "noShowReason": {
+            "type": "string",
+            "enum": [
+              "PATIENT_ABSENT",
+              "COULD_NOT_CONTACT",
+              "TECHNICAL_ISSUE",
+              "OTHER"
+            ]
+          },
+          "sendRebookingEmail": {
+            "type": "boolean"
           }
         },
         "required": [
           "targetStatus",
           "version"
-        ],
-        "example": {
-          "targetStatus": "IN_PROGRESS",
-          "version": 1
-        }
+        ]
       },
       "Skip": {
         "type": "object",
@@ -6050,6 +6176,58 @@
           "kind": "ICE",
           "payload": "{\"candidate\":\"synthetic-example\"}"
         }
+      },
+      "PatientAccount": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "displayName": {
+            "type": "string"
+          },
+          "active": {
+            "type": "boolean"
+          }
+        }
+      },
+      "PatientAccountAccessUpdate": {
+        "type": "object",
+        "properties": {
+          "active": {
+            "type": "boolean"
+          },
+          "reason": {
+            "type": "string",
+            "enum": [
+              "SECURITY_REVIEW",
+              "POLICY_REVIEW",
+              "PATIENT_REQUEST"
+            ]
+          }
+        },
+        "required": [
+          "active",
+          "reason"
+        ]
+      },
+      "DelayNotice": {
+        "type": "object",
+        "properties": {
+          "version": {
+            "type": "integer",
+            "format": "int32",
+            "minimum": 0
+          },
+          "estimatedStartAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "version"
+        ]
       }
     },
     "securitySchemes": {

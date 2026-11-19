@@ -1,5 +1,10 @@
 package com.clinic.auth;
 
+import com.clinic.common.Problem;
+import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.databind.JsonNode;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.*;
 import java.util.*;
@@ -40,6 +45,44 @@ public class AuthController {
       @RequestParam(defaultValue = "") String role,
       @RequestParam(required = false) Boolean active) {
     return access.users(access.actor(jwt), limit, offset, q, role, active);
+  }
+
+  @GetMapping("/patient-accounts/{id}")
+  public Access.PatientAccount patientAccount(
+      @AuthenticationPrincipal Jwt jwt,
+      @Parameter(schema = @Schema(type = "string", format = "uuid")) @PathVariable String id) {
+    return access.patientAccount(access.actor(jwt), accountId(id));
+  }
+
+  public record PatientAccountAccessUpdate(
+      @NotNull Boolean active, @NotNull Access.PatientAccountReason reason) {
+    @JsonCreator(mode = JsonCreator.Mode.DELEGATING)
+    public static PatientAccountAccessUpdate fromJson(JsonNode body) {
+      if (!body.path("active").isBoolean() || !body.path("reason").isTextual()) {
+        throw new IllegalArgumentException("Expected an access state and a reason code");
+      }
+      return new PatientAccountAccessUpdate(body.path("active").booleanValue(),
+          Access.PatientAccountReason.valueOf(body.path("reason").textValue()));
+    }
+  }
+
+  @PutMapping("/patient-accounts/{id}/access")
+  public Access.PatientAccount updatePatientAccount(
+      @AuthenticationPrincipal Jwt jwt,
+      @Parameter(schema = @Schema(type = "string", format = "uuid")) @PathVariable String id,
+      @Valid @RequestBody PatientAccountAccessUpdate body) {
+    return access.updatePatientAccount(access.actor(jwt), accountId(id), body.active(), body.reason());
+  }
+
+  private static UUID accountId(String id) {
+    UUID uuid;
+    try {
+      uuid = UUID.fromString(id);
+    } catch (IllegalArgumentException invalid) {
+      throw new Problem(400, "Invalid request");
+    }
+    Problem.require(uuid.toString().equalsIgnoreCase(id), 400, "Invalid request");
+    return uuid;
   }
 
   public record Staff(@NotNull UUID subject, @NotBlank @Size(max = 255) String username,

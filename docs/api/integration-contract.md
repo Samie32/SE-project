@@ -1,6 +1,6 @@
 # Hợp đồng tích hợp BE–FE 1.0.0
 
-Chốt ngày **16/11/2026** (cập nhật ngày **19/11/2026**) theo yêu cầu thống nhất BE với frontend gộp. Baseline backend: `main` tại `a04dcb1`. Phạm vi hiện tại: chín phân hệ, **56 thao tác trên 45 đường dẫn**. Hợp đồng này là chuẩn để triển khai tiếp, không phải biên bản nghiệm thu.
+Chốt ngày **16/11/2026** (cập nhật ngày **19/11/2026**) theo yêu cầu thống nhất BE với frontend gộp. Baseline backend: `main` tại `a04dcb1`. Phạm vi hiện tại: chín phân hệ, **59 thao tác trên 48 đường dẫn**. Hợp đồng này là chuẩn để triển khai tiếp, không phải biên bản nghiệm thu.
 
 ## 1. Nguồn chuẩn và quy tắc thay đổi
 
@@ -28,6 +28,8 @@ Khi thay tên trường, endpoint, mã thành công hoặc điều kiện quyề
 `id` trong `/me` là user ID nội bộ. Không giả định nó luôn bằng patient ID hoặc doctor ID. `GET /users` dành cho quản trị và chỉ trả tài khoản nhân sự. Tham số `q` tìm theo username hoặc tên hiển thị. Có thể lọc theo `role` (gồm `UNASSIGNED`) và `active`. Mỗi dòng trả vai trò hiện tại, `doctorId` nếu đã có hồ sơ bác sĩ và `username` nếu đã có định danh. Quyền đọc bệnh án và vào phòng từ xa vẫn theo vai trò và quan hệ với lần khám. HTTPS là yêu cầu triển khai ngoài local. HTTP ở bảng trên chỉ dùng phát triển.
 
 **Thêm nhân sự** gọi `POST /staff/provision` để tạo tài khoản Keycloak, cấp vai trò trong ClinicCare và tạo hồ sơ bác sĩ kèm chuyên khoa nếu chọn vai trò `DOCTOR`. Người dùng đổi mật khẩu tạm thời khi đăng nhập lần đầu. Hồ sơ bác sĩ mới chờ bật nhận lịch. `POST /staff` giữ luồng liên kết định danh Keycloak đã tạo cho trình nạp dữ liệu. `PUT /staff/{id}` cập nhật họ tên và trạng thái truy cập ClinicCare. Phải ngừng nhận lịch trước khi thu hồi quyền bác sĩ hoặc vô hiệu hóa tài khoản. Tài khoản bệnh nhân độc lập giữ nguyên lịch sử.
+
+**Tra cứu tài khoản bệnh nhân** dùng GET `/patient-accounts/{id}` với mã nội bộ chính xác. PUT `/patient-accounts/{id}/access` nhận `active` và `reason` (`SECURITY_REVIEW`, `POLICY_REVIEW`, `PATIENT_REQUEST`). Hai API chỉ dành cho quản trị và trả `id`, `displayName`, `active`. Khi khóa, backend chặn truy cập ngay cả nếu token đang dùng còn hạn. Gửi lại cùng trạng thái giữ nguyên tài khoản và không tạo thêm audit thay đổi.
 
 ## 3. Dữ liệu, danh sách và lỗi
 
@@ -88,6 +90,8 @@ Tạo/sửa danh mục, lịch làm/nghỉ, contact và role không dùng key tr
 8. Bác sĩ POST progress `{targetStatus:"IN_PROGRESS",version}` có key; cần CHECKED_IN và ticket CALLED. Tạo encounter, chuyển lịch IN_PROGRESS và ticket IN_SERVICE nguyên tử. Đã check-in đúng giờ vẫn được bắt đầu khám sau start+15 phút.
 9. Hoàn tất: lưu record FINAL trước; progress `{targetStatus:"COMPLETED",version}` cập nhật encounter, appointment, queue nguyên tử. FINAL không tự hoàn tất ca.
 10. NO_SHOW chỉ CONFIRMED từ start+15 phút: RECEPTIONIST cho trực tiếp, DOCTOR phụ trách cho từ xa; không dùng NO_SHOW cho người đã check-in.
+    Có thể gửi thêm `noShowReason` (`PATIENT_ABSENT`, `COULD_NOT_CONTACT`, `TECHNICAL_ISSUE`, `OTHER`) và `sendRebookingEmail`. Bỏ trống lý do nghĩa là chưa rõ. Nội dung email không đưa lý do nội bộ.
+11. POST `/appointments/{id}/delay-notice` dành cho lễ tân, nhận `version`, `estimatedStartAt` (tùy chọn) và header `Idempotency-Key`. Lịch phải cùng ngày theo giờ Việt Nam và đang chờ. Lịch CONFIRMED chỉ nhận thông báo trước mốc giờ hẹn +15 phút; CHECKED_IN vẫn có thể nhận khi còn chờ. Giờ dự kiến phải sau giờ hẹn và thời điểm gửi yêu cầu, trong cùng ngày. Không đổi giờ hẹn hay phiên bản. Mỗi phiên bản chỉ có một tác vụ báo chậm.
 
 ## 6. Bệnh án và đơn thuốc
 
@@ -114,7 +118,7 @@ Patient chỉ đọc FINAL/ISSUED của mình. DOCTOR phụ trách đọc draft 
 - GET `/audit-events` chỉ AUDITOR; filter `from` inclusive, `to` exclusive, `actorId`, `resourceId`, limit/offset. Lọc đến hết một ngày dùng `to` bằng 00:00 ngày kế tiếp theo giờ Việt Nam rồi đổi UTC; không dùng 23:59 làm mất dữ liệu cuối ngày.
 - Audit dùng **createdAt**; `actorType=SYSTEM` có `actorId=null`, `actorLabel` chỉ dịch vụ. Không có PHI/token trong audit.
 - Ghi audit nghiệp vụ cùng transaction; đọc dữ liệu nhạy cảm chỉ trả khi audit lưu được. Theo AC-23, backend ghi sự kiện DENIED khi người ngoài bị chặn vào phòng. Audit này được lưu qua giao dịch riêng.
-- Notification-jobs cho lễ tân/quản trị, status `PENDING/PROCESSING/SENT/SKIPPED/FAILED`; eventType `BOOKED/RESCHEDULED/CANCELLED/REMINDER`. `attempts` là số lần gửi thất bại, không phải tổng lượt gửi. SENT là SMTP chấp nhận, không xác nhận người nhận đã đọc.
+- Notification-jobs cho lễ tân/quản trị, status `PENDING/PROCESSING/SENT/SKIPPED/FAILED`; eventType `BOOKED/RESCHEDULED/CANCELLED/REMINDER/DELAY_NOTICE/NO_SHOW_REBOOKING`. `attempts` là số lần gửi thất bại, không phải tổng lượt gửi. SENT là SMTP chấp nhận, không xác nhận người nhận đã đọc.
 - Nhắc trước 30 phút; lịch đặt dưới 30 phút chỉ có xác nhận; retry thêm 1/5/15 phút, bỏ tác vụ sai version/trạng thái. Email local dùng Mailpit.
 
 ## 8. Telehealth và WebRTC

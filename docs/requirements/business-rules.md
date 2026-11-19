@@ -20,6 +20,9 @@ Các quy tắc xác định điều kiện xử lý và ràng buộc nghiệp v�
 | BR-14 | Chỉ bệnh nhân của lịch và bác sĩ được phân công được vào phiên từ xa đang hợp lệ; mã truy cập có thời hạn ngắn, gắn với phiên khám và người tham gia | M09 |
 | BR-15 | Mất luồng âm thanh, hình ảnh không tự hoàn tất khám. Kết thúc phiên và hoàn tất lần khám là hai hành động riêng, có kiểm tra quyền/trạng thái | M09/M05 |
 | BR-16 | Nhật ký của thao tác ghi được lưu trong cùng giao dịch dữ liệu. Đối với thao tác đọc dữ liệu nhạy cảm, nhật ký phải được lưu thành công trước khi trả dữ liệu; lỗi ghi nhật ký được phản hồi bằng lỗi dịch vụ | M07 |
+| BR-17 | Báo chậm giữ giờ hẹn chính thức và chỉ gửi cho lịch đủ điều kiện còn chờ. Mỗi phiên bản có tối đa một tác vụ. Khi gửi, bỏ tác vụ đã lỗi thời hoặc lịch không còn đủ điều kiện. | M06 |
+| BR-18 | Giữ quyền và mốc ghi nhận vắng theo BR-08. Lý do dùng mã định sẵn, có trường hợp chưa rõ. Email mời đặt lại là tùy chọn. Vắng hẹn giữ nguyên quyền truy cập tài khoản. | M04/M06 |
+| BR-19 | Chỉ quản trị được tra cứu đúng mã và khóa/mở tài khoản bệnh nhân. Màn hình mặc định trống. Quyền này giới hạn ở quyền truy cập tài khoản; các quy tắc xem bệnh án vẫn áp dụng. Thao tác giữ lịch sử nghiệp vụ, yêu cầu lý do và ghi audit. Backend chặn tài khoản bị khóa ngay cả khi token đang dùng còn hạn. | M01/M07 |
 
 ## Đồng bộ vòng đời
 

@@ -19,6 +19,27 @@ public class NotificationStore {
     this.audit = audit;
   }
 
+  public String enqueue(String appointmentId, int version, String event, Instant estimatedStartAt) {
+    String id = Db.id();
+    db.update(
+        "INSERT INTO notification_job(id,appointment_id,appointment_version,event_type,due_at,estimated_start_at)"
+            + " VALUES(?,?,?,?,?,?)",
+        id,
+        appointmentId,
+        version,
+        event,
+        clock.instant(),
+        estimatedStartAt);
+    return id;
+  }
+
+  public Map<String, Object> detail(String id) {
+    return db.one(
+        "SELECT id,appointment_id,appointment_version,event_type,status,attempts,last_error,due_at,"
+            + " estimated_start_at FROM notification_job WHERE id=?",
+        id);
+  }
+
   @Transactional
   public Map<String, Object> claim() {
     var rows =

@@ -830,7 +830,132 @@ class SchedulingIntegrationTest {
     when(clock.instant()).thenReturn(start.plusSeconds(900));
     conflict(() -> workflow.checkIn(receptionist, a));
     assertEquals("NO_SHOW", workflow.progress(receptionist, a, "NO_SHOW", 0).get("status"));
+    assertEquals(0, db.count(
+        "SELECT COUNT(*) FROM notification_job WHERE appointment_id=? AND event_type='NO_SHOW_REBOOKING'", a));
     conflict(() -> workflow.progress(receptionist, a, "NO_SHOW", 1));
+  }
+
+  @Test
+  void receptionistDelayNoticeKeepsOriginalBookingAndOnlyEnqueuesOnce() throws Exception {
+    String appointment = id(appointments.book(patient, slot1, key()));
+    var receptionist = staffJwt(actor("RECEPTIONIST"));
+    String requestKey = key();
+    String path = "/api/appointments/" + appointment + "/delay-notice";
+    String payload = """
+        {"version":0,"estimatedStartAt":"2030-01-08T02:30:00Z"}
+        """;
+    mvc.perform(post(path).with(receptionist).header("Idempotency-Key", requestKey)
+            .contentType("application/json").content(payload))
+        .andExpect(status().isConflict());
+    when(clock.instant()).thenReturn(start.minusSeconds(60));
+    mvc.perform(post(path).with(staffJwt(doctor)).header("Idempotency-Key", key())
+            .contentType("application/json").content(payload))
+        .andExpect(status().isForbidden());
+    String response = mvc.perform(post(path).with(receptionist).header("Idempotency-Key", requestKey)
+            .contentType("application/json").content(payload))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.eventType").value("DELAY_NOTICE"))
+        .andExpect(jsonPath("$.status").value("PENDING"))
+        .andReturn().getResponse().getContentAsString();
+    mvc.perform(post(path).with(receptionist).header("Idempotency-Key", requestKey)
+            .contentType("application/json").content(payload))
+        .andExpect(status().isOk()).andExpect(content().json(response));
+    mvc.perform(post(path).with(receptionist).header("Idempotency-Key", key())
+            .contentType("application/json").content(payload))
+        .andExpect(status().isConflict());
+    var row = workflow.detail(actor("RECEPTIONIST"), appointment);
+    assertEquals(start, Db.instant(row, "startAt"));
+    assertEquals(0, row.get("version"));
+    assertEquals("CONFIRMED", row.get("status"));
+    var job = claimForDelivery(appointment, "DELAY_NOTICE");
+    worker.deliver(job);
+    verify(mail).send(argThat((SimpleMailMessage message) ->
+        "test@example.test".equals(message.getTo()[0])
+            && message.getText().contains("09:00") && message.getText().contains("09:30")));
+    assertEquals("SENT", db.one("SELECT status FROM notification_job WHERE id=?", id(job)).get("status"));
+  }
+
+  @Test
+  void delayNoticeSkipsSupersededVersionAndAllowsPatientsStillWaiting() throws Exception {
+    var receptionist = actor("RECEPTIONIST");
+    String appointment = id(appointments.book(patient, slot1, key()));
+    String path = "/api/appointments/" + appointment + "/delay-notice";
+    when(clock.instant()).thenReturn(start);
+    mvc.perform(post(path).with(staffJwt(receptionist)).header("Idempotency-Key", key())
+            .contentType("application/json").content("{\"version\":0}"))
+        .andExpect(status().isOk());
+    var stale = claimForDelivery(appointment, "DELAY_NOTICE");
+    workflow.checkIn(receptionist, appointment);
+    worker.deliver(stale);
+    assertEquals(
+        "SKIPPED",
+        db.one("SELECT status FROM notification_job WHERE id=?", id(stale)).get("status"));
+    verifyNoInteractions(mail);
+    when(clock.instant()).thenReturn(start.plusSeconds(1200));
+    mvc.perform(post(path).with(staffJwt(receptionist)).header("Idempotency-Key", key())
+            .contentType("application/json").content("{\"version\":1}"))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.appointmentVersion").value(1));
+    conflict(() -> workflow.progress(receptionist, appointment, "NO_SHOW", 1));
+  }
+
+  @Test
+  void noShowPersistsReasonAndQueuesOptionalRebookingInOneCommand() throws Exception {
+    String appointment = id(appointments.book(patient, slot1, key()));
+    when(clock.instant()).thenReturn(start.plusSeconds(900));
+    String requestKey = key();
+    String path = "/api/appointments/" + appointment + "/progress";
+    String payload = """
+        {"targetStatus":"NO_SHOW","version":0,"noShowReason":"COULD_NOT_CONTACT","sendRebookingEmail":true}
+        """;
+    var receptionist = staffJwt(actor("RECEPTIONIST"));
+    for (int attempt = 0; attempt < 2; attempt++) {
+      mvc.perform(post(path).with(receptionist).header("Idempotency-Key", requestKey)
+              .contentType("application/json").content(payload))
+          .andExpect(status().isOk())
+          .andExpect(jsonPath("$.status").value("NO_SHOW"))
+          .andExpect(jsonPath("$.noShowReason").value("COULD_NOT_CONTACT"));
+    }
+    assertEquals(1, db.count(
+        "SELECT COUNT(*) FROM notification_job WHERE appointment_id=? AND event_type='NO_SHOW_REBOOKING'",
+        appointment));
+    assertEquals("COULD_NOT_CONTACT", db.one("SELECT no_show_reason FROM appointment WHERE id=?", appointment)
+        .get("noShowReason"));
+    mvc.perform(get("/api/appointments/" + appointment).with(staffJwt(patient)))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.noShowReason").doesNotHaveJsonPath());
+    var job = claimForDelivery(appointment, "NO_SHOW_REBOOKING");
+    worker.deliver(job);
+    verify(mail).send(argThat((SimpleMailMessage message) ->
+        message.getText().contains("đặt lịch mới") && !message.getText().contains("COULD_NOT_CONTACT")));
+  }
+
+  private org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.JwtRequestPostProcessor
+      staffJwt(Access.Actor actor) {
+    return jwt().jwt(j -> j.subject(actor.id()).issuer("http://localhost:8180/realms/clinic"));
+  }
+
+  @Test
+  void noShowFollowUpRejectsNumericReasonAndStringOptIn() throws Exception {
+    String appointment = id(appointments.book(patient, slot1, key()));
+    when(clock.instant()).thenReturn(start.plusSeconds(900));
+    var receptionist = staffJwt(actor("RECEPTIONIST"));
+    String path = "/api/appointments/" + appointment + "/progress";
+    for (String malformed : List.of("\"noShowReason\":0", "\"sendRebookingEmail\":\"true\"")) {
+      mvc.perform(post(path).with(receptionist).header("Idempotency-Key", key())
+              .contentType("application/json")
+              .content("{\"targetStatus\":\"NO_SHOW\",\"version\":0," + malformed + "}"))
+          .andExpect(status().isBadRequest());
+    }
+    assertEquals("CONFIRMED", db.one("SELECT status FROM appointment WHERE id=?", appointment).get("status"));
+  }
+
+  private Map<String, Object> claimForDelivery(String appointment, String event) {
+    var job = db.one("SELECT * FROM notification_job WHERE appointment_id=? AND event_type=?", appointment, event);
+    String lease = key();
+    job.put("leaseToken", lease);
+    db.update("UPDATE notification_job SET status='PROCESSING',lease_token=? WHERE id=?", lease, id(job));
+    return job;
   }
 
   @Test

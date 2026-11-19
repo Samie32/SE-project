@@ -51,3 +51,9 @@ Nhãn trường dữ liệu và thông báo lỗi được trình bày rõ ràng
 - Màn hình tiếp đón cho phép bệnh nhân đã check-in đúng giờ tiếp tục chờ sau start +15 phút; không hiển thị thao tác NO_SHOW cho CHECKED_IN.
 - Phiên CANCELLED do lịch NO_SHOW hiển thị lý do không thể tham gia. Phiên ACTIVE/RECONNECTING vẫn cho phép đúng người kết nối lại sau cửa sổ tham gia ban đầu.
 - Khi dịch vụ ngoài chưa xác nhận đóng phòng, giao diện phân biệt trạng thái phiên đã kết thúc trong hệ thống và tác vụ thu hồi đang xử lý.
+
+## Giao diện xử lý lịch và tài khoản
+
+- Bảng tiếp đón có thao tác **Báo chậm giờ** cho lịch đang chờ, nhập giờ dự kiến nếu cần. Sau xác nhận, hệ thống hiển thị kết quả đưa thông báo vào hàng đợi.
+- Khi ghi vắng hẹn, người phụ trách có thể chọn lý do và bật gửi email mời đặt lại. Giao diện chỉ hiện thao tác khi đủ điều kiện.
+- Màn hình quản trị tài khoản bệnh nhân mặc định không có kết quả. Khi nhập đúng mã, màn hình hiện mã, tên hiển thị và trạng thái. Khóa hoặc mở khóa dùng hộp thoại xác nhận có chọn lý do.

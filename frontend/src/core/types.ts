@@ -51,6 +51,8 @@ export type AppointmentStatus =
   | "CANCELLED"
   | "NO_SHOW";
 
+export type NoShowReason = "PATIENT_ABSENT" | "COULD_NOT_CONTACT" | "TECHNICAL_ISSUE" | "OTHER";
+
 export interface Appointment {
   id: string;
   patientId: string;
@@ -62,6 +64,7 @@ export interface Appointment {
   status: AppointmentStatus;
   version: number;
   cancellationReason?: string | null;
+  noShowReason?: NoShowReason | null;
   /** Có sau khi bắt đầu khám (hợp đồng thiết kế). */
   encounterId?: string | null;
 }
@@ -99,11 +102,13 @@ export interface TimeOff {
 export interface NotificationJob {
   id: string;
   appointmentId: string;
+  appointmentVersion?: number;
   eventType: string;
   status: string;
   attempts: number;
   lastError: string | null;
   dueAt: string;
+  estimatedStartAt?: string | null;
 }
 
 // ---------- Hợp đồng tích hợp 1.0.0 ----------

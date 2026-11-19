@@ -1,8 +1,10 @@
 package com.clinic.clinical;
 
+import com.clinic.appointment.AppointmentDelayPolicy;
 import com.clinic.audit.Audit;
 import com.clinic.auth.Access;
 import com.clinic.common.*;
+import com.clinic.notification.NotificationStore;
 import java.time.*;
 import java.util.*;
 import org.springframework.stereotype.Service;
@@ -15,12 +17,15 @@ public class WorkflowService {
   private final CareAccess care;
   private final Audit audit;
   private final Clock clock;
+  private final NotificationStore notifications;
 
-  public WorkflowService(Db db, CareAccess care, Audit audit, Clock clock) {
+  public WorkflowService(
+      Db db, CareAccess care, Audit audit, Clock clock, NotificationStore notifications) {
     this.db = db;
     this.care = care;
     this.audit = audit;
     this.clock = clock;
+    this.notifications = notifications;
   }
 
   public Map<String, Object> checkIn(Access.Actor actor, String id) {
@@ -125,12 +130,56 @@ public class WorkflowService {
     return db.one("SELECT * FROM queue_ticket WHERE id=?", id);
   }
 
+  public Map<String, Object> delayNotice(
+      Access.Actor actor, String id, int version, Instant estimatedStartAt) {
+    actor.require("RECEPTIONIST");
+    var appointment = care.lockAppointment(id);
+    care.version(appointment, version);
+    Instant start = Db.instant(appointment, "startAt"), now = clock.instant();
+    Problem.require(
+        AppointmentDelayPolicy.canNotify(appointment, now), 409, "Appointment cannot receive a delay notice");
+    Problem.require(
+        estimatedStartAt == null
+            || (estimatedStartAt.isAfter(start)
+                && estimatedStartAt.isAfter(now)
+                && AppointmentDelayPolicy.sameClinicDay(start, estimatedStartAt)),
+        422,
+        "Invalid estimated appointment time");
+    Problem.require(
+        db.list(
+                "SELECT id FROM notification_job WHERE appointment_id=? AND appointment_version=?"
+                    + " AND event_type='DELAY_NOTICE' FOR SHARE",
+                id,
+                version)
+            .isEmpty(),
+        409,
+        "Delay notice already queued");
+    String job = notifications.enqueue(id, version, "DELAY_NOTICE", estimatedStartAt);
+    audit.record(actor.id(), "APPOINTMENT_DELAY_NOTICE_QUEUED", id);
+    return notifications.detail(job);
+  }
+
   public Map<String, Object> progress(Access.Actor actor, String id, String target, int version) {
+    return progress(actor, id, target, version, null, false);
+  }
+
+  public Map<String, Object> progress(
+      Access.Actor actor,
+      String id,
+      String target,
+      int version,
+      NoShowReason noShowReason,
+      boolean sendRebookingEmail) {
     var a = care.lockAppointment(id);
     boolean remote = "REMOTE".equals(a.get("mode"));
-    if ("NO_SHOW".equals(target) && !remote) actor.require("RECEPTIONIST");
+    boolean noShow = "NO_SHOW".equals(target);
+    if (noShow && !remote) actor.require("RECEPTIONIST");
     else care.doctor(actor, a);
     care.version(a, version);
+    Problem.require(
+        noShow || (noShowReason == null && !sendRebookingEmail),
+        422,
+        "Follow-up fields require NO_SHOW");
     switch (target) {
       case "NO_SHOW" -> {
         Problem.require(
@@ -194,14 +243,22 @@ public class WorkflowService {
       }
       default -> throw new Problem(422, "Invalid target status");
     }
-    db.update("UPDATE appointment SET status=?,version=version+1 WHERE id=?", target, id);
+    db.update(
+        "UPDATE appointment SET status=?,version=version+1,no_show_reason=? WHERE id=?",
+        target,
+        noShowReason == null ? null : noShowReason.name(),
+        id);
+    if (sendRebookingEmail) notifications.enqueue(id, version + 1, "NO_SHOW_REBOOKING", null);
     audit.record(actor.id(), "APPOINTMENT_" + target, id);
     return detail(actor, id);
   }
 
   public Map<String, Object> detail(Access.Actor actor, String id) {
     var a = db.one("SELECT * FROM appointment WHERE id=?", id);
-    if (!actor.has("RECEPTIONIST") && !actor.has("ADMINISTRATOR")) care.participant(actor, a);
+    if (!actor.has("RECEPTIONIST") && !actor.has("ADMINISTRATOR")) {
+      care.participant(actor, a);
+      if (!care.isDoctor(actor, a)) a.remove("noShowReason");
+    }
     var e = db.list("SELECT id FROM encounter WHERE appointment_id=?", id);
     a.put("encounterId", e.isEmpty() ? null : e.getFirst().get("id"));
     audit.record(actor.id(), "APPOINTMENT_READ", id);

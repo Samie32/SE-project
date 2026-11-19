@@ -23,6 +23,8 @@ Hệ thống phục vụ một phòng khám ngoại trú, hỗ trợ khám trự
 | M08 | Check-in và hàng đợi | Phạm vi mở rộng của đồ án |
 | M09 | Phòng video/audio và phiên khám từ xa | Khám từ xa theo định hướng đề tài; quy trình phiên khám được đặc tả trong đồ án |
 
+Các phần mở rộng gồm tra cứu theo mã và khóa/mở tài khoản bệnh nhân (M01/M07), báo chậm giờ qua email (M06) và lưu lý do vắng hẹn kèm tùy chọn mời đặt lại (M04/M06).
+
 Vai trò: bệnh nhân, bác sĩ, lễ tân, quản trị và kiểm toán viên. Kiểm toán viên có quyền tra cứu nhật ký phục vụ đối chiếu hoạt động truy cập và thay đổi dữ liệu.
 
 Ngoài phạm vi: thanh toán, bảo hiểm, kho thuốc, xét nghiệm, nội trú, cấp cứu, AI chẩn đoán/kê đơn, tích hợp EHR quốc gia, ghi âm/ghi hình, đa chi nhánh và ứng dụng mobile native.

@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it } from "vitest";
 import { api, ApiError, setFetchImpl, setTokenGetter } from "@/core/client";
 import { getMe } from "@/core/session";
-import { progressAppointment } from "@/api/appointments";
+import { progressAppointment, sendDelayNotice } from "@/api/appointments";
 import { callNext, listQueue, skipTicket, saveRecord, createPrescription, joinSession, startSession } from "@/api/operations";
 import { vi } from "vitest";
 import * as client from "@/core/client";
@@ -65,6 +65,22 @@ describe("hợp đồng API 1.0.0", () => {
     await progressAppointment("appt", "IN_PROGRESS", 1, "progress-key");
     expect(requests[0].body).toEqual({targetStatus:"IN_PROGRESS",version:1});
     expect(requests[0].headers.get("Idempotency-Key")).toBe("progress-key");
+  });
+  it("báo chậm gửi giờ dự kiến, phiên bản lịch và khóa trùng lặp", async () => {
+    const body = { version: 2, estimatedStartAt: "2030-01-08T02:30:00Z" };
+    await sendDelayNotice("appt", body, "delay-key");
+    expect(requests[0].url).toBe("/api/appointments/appt/delay-notice");
+    expect(requests[0].body).toEqual(body);
+    expect(requests[0].headers.get("Idempotency-Key")).toBe("delay-key");
+  });
+  it("ghi vắng gửi lý do và lựa chọn email cùng lần chuyển trạng thái", async () => {
+    await progressAppointment("appt", "NO_SHOW", 2, "no-show-key", {
+      noShowReason: "TECHNICAL_ISSUE", sendRebookingEmail: true,
+    });
+    expect(requests[0].body).toEqual({
+      targetStatus: "NO_SHOW", version: 2, noShowReason: "TECHNICAL_ISSUE", sendRebookingEmail: true,
+    });
+    expect(requests[0].headers.get("Idempotency-Key")).toBe("no-show-key");
   });
   it("PUT bệnh án có key và đúng body", async () => {
     const body = {version:0,content:"Bản nháp",status:"DRAFT" as const};

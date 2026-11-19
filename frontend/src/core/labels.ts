@@ -57,7 +57,16 @@ export const NOTIFICATION_EVENT: Record<string, string> = {
   RESCHEDULED: "Xác nhận đổi lịch",
   CANCELLED: "Xác nhận hủy lịch",
   REMINDER: "Nhắc lịch",
+  DELAY_NOTICE: "Báo chậm giờ hẹn",
+  NO_SHOW_REBOOKING: "Mời đặt lịch lại",
 };
+
+export const NO_SHOW_REASON = {
+  PATIENT_ABSENT: "Bệnh nhân không có mặt",
+  COULD_NOT_CONTACT: "Không liên lạc được",
+  TECHNICAL_ISSUE: "Sự cố kỹ thuật",
+  OTHER: "Lý do khác",
+} as const;
 
 export const shortId = (id: string | null | undefined) => (id ? id.slice(0, 8) : "—");
 /** Mã hiển thị cho lịch hẹn / bệnh nhân (backend không trả tên bệnh nhân). */

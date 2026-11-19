@@ -158,6 +158,7 @@ AND (doctor_id=? OR patient_id=?) AND start_at<? AND end_at>?
   private Map<String, Object> finish(
       Access.Actor actor, String id, String event, String operation, String key) {
     var result = db.one("SELECT * FROM appointment WHERE id=?", id);
+    result.remove("noShowReason");
     audit.record(actor.id(), "APPOINTMENT_" + event, id);
     // This durable job is the transactional outbox for week-4 confirmation emails.
     db.update(
@@ -204,6 +205,7 @@ AND (doctor_id=? OR patient_id=?) AND start_at<? AND end_at>?
               patient,
               limit,
               offset);
+      rows.forEach(row -> row.remove("noShowReason"));
     }
     audit.record(actor.id(), "APPOINTMENT_LIST_READ", actor.id());
     return rows;

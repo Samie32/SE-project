@@ -1,8 +1,16 @@
 package com.clinic.clinical;
 
 import com.clinic.auth.Access;
+import com.fasterxml.jackson.annotation.JsonInclude;
+import com.fasterxml.jackson.core.JsonParser;
+import com.fasterxml.jackson.core.JsonToken;
+import com.fasterxml.jackson.databind.DeserializationContext;
+import com.fasterxml.jackson.databind.JsonDeserializer;
+import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.*;
+import java.io.IOException;
+import java.time.Instant;
 import java.time.LocalDate;
 import java.util.*;
 import org.springframework.http.ResponseEntity;
@@ -31,7 +39,24 @@ public class ClinicalController {
 
   public record Version(@NotNull @Min(0) Integer version) {}
 
-  public record Progress(@NotBlank String targetStatus, @NotNull @Min(0) Integer version) {}
+  public record DelayNotice(@NotNull @Min(0) Integer version, Instant estimatedStartAt) {}
+
+  public record Progress(
+      @NotBlank String targetStatus,
+      @NotNull @Min(0) Integer version,
+      @JsonInclude(JsonInclude.Include.NON_NULL) NoShowReason noShowReason,
+      @JsonInclude(JsonInclude.Include.NON_NULL)
+          @JsonDeserialize(using = RebookingOptInDeserializer.class)
+          Boolean sendRebookingEmail) {}
+
+  public static final class RebookingOptInDeserializer extends JsonDeserializer<Boolean> {
+    @Override
+    public Boolean deserialize(JsonParser parser, DeserializationContext context) throws IOException {
+      if (parser.hasToken(JsonToken.VALUE_TRUE)) return true;
+      if (parser.hasToken(JsonToken.VALUE_FALSE)) return false;
+      return context.reportInputMismatch(Boolean.class, "sendRebookingEmail must be a boolean");
+    }
+  }
 
   public record Skip(@NotBlank @Size(max = 1000) String reason, @NotNull @Min(0) Integer version) {}
 
@@ -85,7 +110,29 @@ public class ClinicalController {
         "PROGRESS:" + id,
         key,
         b,
-        () -> workflow.progress(actor, id.toString(), b.targetStatus(), b.version()));
+        () ->
+            workflow.progress(
+                actor,
+                id.toString(),
+                b.targetStatus(),
+                b.version(),
+                b.noShowReason(),
+                Boolean.TRUE.equals(b.sendRebookingEmail())));
+  }
+
+  @PostMapping("/appointments/{id}/delay-notice")
+  public Object delayNotice(
+      @AuthenticationPrincipal Jwt j,
+      @PathVariable UUID id,
+      @Valid @RequestBody DelayNotice b,
+      @RequestHeader("Idempotency-Key") String key) {
+    var actor = access.actor(j);
+    return commands.run(
+        actor,
+        "DELAY_NOTICE:" + id,
+        key,
+        b,
+        () -> workflow.delayNotice(actor, id.toString(), b.version(), b.estimatedStartAt()));
   }
 
   @GetMapping("/doctors/{id}/queue")

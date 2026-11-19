@@ -1,7 +1,7 @@
 import { api, qs } from "@/core/client";
 import { requireBackend } from "@/core/client";
 import { dayKey } from "@/core/datetime";
-import type { Appointment, AppointmentStatus } from "@/core/types";
+import type { Appointment, AppointmentStatus, NoShowReason, NotificationJob } from "@/core/types";
 
 export const PAGE_SIZE = 100; // tối đa của backend
 
@@ -44,6 +44,19 @@ export const rescheduleAppointment = (id: string, slotId: string, version: numbe
 export const cancelAppointment = (id: string, reason: string, version: number, key: string) =>
   api.post<Appointment>(`/appointments/${id}/cancel`, { reason, version }, key);
 
+export interface DelayNoticeInput {
+  version: number;
+  estimatedStartAt?: string;
+}
+
+export const sendDelayNotice = (id: string, input: DelayNoticeInput, key: string) =>
+  api.post<NotificationJob>(`/appointments/${id}/delay-notice`, input, key);
+
+export interface NoShowFollowUp {
+  noShowReason?: NoShowReason;
+  sendRebookingEmail?: boolean;
+}
+
 /**
  * POST /api/appointments/{id}/progress { targetStatus, version } + Idempotency-Key.
  * Bắt đầu khám trực tiếp (IN_PROGRESS), hoàn tất (COMPLETED), vắng mặt (NO_SHOW).
@@ -53,7 +66,8 @@ export async function progressAppointment(
   targetStatus: Extract<AppointmentStatus, "IN_PROGRESS" | "COMPLETED" | "NO_SHOW">,
   version: number,
   key: string,
+  followUp?: NoShowFollowUp,
 ) {
   requireBackend("progress");
-  return api.post<Appointment>(`/appointments/${id}/progress`, { targetStatus, version }, key);
+  return api.post<Appointment>(`/appointments/${id}/progress`, { targetStatus, version, ...followUp }, key);
 }

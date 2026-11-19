@@ -28,6 +28,9 @@ Trạng thái: **Chưa thực thi**. Mỗi ca kiểm thử gồm tình huống A
 | TC-22 | lịch từ xa CONFIRMED thuộc bệnh nhân trong cửa sổ tham gia; bệnh nhân mở phòng chờ | có một session và kiểm tra camera/micro trước khi tham gia | lịch trực tiếp hoặc đã hủy → từ chối tạo phòng | Chức năng / Tích hợp |
 | TC-23 | bác sĩ phụ trách và bệnh nhân đúng lịch trong phòng chờ; bác sĩ bắt đầu và hai bên tham gia | phiên ACTIVE, lịch IN_PROGRESS | người ngoài có session ID → từ chối cấp token và ghi nhật ký kiểm toán | Bảo mật / Tích hợp |
 | TC-24 | phiên ACTIVE có hồ sơ bản nháp đã lưu; mất mạng rồi nối lại trước khi kết thúc | phiên tiếp tục, hồ sơ đã lưu giữ nguyên | callback ACTIVE đến sau ENDED → bỏ callback cũ; không mở lại phiên | Chức năng / Tích hợp |
+| TC-25 | Lễ tân báo chậm rồi gửi lại, có hoặc không có giờ dự kiến | Một tác vụ, giờ và trạng thái giữ nguyên | Chặn sai vai trò, bỏ thông báo lỗi thời | Chức năng / Tích hợp |
+| TC-26 | Người phụ trách xác nhận vắng, chọn lý do và bật/tắt lời mời | Lưu lý do, email theo lựa chọn | Chặn nếu đã check-in, trước mốc hoặc sai quyền | Chức năng / Tích hợp |
+| TC-27 | Admin tra đúng mã, khóa bằng lý do, thử lại phiên cũ rồi mở khóa | Phản hồi tối thiểu, audit, thu hồi rồi khôi phục truy cập | Chặn người thường và tài khoản đích là nhân sự; không trả email hoặc bệnh án | Bảo mật / Tích hợp |
 
 ## Kiểm thử các thuộc tính chất lượng
 

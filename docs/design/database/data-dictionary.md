@@ -15,7 +15,7 @@ Mô hình dữ liệu được thiết kế cho MySQL, bao gồm các thực th�
 | Slot | id, availability_id, doctor_id, start_at, end_at, mode | bảo toàn quan hệ doctor/availability; không chồng khung giờ cùng bác sĩ |
 | ClinicHours | day_of_week, opens_at, closes_at | PK(day_of_week 1..7); giờ mở/đóng HH:mm hoặc cùng NULL khi nghỉ; M03 |
 | ClinicHoliday | id, start_date, end_date, name, closed, opens_at, closes_at | start_date <= end_date; không trùng khoảng ngày; ưu tiên trên ClinicHours khi kiểm tra mở ca; M03 |
-| Appointment | id, patient_id, doctor_id, slot_id, start_at, end_at, mode, status, version, cancellation_reason | FK; kiểm tra trùng khoảng doctor và patient; slot/doctor/mode nhất quán |
+| Appointment | id, patient_id, doctor_id, slot_id, start_at, end_at, mode, status, version, cancellation_reason, no_show_reason | FK; kiểm tra trùng khoảng doctor và patient; slot/doctor/mode nhất quán |
 | Encounter | id, appointment_id, status, version | appointment_id unique; một lần khám/lịch |
 | MedicalRecord | id, encounter_id, version, status, content_encrypted, author_id, supersedes_id, amendment_reason | UNIQUE(encounter_id,version), UNIQUE(supersedes_id); đã hoàn tất bất biến; bản bổ sung FINAL tham chiếu bản FINAL gần nhất, có lý do |
 | Prescription | id, encounter_id, author_id, status, issued_at, version | issued có thời điểm và ≥1 item |
@@ -75,3 +75,5 @@ Mô hình được biểu diễn trong [sơ đồ ERD](erd.png).
 Các giao dịch nhiều tài nguyên khóa Doctor theo ID tăng dần, tiếp đến Patient, Appointment, Encounter và các bản ghi phụ thuộc khi cần. Giao dịch chỉ thao tác một phần tài nguyên giữ nguyên thứ tự tương đối. Xung đột ràng buộc trả 409; lỗi lưu trữ/audit hoàn tác giao dịch và trả 503.
 
 ERD tổng quan được bổ sung các góc nhìn [đặt lịch](erd-scheduling.png), [lâm sàng](erd-clinical.png) và [hạ tầng dữ liệu](erd-infrastructure.png). Các góc nhìn dùng cùng định nghĩa thực thể, không phải các cơ sở dữ liệu độc lập.
+
+Thông báo báo chậm dùng trường tùy chọn `notification_job.estimated_start_at` theo UTC. Khóa duy nhất hiện thực `(appointment_id, appointment_version, event_type)` bảo đảm chỉ một tác vụ cho mỗi loại và phiên bản. `appointment.no_show_reason` là mã tùy chọn, chỉ có giá trị khi lịch ở trạng thái NO_SHOW. Quyền truy cập bệnh nhân dùng cột `user_account.active`.

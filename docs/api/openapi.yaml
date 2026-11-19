@@ -398,6 +398,47 @@ paths:
       x-requirements:
       - FR-19
       x-access: RECEPTIONIST
+  /appointments/{id}/delay-notice:
+    post:
+      tags: [M06]
+      operationId: sendDelayNotice
+      summary: Đưa email báo chậm giờ vào hàng đợi
+      x-access: RECEPTIONIST
+      x-requirements: [FR-25]
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema: {type: string, format: uuid}
+      - name: Idempotency-Key
+        in: header
+        required: true
+        schema: {type: string, minLength: 1, maxLength: 128, pattern: '^[A-Za-z0-9._:-]+$'}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DelayNotice'
+      responses:
+        '200':
+          description: Tác vụ báo chậm đã được tiếp nhận
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DelayNoticeJob'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '422':
+          $ref: '#/components/responses/Unprocessable'
   /appointments/{id}/progress:
     post:
       tags:
@@ -457,6 +498,7 @@ paths:
         cho cửa sổ thời gian, giao dịch và phân quyền tài nguyên.'
       x-requirements:
       - FR-11
+      - FR-26
       x-access: 'DOCTOR được gán; NO_SHOW trực tiếp: RECEPTIONIST'
   /appointments/{id}/reschedule:
     post:
@@ -2564,6 +2606,66 @@ paths:
       x-requirements:
       - FR-06
       x-access: DOCTOR sở hữu/ADMINISTRATOR; tương lai
+  /patient-accounts/{id}:
+    get:
+      tags: [M01]
+      operationId: getPatientAccount
+      summary: Tra cứu đúng mã tài khoản bệnh nhân
+      x-access: ADMINISTRATOR
+      x-requirements: [FR-27]
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema: {type: string, format: uuid}
+      responses:
+        '200':
+          description: Thông tin tài khoản tối thiểu
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PatientAccount'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /patient-accounts/{id}/access:
+    put:
+      tags: [M01]
+      operationId: updatePatientAccountAccess
+      summary: Khóa hoặc mở khóa tài khoản bệnh nhân
+      x-access: ADMINISTRATOR
+      x-requirements: [FR-27]
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema: {type: string, format: uuid}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatientAccountAccessUpdate'
+      responses:
+        '200':
+          description: Trạng thái truy cập hiện tại
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PatientAccount'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
   /users:
     get:
       tags:
@@ -3199,6 +3301,10 @@ components:
           - string
           - 'null'
           maxLength: 1000
+        noShowReason:
+          type: [string, 'null']
+          enum: [PATIENT_ABSENT, COULD_NOT_CONTACT, TECHNICAL_ISSUE, OTHER, null]
+          description: Chỉ trả cho nhân viên có quyền trên lịch.
       required:
       - id
       - patientId
@@ -3260,6 +3366,10 @@ components:
           - string
           - 'null'
           format: uuid
+        noShowReason:
+          type: [string, 'null']
+          enum: [PATIENT_ABSENT, COULD_NOT_CONTACT, TECHNICAL_ISSUE, OTHER, null]
+          description: Chỉ trả cho nhân viên có quyền trên lịch.
       required:
       - id
       - patientId
@@ -3619,6 +3729,8 @@ components:
           - RESCHEDULED
           - CANCELLED
           - REMINDER
+          - DELAY_NOTICE
+          - NO_SHOW_REBOOKING
         status:
           type: string
           enum:
@@ -3636,6 +3748,9 @@ components:
           - 'null'
         dueAt:
           type: string
+          format: date-time
+        estimatedStartAt:
+          type: [string, 'null']
           format: date-time
       required:
       - id
@@ -3915,6 +4030,38 @@ components:
       example:
         reason: Thay đổi kế hoạch mô phỏng
         version: 0
+    DelayNotice:
+      type: object
+      required: [version]
+      properties:
+        version: {type: integer, minimum: 0}
+        estimatedStartAt:
+          type: [string, 'null']
+          format: date-time
+    DelayNoticeJob:
+      allOf:
+      - $ref: '#/components/schemas/NotificationJob'
+      - type: object
+        required: [appointmentVersion, estimatedStartAt]
+        properties:
+          eventType: {const: DELAY_NOTICE}
+          appointmentVersion: {type: integer, minimum: 0}
+    PatientAccount:
+      type: object
+      additionalProperties: false
+      required: [id, displayName, active]
+      properties:
+        id: {type: string, format: uuid}
+        displayName: {type: string}
+        active: {type: boolean}
+    PatientAccountAccessUpdate:
+      type: object
+      required: [active, reason]
+      properties:
+        active: {type: boolean}
+        reason:
+          type: string
+          enum: [SECURITY_REVIEW, POLICY_REVIEW, PATIENT_REQUEST]
     Progress:
       type: object
       properties:
@@ -3927,6 +4074,11 @@ components:
         version:
           type: integer
           minimum: 0
+        noShowReason:
+          type: [string, 'null']
+          enum: [PATIENT_ABSENT, COULD_NOT_CONTACT, TECHNICAL_ISSUE, OTHER, null]
+        sendRebookingEmail:
+          type: [boolean, 'null']
       required:
       - targetStatus
       - version

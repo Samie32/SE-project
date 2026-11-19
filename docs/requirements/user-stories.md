@@ -28,6 +28,9 @@ Các user story mô tả nhu cầu theo vai trò, chức năng mong muốn và g
 | US-22 | Là bệnh nhân, tôi muốn vào đúng phòng khám trực tuyến, để chuẩn bị thiết bị trước khi bác sĩ bắt đầu. | FR-22 / AC-22 | M01; lịch hợp lệ | 3 |
 | US-23 | Là bác sĩ, tôi muốn tư vấn đúng bệnh nhân trong phiên được phân công, để hai bên trao đổi từ xa trong phòng đúng lịch hẹn. | FR-23 / AC-23 | M01; lịch hợp lệ | 3 |
 | US-24 | Là bác sĩ, tôi muốn xử lý gián đoạn mà giữ hồ sơ khám, để bảo toàn thông tin đã lưu khi kết nối bị gián đoạn. | FR-24 / AC-24 | M01; lịch hợp lệ | 3 |
+| US-25 | Là lễ tân, tôi muốn báo chậm giờ để bệnh nhân chủ động sắp xếp thời gian. | FR-25 / AC-25 | M04; M06 | 4 |
+| US-26 | Là người phụ trách lịch, tôi muốn ghi lý do vắng hẹn và có thể mời bệnh nhân đặt lại. | FR-26 / AC-26 | M04; M06 | 4 |
+| US-27 | Là quản trị viên, tôi muốn tra cứu và khóa/mở đúng tài khoản bệnh nhân khi cần hỗ trợ. | FR-27 / AC-27 | M01; M07 | 4 |
 
 Các quan hệ phụ thuộc thể hiện điều kiện về dữ liệu và nghiệp vụ cần đáp ứng khi triển khai.
 

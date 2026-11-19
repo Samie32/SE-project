@@ -21,7 +21,7 @@ public class NotificationController {
   public Object list(@AuthenticationPrincipal Jwt j) {
     access.actor(j).require("RECEPTIONIST", "ADMINISTRATOR");
     return db.list(
-        "SELECT id,appointment_id,event_type,status,attempts,last_error,due_at FROM"
+        "SELECT id,appointment_id,event_type,status,attempts,last_error,due_at,estimated_start_at FROM"
             + " notification_job ORDER BY due_at DESC LIMIT 100");
   }
 }

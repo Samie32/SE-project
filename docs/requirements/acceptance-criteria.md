@@ -386,6 +386,21 @@ Scenario: Mất kết nối và kết thúc phiên - ngoại lệ
   Then bỏ callback cũ; không mở lại phiên
 ```
 
+## AC-25 — Báo chậm giờ
+
+- Lễ tân báo chậm hai lần cho cùng phiên bản lịch đủ điều kiện. Hệ thống giữ giờ và trạng thái lịch, chỉ tạo một tác vụ email. Giờ dự kiến là tùy chọn.
+- Khi lịch đổi phiên bản hoặc không còn đủ điều kiện trước lúc gửi, hệ thống bỏ thông báo cũ.
+
+## AC-26 — Vắng hẹn và lời mời đặt lại
+
+- Khi người phụ trách ghi vắng hợp lệ từ mốc 15 phút, hệ thống lưu NO_SHOW cùng lý do đã chọn. Nếu người thao tác chọn gửi email, hệ thống tạo một tác vụ mời đặt lại.
+- Hệ thống từ chối ghi vắng cho bệnh nhân đã check-in và giữ nguyên quyền truy cập tài khoản trong mọi trường hợp.
+
+## AC-27 — Tra cứu và kiểm soát quyền truy cập
+
+- Khi quản trị tra đúng mã tài khoản bệnh nhân, API chỉ trả mã, tên hiển thị và trạng thái. Từ chối người không có quyền và tài khoản đích là nhân sự.
+- Khi quản trị khóa với lý do hợp lệ, backend chặn phiên đang dùng. Khi mở khóa, quyền truy cập được khôi phục. Cả hai thao tác đều có audit và giữ nguyên lịch sử nghiệp vụ.
+
 ## Tiêu chí biên bổ sung
 
 Các điều kiện biên bổ sung cho các tiêu chí chấp nhận tương ứng:

@@ -40,7 +40,15 @@ export function AccountPage() {
         <Panel title="Thông tin tài khoản">
           <dl className="detail">
             <div><dt>Tên hiển thị</dt><dd><strong>{doctorProfile?.displayName ?? identity?.displayName ?? displayName}</strong></dd></div>
-            <div><dt>Mã tài khoản</dt><dd className="mono">{identity?.id}</dd></div>
+            <div>
+              <dt>Mã tài khoản</dt>
+              <dd>
+                <span className="mono">{identity?.id}</span>
+                {roles.includes("PATIENT") && (
+                  <div className="muted">Cung cấp mã tài khoản này khi cần phòng khám hỗ trợ đăng nhập.</div>
+                )}
+              </dd>
+            </div>
             {identity?.patientId && <div><dt>Mã bệnh nhân</dt><dd className="mono">{identity.patientId}</dd></div>}
             <div><dt>Vai trò</dt><dd className="row">{roles.map(r => <Pill key={r} tone="info">{ROLE_LABEL[r]}</Pill>)}</dd></div>
             {isDoctor && (

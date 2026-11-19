@@ -136,3 +136,11 @@ export const inCheckinWindow = (startAt: string, now = Date.now()) => {
 /** NO_SHOW từ start+15'. */
 export const canMarkNoShow = (startAt: string, now = Date.now()) =>
   now >= new Date(startAt).getTime() + 15 * MIN;
+
+export const canSendDelayNotice = (
+  appointment: { startAt: string; status: string; mode: string },
+  now = Date.now(),
+) =>
+  dayKey(appointment.startAt) === dayKey(new Date(now)) &&
+  ((appointment.status === "CONFIRMED" && !canMarkNoShow(appointment.startAt, now)) ||
+    (appointment.status === "CHECKED_IN" && appointment.mode === "IN_PERSON"));

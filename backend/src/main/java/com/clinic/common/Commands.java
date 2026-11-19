@@ -26,7 +26,7 @@ public class Commands {
       Supplier<Map<String, Object>> action) {
     String actionName = operation.split(":", 2)[0];
     switch (actionName) {
-      case "CHECKIN" -> actor.require("RECEPTIONIST");
+      case "CHECKIN", "DELAY_NOTICE" -> actor.require("RECEPTIONIST");
       case "PROGRESS", "QUEUE_NEXT", "QUEUE_SKIP" -> actor.require("DOCTOR", "RECEPTIONIST");
       case "RECORD_SAVE",
               "RECORD_AMEND",

@@ -15,6 +15,7 @@ export type Permission =
   | "doctors.manage"
   | "specialties.manage"
   | "permissions.manage"
+  | "patientAccounts.manage"
   | "schedules.manage"
   // Kiểm toán
   | "audit.view";
@@ -39,6 +40,7 @@ export const ROLE_PERMISSIONS: Record<Role, Permission[]> = {
     "doctors.manage",
     "specialties.manage",
     "permissions.manage",
+    "patientAccounts.manage",
     "schedules.manage",
     "notifications.view",
   ],

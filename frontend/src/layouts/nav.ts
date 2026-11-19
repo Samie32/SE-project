@@ -11,6 +11,7 @@ import {
   Network,
   ShieldCheck,
   UserCog,
+  UserRoundCog,
   Users,
   Video,
   BookOpenCheck,
@@ -52,6 +53,7 @@ export const NAV_ITEMS: NavItem[] = [
   { path: "/admin/schedules", label: "Lịch làm việc bác sĩ", icon: CalendarCheck, section: "QUẢN TRỊ HỆ THỐNG", permission: "schedules.manage" },
   { path: "/admin/clinic-hours", label: "Giờ hoạt động", icon: CalendarClock, section: "QUẢN TRỊ HỆ THỐNG", permission: "schedules.manage" },
   { path: "/admin/permissions", label: "Nhân sự & bác sĩ", icon: UserCog, section: "QUẢN TRỊ HỆ THỐNG", permission: "permissions.manage" },
+  { path: "/admin/patient-accounts", label: "Tài khoản bệnh nhân", icon: UserRoundCog, section: "QUẢN TRỊ HỆ THỐNG", permission: "patientAccounts.manage" },
   // Hệ thống
   { path: "/staff/notifications", label: "Trung tâm thông báo", icon: Bell, section: "HỆ THỐNG", permission: "notifications.view" },
   { path: "/audit", label: "Nhật ký kiểm toán", icon: ShieldCheck, section: "HỆ THỐNG", permission: "audit.view" },

@@ -28,3 +28,6 @@ Các yêu cầu được đặc tả theo điều kiện kích hoạt và hành 
 | FR-22 | M09 | Phạm vi cụ thể hóa hoặc mở rộng | Khi lịch từ xa còn hiệu lực đến cửa sổ tham gia, hệ thống phải tạo hoặc lấy một phiên riêng gắn lịch. |
 | FR-23 | M09 | Phạm vi cụ thể hóa hoặc mở rộng | Khi cấp quyền tham gia, hệ thống phải kiểm tra danh tính, lịch và trạng thái phiên trước cấp token ngắn hạn. |
 | FR-24 | M09 | Phạm vi cụ thể hóa hoặc mở rộng | Nếu luồng âm thanh, hình ảnh bị ngắt, hệ thống phải cho phép nối lại phiên còn mở; khi bác sĩ kết thúc phải thu hồi quyền tham gia. |
+| FR-25 | M06 | Phạm vi mở rộng | Khi lễ tân báo chậm cho lịch đủ điều kiện, hệ thống phải tạo một tác vụ email trên mỗi phiên bản lịch, kèm giờ dự kiến nếu có. Giờ hẹn và trạng thái được giữ. |
+| FR-26 | M04/M06 | Phạm vi mở rộng | Khi người phụ trách ghi nhận vắng hẹn hợp lệ, hệ thống phải lưu lý do nếu được chọn và chỉ gửi email mời đặt lại khi người thao tác yêu cầu. |
+| FR-27 | M01/M07 | Phạm vi mở rộng | Khi quản trị tra đúng mã tài khoản bệnh nhân, hệ thống chỉ được trả mã, tên hiển thị và trạng thái. Khóa hoặc mở khóa cần lý do và phải có audit. |

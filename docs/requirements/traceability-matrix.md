@@ -28,6 +28,9 @@ Ma trận thể hiện mối liên hệ giữa nguồn yêu cầu, chức năng,
 | Phạm vi cụ thể hóa hoặc mở rộng | FR-22 / M09 | US-22 / AC-22 / UC-22 / TC-22 | [remote sequence](../design/sequence-diagrams/telehealth.png), [states](../design/state-diagrams/telehealth.png) | `prepareSession`; quy tắc tầng dịch vụ | Chưa triển khai / Chưa thực thi |
 | Phạm vi cụ thể hóa hoặc mở rộng | FR-23 / M09 | US-23 / AC-23 / UC-23 / TC-23 | [remote sequence](../design/sequence-diagrams/telehealth.png), [states](../design/state-diagrams/telehealth.png) | `joinSession`, `startSession`; quy tắc tầng dịch vụ | Chưa triển khai / Chưa thực thi |
 | Phạm vi cụ thể hóa hoặc mở rộng | FR-24 / M09 | US-24 / AC-24 / UC-24 / TC-24 | [remote sequence](../design/sequence-diagrams/telehealth.png), [states](../design/state-diagrams/telehealth.png) | `endSession`; quy tắc tầng dịch vụ | Chưa triển khai / Chưa thực thi |
+| Phạm vi mở rộng | FR-25 / M06 | US-25 / AC-25 / UC-25 / TC-25 | Hàng đợi email; BR-17 | Báo chậm giờ | Kiểm thử tích hợp |
+| Phạm vi mở rộng | FR-26 / M04/M06 | US-26 / AC-26 / UC-26 / TC-26 | [Trạng thái lịch](../design/state-diagrams/appointment.png); BR-18 | Tiến trình lịch; email mời đặt lại | Kiểm thử tích hợp |
+| Phạm vi mở rộng | FR-27 / M01/M07 | US-27 / AC-27 / UC-27 / TC-27 | [Phân quyền](../design/architecture/security.md); BR-19 | Quản lý quyền truy cập tài khoản bệnh nhân | Kiểm thử tích hợp |
 
 ## Truy vết chất lượng
 

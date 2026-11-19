@@ -2,6 +2,7 @@ package com.clinic.auth;
 
 import com.clinic.audit.Audit;
 import com.clinic.common.*;
+import io.swagger.v3.oas.annotations.media.Schema;
 import java.util.*;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.stereotype.Service;
@@ -69,10 +70,7 @@ public class Access {
     } else {
       row = rows.getFirst();
     }
-    Problem.require(
-        Boolean.TRUE.equals(row.get("active")) || "1".equals(row.get("active").toString()),
-        403,
-        "Account disabled");
+    Problem.require(enabled(row.get("active")), 403, "Account disabled");
     String id = row.get("id").toString();
     if (username != null && !username.equals(row.get("username"))) {
       db.update("UPDATE user_account SET username=? WHERE id=?", username, id);
@@ -129,6 +127,49 @@ public class Access {
 
   private static boolean enabled(Object value) {
     return Boolean.TRUE.equals(value) || "1".equals(String.valueOf(value));
+  }
+
+  public record PatientAccount(@Schema(format = "uuid") String id, String displayName, boolean active) {}
+
+  public enum PatientAccountReason {
+    SECURITY_REVIEW,
+    POLICY_REVIEW,
+    PATIENT_REQUEST
+  }
+
+  @Transactional
+  public PatientAccount patientAccount(Actor actor, UUID id) {
+    var account = findPatientAccount(actor, id, false);
+    audit.record(actor.id(), "PATIENT_ACCOUNT_LOOKUP", account.id());
+    return account;
+  }
+
+  @Transactional
+  public PatientAccount updatePatientAccount(
+      Actor actor, UUID id, boolean active, PatientAccountReason reason) {
+    var account = findPatientAccount(actor, id, true);
+    if (account.active() == active) return account;
+
+    db.update("UPDATE user_account SET active=? WHERE id=?", active, account.id());
+    String action = active ? "PATIENT_ACCOUNT_UNLOCKED_" : "PATIENT_ACCOUNT_LOCKED_";
+    audit.record(actor.id(), action + reason.name(), account.id());
+    return new PatientAccount(account.id(), account.displayName(), active);
+  }
+
+  private PatientAccount findPatientAccount(Actor actor, UUID id, boolean lock) {
+    actor.require("ADMINISTRATOR");
+    var account = db.one(
+        """
+        SELECT u.id,u.display_name,u.active
+        FROM user_account u
+        WHERE u.id=? AND u.id<>? AND u.staff=FALSE
+          AND EXISTS (SELECT 1 FROM patient p WHERE p.user_id=u.id)
+          AND EXISTS (SELECT 1 FROM user_role r WHERE r.user_id=u.id AND r.role='PATIENT')
+          AND NOT EXISTS (SELECT 1 FROM user_role r WHERE r.user_id=u.id AND r.role<>'PATIENT')
+        """ + (lock ? " FOR UPDATE" : ""), id.toString(), actor.id());
+    return new PatientAccount(
+        account.get("id").toString(), account.get("displayName").toString(),
+        enabled(account.get("active")));
   }
 
   private void requireDoctorPaused(String userId) {

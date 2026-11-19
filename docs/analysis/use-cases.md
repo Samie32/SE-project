@@ -519,6 +519,14 @@ Các ca sử dụng mô tả tương tác giữa người dùng, hệ thống v�
 
 **Hậu điều kiện:** Phiên được khôi phục nếu còn mở; khi kết thúc, trạng thái là ENDED và quyền tham gia bị thu hồi. Hồ sơ đã lưu được bảo toàn.
 
+## Ca sử dụng mở rộng
+
+| Ca sử dụng | Tác nhân | Luồng và kết quả |
+|---|---|---|
+| UC-25 — Báo chậm giờ | Lễ tân | Chọn lịch đang chờ và nhập giờ dự kiến nếu có. Hệ thống kiểm tra quyền và trạng thái, rồi đưa email vào hàng đợi. Giờ hẹn giữ nguyên. |
+| UC-26 — Ghi nhận vắng hẹn | Lễ tân hoặc bác sĩ phụ trách theo hình thức khám | Từ mốc BR-08, chọn lý do nếu biết và tùy chọn gửi lời mời đặt lại. Hệ thống ghi nhận vắng hẹn và lưu tác vụ email khi được yêu cầu. |
+| UC-27 — Quản lý quyền truy cập bệnh nhân | Quản trị | Nhập chính xác mã tài khoản. Hệ thống chỉ trả định danh tối thiểu. Nếu cần khóa hoặc mở khóa, quản trị xác nhận lý do rồi hệ thống cập nhật quyền và ghi audit. |
+
 ## Điều kiện chi tiết của các luồng liên quan
 
 | Ca sử dụng | Điều kiện và kết quả bổ sung |

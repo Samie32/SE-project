@@ -55,6 +55,9 @@ const STATUS_MESSAGES: Record<number, string> = {
 
 // ProblemDetail.detail của backend → tiếng Việt.
 const DETAIL_MESSAGES: Record<string, string> = {
+  "Appointment cannot receive a delay notice": "Lịch hẹn đã qua thời hạn báo chậm hoặc không còn chờ khám.",
+  "Invalid estimated appointment time": "Chọn giờ dự kiến sau giờ hiện tại và giờ hẹn, trong cùng ngày.",
+  "Delay notice already queued": "Đã có thông báo chậm giờ cho phiên bản lịch hẹn này. Xem trạng thái gửi trong mục Thông báo.",
   "Invalid clinic hours": "Giờ đóng cửa phải sau giờ mở cửa trong cùng ngày.",
   "Clinic hours require seven distinct days": "Cần cung cấp giờ hoạt động cho cả bảy ngày trong tuần.",
   "Clinic hours conflict with an existing shift":

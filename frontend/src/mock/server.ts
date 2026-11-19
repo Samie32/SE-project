@@ -1,9 +1,11 @@
 // Backend giả lập: bám backend thật (Access, CatalogService, ScheduleService, AppointmentService)
 // và hợp đồng thiết kế openapi.yaml cho các phần chưa có. CHỈ dùng cho `npm run dev:mock`.
-import { dayKey, MIN } from "@/core/datetime";
+import { canSendDelayNotice, dayKey, MIN } from "@/core/datetime";
+import { NO_SHOW_REASON } from "@/core/labels";
 import { scheduleIntervalError, slotDurationError } from "@/core/schedule-rules";
 import { isValidClinicDay, type ClinicDayHours } from "@/core/clinic-hours";
-import { getDb, genSlots, mid, mockUsername, persist, type DB, type MAppt, type MTicket } from "./db";
+import { ACCOUNT_UUID, PATIENT_ACCOUNT_REASONS } from "@/api/patient-accounts";
+import { getDb, genSlots, mid, mockUsername, persist, type DB, type MAppt, type MNotif, type MTicket } from "./db";
 
 class P extends Error { constructor(public status: number, public detail: string) { super(detail); } }
 const need = (c: unknown, status: number, detail: string) => { if (!c) throw new P(status, detail); };
@@ -32,6 +34,8 @@ const page = <T,>(list: T[], q: URLSearchParams, def = 20): T[] => {
   return list.slice(offset, offset + limit);
 };
 const strip = (a: MAppt) => ({ ...a });
+const outPatientAppointment = ({ noShowReason: _reason, ...appointment }: MAppt) => appointment;
+const outNotification = ({ sendAt: _sendAt, ...job }: MNotif) => job;
 const outTicket = (t: MTicket) => ({ id: t.id, appointmentId: t.appointmentId, position: t.position, status: t.status, doctorId: t.doctorId, patientId: t.patientId, createdAt: t.checkedInAt, queueDate:t.day, version:t.version ?? 0 });
 const outRecord = (r: DB["records"][number]) => ({ ...r });
 const outSession = (s: DB["sessions"][number]) => ({ id: s.id, appointmentId: s.appointmentId, status: s.status, version: s.version });
@@ -106,7 +110,7 @@ on("GET", "/me/profile", c => ({id:c.actor.id,roles:c.actor.roles,displayName:us
 on("GET", "/appointments/:id", c => {
   const a=find(c.db.appts,c.params[0]);
   need(a.patientId === c.actor.id || c.actor.roles.some(r => ["RECEPTIONIST","ADMINISTRATOR"].includes(r)) || isDoctorOf(c.db,c.actor,a.doctorId),404,"Resource not found");
-  return strip(a);
+  return a.patientId === c.actor.id ? outPatientAppointment(a) : strip(a);
 });
 on("PUT", "/me/contact", (c) => {
   need(typeof c.body?.email === "string" && /^\S+@\S+\.\S+$/.test(c.body.email), 400, "Invalid request");
@@ -132,6 +136,32 @@ on("GET", "/users", (c) => {
       || (role === "UNASSIGNED" && !account.roles.some(value => value !== "PATIENT"))))
     .sort((a, b) => a.displayName.localeCompare(b.displayName) || a.id.localeCompare(b.id)), c.query);
 });
+function patientAccount(c: Ctx) {
+  req(c.actor, "ADMINISTRATOR");
+  const id = c.params[0].toLowerCase();
+  need(ACCOUNT_UUID.test(id), 400, "Invalid request");
+  const account = find(c.db.users, id);
+  need(id !== c.actor.id && !isStaff(c.db, account)
+    && account.roles.length === 1 && account.roles[0] === "PATIENT", 404, "Resource not found");
+  return account;
+}
+
+on("GET", "/patient-accounts/:id", (c) => {
+  const account = patientAccount(c);
+  audit(c.db, c.actor.id, "PATIENT_ACCOUNT_LOOKUP", account.id, c.now);
+  return { id: account.id, displayName: account.name, active: account.active };
+});
+on("PUT", "/patient-accounts/:id/access", (c) => {
+  const { active, reason } = c.body ?? {};
+  need(typeof active === "boolean" && PATIENT_ACCOUNT_REASONS.includes(reason), 400, "Invalid request");
+  const account = patientAccount(c);
+  if (active !== account.active) {
+    account.active = active;
+    audit(c.db, c.actor.id, `PATIENT_ACCOUNT_${active ? "UNLOCKED" : "LOCKED"}_${reason}`, account.id, c.now);
+  }
+  return { id: account.id, displayName: account.name, active: account.active };
+});
+
 on("POST", "/staff", (c) => {
   req(c.actor, "ADMINISTRATOR");
   const { subject, username, displayName } = c.body ?? {};
@@ -325,8 +355,12 @@ on("GET", "/slots", (c) => {
 });
 
 // ---------- lịch hẹn ----------
-const notify = (c: Ctx, a: MAppt, eventType: string) =>
-  c.db.notifs.push({ id: mid(), appointmentId: a.id, eventType, status: "PENDING", attempts: 0, lastError: null, dueAt: new Date(c.now).toISOString(), sendAt: c.now + 2500 });
+const notify = (c: Ctx, a: MAppt, eventType: string, estimatedStartAt: string | null = null) => {
+  const job = { id: mid(), appointmentId: a.id, appointmentVersion: a.version, eventType, status: "PENDING", attempts: 0,
+    lastError: null, dueAt: new Date(c.now).toISOString(), estimatedStartAt, sendAt: c.now + 2500 };
+  c.db.notifs.push(job);
+  return outNotification(job);
+};
 const patientOnly = (c: Ctx) => { req(c.actor, "PATIENT"); return c.actor.id; };
 on("GET", "/appointments", (c) => {
   const a = c.actor;
@@ -334,7 +368,8 @@ on("GET", "/appointments", (c) => {
   if (a.roles.includes("RECEPTIONIST") || a.roles.includes("ADMINISTRATOR")) rows = c.db.appts;
   else if (a.roles.includes("DOCTOR")) rows = c.db.appts.filter((x) => myDoctorIds(c.db, a).includes(x.doctorId));
   else rows = c.db.appts.filter((x) => x.patientId === a.id);
-  return page([...rows].sort((x, y) => x.startAt.localeCompare(y.startAt) || x.id.localeCompare(y.id)), c.query).map(strip);
+  return page([...rows].sort((x, y) => x.startAt.localeCompare(y.startAt) || x.id.localeCompare(y.id)), c.query)
+    .map((appointment) => appointment.patientId === a.id ? outPatientAppointment(appointment) : strip(appointment));
 });
 on("POST", "/appointments", (c) => {
   const pid = patientOnly(c);
@@ -373,6 +408,27 @@ on("POST", "/appointments/:id/cancel", (c) => idem(c, "cancel", () => {
   notify(c, a, "CANCELLED"); audit(c.db, a.patientId, "APPOINTMENT_CANCELLED", a.id, c.now);
   return strip(a);
 }));
+
+on("POST", "/appointments/:id/delay-notice", (c) => {
+  req(c.actor, "RECEPTIONIST");
+  return idem(c, "delay-notice", () => {
+    const a = find(c.db.appts, c.params[0]);
+    const { version, estimatedStartAt } = c.body ?? {};
+    need(Number.isInteger(version) && version >= 0, 400, "Invalid request");
+    need(version === a.version, 409, "Concurrent modification; retry request");
+    need(canSendDelayNotice(a, c.now), 409, "Appointment cannot receive a delay notice");
+    if (estimatedStartAt != null) {
+      const estimate = typeof estimatedStartAt === "string" ? Date.parse(estimatedStartAt) : NaN;
+      need(estimate > Math.max(c.now, Date.parse(a.startAt)) && dayKey(estimatedStartAt) === dayKey(a.startAt),
+        422, "Invalid estimated appointment time");
+    }
+    need(!c.db.notifs.some(job => job.appointmentId === a.id && job.appointmentVersion === a.version &&
+      job.eventType === "DELAY_NOTICE"), 409, "Delay notice already queued");
+    const job = notify(c, a, "DELAY_NOTICE", estimatedStartAt);
+    audit(c.db, c.actor.id, "APPOINTMENT_DELAY_NOTICE_QUEUED", a.id, c.now);
+    return job;
+  });
+});
 
 // ---------- check-in & hàng đợi ----------
 on("POST", "/appointments/:id/check-in", (c) => idem(c, "checkin", () => {
@@ -425,16 +481,22 @@ on("POST", "/queue-tickets/:id/skip", (c) => {
 });
 
 // ---------- tiến trình lần khám ----------
-on("POST", "/appointments/:id/progress", (c) => {
+on("POST", "/appointments/:id/progress", (c) => idem(c, "progress", () => {
   const a = find(c.db.appts, c.params[0]);
-  const { targetStatus, version } = c.body ?? {};
+  const { targetStatus, version, noShowReason, sendRebookingEmail } = c.body ?? {};
   need(["IN_PROGRESS", "COMPLETED", "NO_SHOW"].includes(targetStatus) && Number.isInteger(version), 400, "Invalid request");
+  need(noShowReason == null || (typeof noShowReason === "string" && Object.prototype.hasOwnProperty.call(NO_SHOW_REASON, noShowReason)), 400, "Invalid request");
+  need(sendRebookingEmail == null || typeof sendRebookingEmail === "boolean", 400, "Invalid request");
+  need(targetStatus === "NO_SHOW" || (noShowReason == null && !sendRebookingEmail), 422, "Follow-up fields require NO_SHOW");
   need(version === a.version, 409, "Concurrent modification; retry request");
   if (targetStatus === "NO_SHOW") {
     need(a.status === "CONFIRMED" && c.now >= Date.parse(a.startAt) + 15 * MIN, 409, "Constraint conflict");
     if (a.mode === "IN_PERSON") req(c.actor, "RECEPTIONIST");
     else need(isDoctorOf(c.db, c.actor, a.doctorId), 403, "Doctor assignment required");
     a.status = "NO_SHOW";
+    a.noShowReason = noShowReason ?? null;
+    const session = c.db.sessions.find((s) => s.appointmentId === a.id && ["CREATED", "WAITING"].includes(s.status));
+    if (session) Object.assign(session, { status: "CANCELLED", version: session.version + 1, patientAdmitted: false });
   } else {
     need(isDoctorOf(c.db, c.actor, a.doctorId), 403, "Doctor assignment required");
     if (targetStatus === "IN_PROGRESS") {
@@ -453,9 +515,10 @@ on("POST", "/appointments/:id/progress", (c) => {
     }
   }
   a.version++;
+  if (targetStatus === "NO_SHOW" && sendRebookingEmail) notify(c, a, "NO_SHOW_REBOOKING");
   audit(c.db, c.actor.id, "APPOINTMENT_" + targetStatus, a.id, c.now);
   return strip(a);
-});
+}));
 
 // ---------- hồ sơ & đơn thuốc ----------
 const encounterAppt = (c: Ctx, enc: string) => c.db.appts.find((a) => a.encounterId === enc);
@@ -614,7 +677,7 @@ on("PUT", "/prescriptions/:id", c => {
 // ---------- thông báo & kiểm toán ----------
 on("GET", "/notification-jobs", (c) => {
   req(c.actor, "RECEPTIONIST", "ADMINISTRATOR");
-  return [...c.db.notifs].sort((a, b) => b.dueAt.localeCompare(a.dueAt)).slice(0, 100).map(({ sendAt: _s, ...n }) => n);
+  return [...c.db.notifs].sort((a, b) => b.dueAt.localeCompare(a.dueAt)).slice(0, 100).map(outNotification);
 });
 on("GET", "/audit-events", (c) => {
   req(c.actor, "AUDITOR");
@@ -640,7 +703,20 @@ export async function mockFetch(input: string, init: RequestInit): Promise<Respo
     need(u!.active, 403, "Account disabled");
     const now = Date.now();
     // Outbox giả lập: PENDING → SENT sau ~2,5 giây.
-    db.notifs.forEach((n) => { if (n.status === "PENDING" && now >= n.sendAt) { n.status = "SENT"; n.attempts = 1; } });
+    db.notifs.forEach((job) => {
+      if (job.status !== "PENDING" || now < job.sendAt) return;
+      const appointment = db.appts.find(a => a.id === job.appointmentId);
+      if (job.eventType === "DELAY_NOTICE" && appointment &&
+        (job.appointmentVersion !== appointment.version || !canSendDelayNotice(appointment, now) ||
+          (job.estimatedStartAt && Date.parse(job.estimatedStartAt) <= now))) {
+        job.status = "SKIPPED";
+        job.lastError = job.appointmentVersion !== appointment.version
+          ? "OBSOLETE_VERSION" : "DELAY_NOTICE_NO_LONGER_APPLICABLE";
+      } else {
+        job.status = "SENT";
+        job.attempts = 1;
+      }
+    });
     for (const [m, re, h] of routes) {
       const match = re.exec(path);
       if (m !== method || !match) continue;

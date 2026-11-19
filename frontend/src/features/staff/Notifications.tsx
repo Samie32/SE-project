@@ -164,6 +164,9 @@ function NotificationDetailModal({ job, onClose }: { job: NotificationJob; onClo
     ["Đến hạn", formatDateTimeSec(job.dueAt)],
     ["Lỗi gần nhất", job.lastError ?? "—"],
   ];
+  if (job.estimatedStartAt) {
+    detailRows.push(["Giờ bắt đầu dự kiến", formatDateTimeSec(job.estimatedStartAt)]);
+  }
 
   if (appt.loading) {
     detailRows.push(["Thông tin lịch", <span className="muted">Đang tải…</span>]);

@@ -88,8 +88,8 @@ def check(spec, runtime):
                 errors.append(f'{key}/{status}: success response needs a typed schema')
         if key == ('post','/doctors/{id}/queue/next') and '204' not in op['responses']:
             errors.append('Queue next must document an empty 204 response')
-    if covered != {f'FR-{i:02d}' for i in range(1,25)}:
-        errors.append('FR traceability does not cover exactly FR-01 through FR-24')
+    if covered != {f'FR-{i:02d}' for i in range(1,28)}:
+        errors.append('FR traceability does not cover exactly FR-01 through FR-27')
     samples = 0
     for name, schema in spec['components']['schemas'].items():
         try:
@@ -114,7 +114,7 @@ def main():
     print(f'PASS: OpenAPI {spec["openapi"]}, contract {spec["info"]["version"]}; '
           f'{len(operations(spec))} operations / {len(spec["paths"])} paths; '
           f'{len(spec["components"]["schemas"])} schemas; {samples} valid examples.')
-    print('PASS: controller request names, required headers, typed success responses, FR-01..24.')
+    print('PASS: controller request names, required headers, typed success responses, FR-01..27.')
     print('NOTE: static check only. Runtime acceptance requires integration tests.')
     return 0
 

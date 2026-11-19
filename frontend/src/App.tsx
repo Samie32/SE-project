@@ -31,6 +31,7 @@ import { SpecialtiesPage } from "@/features/admin/Specialties";
 import { PermissionsPage } from "@/features/admin/Permissions";
 import { SchedulesPage } from "@/features/admin/Schedules";
 import { ClinicHoursPage } from "@/features/admin/ClinicHours";
+import { PatientAccountsPage } from "@/features/admin/PatientAccounts";
 
 import { AccountPage } from "@/features/account/Account";
 
@@ -86,6 +87,7 @@ export default function App() {
         <Route path="admin/schedules" element={guard("schedules.manage", <SchedulesPage />)} />
         <Route path="admin/clinic-hours" element={guard("schedules.manage", <ClinicHoursPage />)} />
         <Route path="admin/permissions" element={guard("permissions.manage", <PermissionsPage />)} />
+        <Route path="admin/patient-accounts" element={guard("patientAccounts.manage", <PatientAccountsPage />)} />
 
         {/* Kiểm toán */}
         <Route path="audit" element={guard("audit.view", <AuditPage />)} />

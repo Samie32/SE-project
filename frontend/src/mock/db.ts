@@ -1,6 +1,6 @@
 // Cơ sở dữ liệu trong bộ nhớ cho chế độ giả lập (chỉ nạp khi VITE_MOCK=true).
 import { addDays, localToIso, todayKey } from "@/core/datetime";
-import type { Role } from "@/core/types";
+import type { NoShowReason, NotificationJob, Role } from "@/core/types";
 import { DEFAULT_CLINIC_HOURS, type ClinicDayHours } from "@/core/clinic-hours";
 
 export interface MUser { id: string; name: string; email: string; roles: Role[]; active: boolean; username?: string; staff?: boolean; subject?: string }
@@ -12,6 +12,7 @@ export interface MSlot { id: string; availabilityId: string; doctorId: string; s
 export interface MAppt {
   id: string; patientId: string; doctorId: string; slotId: string; startAt: string; endAt: string;
   mode: string; status: string; version: number; cancellationReason: string | null; encounterId: string | null;
+  noShowReason?: NoShowReason | null;
 }
 export interface MTicket { id: string; appointmentId: string; doctorId: string; patientId: string; position: number; status: string; version?:number; checkedInAt: string; day: string }
 export interface MRecord {
@@ -21,7 +22,7 @@ export interface MRecord {
 export interface MRx { id: string; encounterId: string; patientId: string; doctorId: string; status: string; version: number; items: unknown[]; issuedAt?: string }
 export interface MSession { id: string; appointmentId: string; status: string; version: number; patientAdmitted: boolean }
 export interface MAudit { id: string; actorId: string | null; action: string; resourceId: string; createdAt: string; result: string; correlationId: string }
-export interface MNotif { id: string; appointmentId: string; eventType: string; status: string; attempts: number; lastError: string | null; dueAt: string; sendAt: number }
+export interface MNotif extends NotificationJob { sendAt: number }
 
 export interface MHoliday { id: string; startDate: string; endDate: string; name: string; closed: boolean; opensAt: string | null; closesAt: string | null }
 
