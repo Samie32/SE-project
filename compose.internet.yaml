@@ -55,9 +55,11 @@ services:
     environment:
       KC_BOOTSTRAP_ADMIN_USERNAME: admin
       KC_BOOTSTRAP_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD:?Run prepare-internet.py}
+      APP_HOST: ${APP_HOST:?Set APP_HOST}
     command: ["python3", "-B", "/app/scripts/configure-keycloak-registration.py"]
     volumes:
       - ./scripts/configure-keycloak-registration.py:/app/scripts/configure-keycloak-registration.py:ro
+      - ./infra/keycloak/realm-template.json:/app/infra/keycloak/realm-template.json:ro
   turn:
     image: coturn/coturn:4.7.0
     restart: unless-stopped
