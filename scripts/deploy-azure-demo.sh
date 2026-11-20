@@ -79,7 +79,13 @@ else
 fi
 
 configure_keycloak_registration() {
-  if compose run --rm auth-config | grep -Fxq "CLINICCARE_REGISTRATION_CONFIGURED"; then
+  if [ -f scripts/run-with-azure-google-oauth.py ]; then
+    auth_output=$(python3 scripts/run-with-azure-google-oauth.py docker compose --env-file .env.internet \
+      -f compose.yaml -f compose.internet.yaml run --rm auth-config)
+  else
+    auth_output=$(compose run --rm auth-config)
+  fi
+  if printf '%s\n' "$auth_output" | grep -Fxq "CLINICCARE_REGISTRATION_CONFIGURED"; then
     printf 'CLINICCARE_REGISTRATION_CONFIGURED\n'
     return 0
   fi

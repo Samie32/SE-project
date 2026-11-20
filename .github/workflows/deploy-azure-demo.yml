@@ -41,13 +41,18 @@ jobs:
         shell: bash
         env:
           BREVO_SMTP_CONFIG: ${{ secrets.BREVO_SMTP_CONFIG }}
+          GOOGLE_OAUTH_CONFIG: ${{ secrets.GOOGLE_OAUTH_CONFIG }}
         run: |
           smtp_updated=0
+          google_oauth_updated=0
+          location=""
+          if [ -n "$BREVO_SMTP_CONFIG" ] || [ -n "$GOOGLE_OAUTH_CONFIG" ]; then
+            location="$(az vm show --resource-group rg-cliniccare --name vm-cliniccare-azure-test \
+              --query location -o tsv --only-show-errors)"
+          fi
           if [ -n "$BREVO_SMTP_CONFIG" ]; then
             smtp_script="$(printf '%s\n' '#!/bin/sh' "python3 - store <<'PY'"; cat scripts/run-with-azure-smtp.py; printf '\nPY\n')"
             command=(--resource-group rg-cliniccare --vm-name vm-cliniccare-azure-test --name cliniccare-sync-smtp)
-            location="$(az vm show --resource-group rg-cliniccare --name vm-cliniccare-azure-test \
-              --query location -o tsv --only-show-errors)"
             if ! smtp_error="$(az vm run-command create "${command[@]}" --location "$location" --async-execution false \
               --parameters "CLINICCARE_SYNC_RUN=$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT" \
               --script "$smtp_script" --protected-parameters "BREVO_SMTP_CONFIG=$BREVO_SMTP_CONFIG" \
@@ -73,9 +78,36 @@ jobs:
               *) echo 'VM did not confirm SMTP configuration. Check the format of BREVO_SMTP_CONFIG.' >&2; exit 1 ;;
             esac
           fi
+          if [ -n "$GOOGLE_OAUTH_CONFIG" ]; then
+            google_script="$(printf '%s\n' '#!/bin/sh' "python3 - store <<'PY'"; cat scripts/run-with-azure-google-oauth.py; printf '\nPY\n')"
+            command=(--resource-group rg-cliniccare --vm-name vm-cliniccare-azure-test --name cliniccare-sync-google-oauth)
+            if ! google_error="$(az vm run-command create "${command[@]}" --location "$location" --async-execution false \
+              --parameters "CLINICCARE_SYNC_RUN=$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT" \
+              --script "$google_script" --protected-parameters "GOOGLE_OAUTH_CONFIG=$GOOGLE_OAUTH_CONFIG" \
+              --only-show-errors --output none 2>&1)"; then
+              case "$google_error" in
+                *AuthorizationFailed*)
+                  echo '::error::Azure AuthorizationFailed. Grant the deployment identity Microsoft.Compute/virtualMachines/runCommands/read and Microsoft.Compute/virtualMachines/runCommands/write at the VM scope.' ;;
+                *OperationNotAllowed*|*VMNotRunning*|*VMDeallocated*)
+                  echo '::error::Azure rejected the operation. Check that the demo VM is running and its agent is ready.' ;;
+                *"unrecognized arguments"*)
+                  echo '::error::Azure CLI rejected the Managed Run Command arguments.' ;;
+                *)
+                  echo '::error::Azure could not create the Managed Run Command. See the VM or resource group Activity Log for operation details.' ;;
+              esac
+              exit 1
+            fi
+            google_status="$(az vm run-command show "${command[@]}" --instance-view \
+              --query instanceView.output -o tsv --only-show-errors)"
+            case "$google_status" in
+              CLINICCARE_GOOGLE_OAUTH_UPDATED) google_oauth_updated=1 ;;
+              CLINICCARE_GOOGLE_OAUTH_UNCHANGED) ;;
+              *) echo 'VM did not confirm Google OAuth configuration. Check the format of GOOGLE_OAUTH_CONFIG.' >&2; exit 1 ;;
+            esac
+          fi
           script="$RUNNER_TEMP/cliniccare-deploy.sh"
           printf 'DEPLOY_SHA=%s\n' "$GITHUB_SHA" > "$script"
-          if [ "$GITHUB_EVENT_NAME" = workflow_dispatch ] || [ "$smtp_updated" = 1 ]; then
+          if [ "$GITHUB_EVENT_NAME" = workflow_dispatch ] || [ "$smtp_updated" = 1 ] || [ "$google_oauth_updated" = 1 ]; then
             printf 'DEPLOY_FORCE_FULL=1\n' >> "$script"
           fi
           cat scripts/deploy-azure-demo.sh >> "$script"

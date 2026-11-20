@@ -9,6 +9,45 @@ from urllib.parse import urlencode
 from urllib.request import HTTPHandler, ProxyHandler, Request, build_opener
 
 
+def configure_google_idp(opener, base, token, client_id, client_secret):
+    """Create or update the Google OIDC identity provider in the clinic realm."""
+    instance_url = base + "/admin/realms/clinic/identity-provider/instances/google"
+    collection_url = base + "/admin/realms/clinic/identity-provider/instances"
+    payload = json.dumps({
+        "alias": "google",
+        "displayName": "Google",
+        "providerId": "google",
+        "enabled": True,
+        "trustEmail": True,
+        "storeToken": False,
+        "addReadTokenRoleOnCreate": False,
+        "authenticateByDefault": False,
+        "linkOnly": False,
+        "firstBrokerLoginFlowAlias": "first broker login",
+        "config": {
+            "clientId": client_id,
+            "clientSecret": client_secret,
+            "defaultScope": "openid profile email",
+            "useJwksUrl": "true",
+        },
+    }).encode()
+    headers = {
+        "Authorization": "Bearer " + token,
+        "Content-Type": "application/json",
+    }
+    try:
+        with opener.open(Request(instance_url, headers={"Authorization": "Bearer " + token}), timeout=10):
+            pass
+        method, target = "PUT", instance_url
+    except HTTPError as error:
+        if error.code != 404:
+            raise
+        method, target = "POST", collection_url
+
+    with opener.open(Request(target, data=payload, headers=headers, method=method), timeout=10):
+        pass
+
+
 def main():
     base = "http://keycloak:8080"
     username = os.environ["KC_BOOTSTRAP_ADMIN_USERNAME"]
@@ -96,6 +135,11 @@ def main():
                     )
                     with opener.open(update_request, timeout=10):
                         pass
+
+            google_client_id = os.environ.get("GOOGLE_CLIENT_ID", "").strip()
+            google_client_secret = os.environ.get("GOOGLE_CLIENT_SECRET", "").strip()
+            if google_client_id and google_client_secret:
+                configure_google_idp(opener, base, token, google_client_id, google_client_secret)
 
             print("CLINICCARE_REGISTRATION_CONFIGURED")
             return

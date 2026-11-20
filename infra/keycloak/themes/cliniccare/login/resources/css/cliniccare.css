@@ -22,3 +22,9 @@ button { display:flex;align-items:center;justify-content:center;gap:10px;width:1
 .registration form button { margin-top:22px }
 .registration button:disabled { opacity:.55;cursor:not-allowed }
 .field-error { margin:6px 0 0;color:#b93648;font-size:12px }
+.social-divider { display:flex;align-items:center;gap:12px;margin:20px 0;color:#7e8b9b;font-size:12px }
+.social-divider::before,.social-divider::after { content:'';flex:1;height:1px;background:#dce4ed }
+.social-providers { display:grid;gap:10px }
+.social-btn { display:flex;align-items:center;justify-content:center;gap:10px;width:100%;height:49px;padding:0 16px;border:1px solid #dce4ed;border-radius:9px;background:#fff;color:#10233f;font-size:13px;font-weight:600;text-decoration:none;transition:background .15s,border-color .15s }
+.social-btn:hover { background:#f8faff;border-color:#b8c7da }
+.social-btn svg { width:18px;height:18px }

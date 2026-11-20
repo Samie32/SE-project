@@ -56,6 +56,8 @@ services:
       KC_BOOTSTRAP_ADMIN_USERNAME: admin
       KC_BOOTSTRAP_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD:?Run prepare-internet.py}
       APP_HOST: ${APP_HOST:?Set APP_HOST}
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
+      GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET:-}
     command: ["python3", "-B", "/app/scripts/configure-keycloak-registration.py"]
     volumes:
       - ./scripts/configure-keycloak-registration.py:/app/scripts/configure-keycloak-registration.py:ro
