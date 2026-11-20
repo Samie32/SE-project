@@ -75,7 +75,7 @@ if [ "$mode" = frontend-only ]; then
 else
   python3 scripts/run-with-azure-smtp.py docker compose --env-file .env.internet \
     -f compose.yaml -f compose.internet.yaml up -d --build
-  compose restart frontend keycloak
+  compose restart frontend keycloak gateway
 fi
 
 configure_keycloak_registration() {
