@@ -44,9 +44,18 @@ class AzureGoogleOAuthTests(unittest.TestCase):
 
     def test_invalid_secret_does_not_overwrite_existing_configuration(self):
         google_oauth.store(json.dumps(self.credentials))
-        with self.assertRaisesRegex(ValueError, "Invalid Google OAuth configuration"):
+        with self.assertRaisesRegex(ValueError, "invalid_value"):
             google_oauth.store(json.dumps(self.credentials | {"clientSecret": "bad\nsecret"}))
         self.assertEqual(google_oauth.oauth_environment()["GOOGLE_CLIENT_SECRET"], "test-secret")
+
+    def test_accepts_base64_multiline_google_console_json(self):
+        import base64
+        raw = json.dumps({"web": {"client_id": "b64-id", "client_secret": "b64-secret"}}, indent=2)
+        b64 = base64.b64encode(raw.encode("utf-8")).decode("ascii")
+        with patch.dict(os.environ, {"GOOGLE_OAUTH_CONFIG_B64": b64}, clear=False):
+            self.assertEqual(google_oauth.main(["store"]), 0)
+        self.assertEqual(google_oauth.oauth_environment()["GOOGLE_CLIENT_ID"], "b64-id")
+        self.assertEqual(google_oauth.oauth_environment()["GOOGLE_CLIENT_SECRET"], "b64-secret")
 
     def test_accepts_google_console_json_and_key_value_formats(self):
         console_json = json.dumps({

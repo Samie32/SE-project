@@ -79,11 +79,12 @@ jobs:
             esac
           fi
           if [ -n "$GOOGLE_OAUTH_CONFIG" ]; then
+            google_b64="$(printf '%s' "$GOOGLE_OAUTH_CONFIG" | base64 -w0)"
             google_script="$(printf '%s\n' '#!/bin/sh' "python3 - store <<'PY'"; cat scripts/run-with-azure-google-oauth.py; printf '\nPY\n')"
             command=(--resource-group rg-cliniccare --vm-name vm-cliniccare-azure-test --name cliniccare-sync-google-oauth)
             if ! google_error="$(az vm run-command create "${command[@]}" --location "$location" --async-execution false \
               --parameters "CLINICCARE_SYNC_RUN=$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT" \
-              --script "$google_script" --protected-parameters "GOOGLE_OAUTH_CONFIG=$GOOGLE_OAUTH_CONFIG" \
+              --script "$google_script" --protected-parameters "GOOGLE_OAUTH_CONFIG_B64=$google_b64" \
               --only-show-errors --output none 2>&1)"; then
               case "$google_error" in
                 *AuthorizationFailed*)
@@ -98,11 +99,16 @@ jobs:
               exit 1
             fi
             google_status="$(az vm run-command show "${command[@]}" --instance-view \
-              --query instanceView.output -o tsv --only-show-errors)"
+              --query instanceView.output -o tsv --only-show-errors | tr -d '\r')"
             case "$google_status" in
               CLINICCARE_GOOGLE_OAUTH_UPDATED) google_oauth_updated=1 ;;
               CLINICCARE_GOOGLE_OAUTH_UNCHANGED) ;;
-              *) echo 'VM did not confirm Google OAuth configuration. Check the format of GOOGLE_OAUTH_CONFIG.' >&2; exit 1 ;;
+              CLINICCARE_GOOGLE_OAUTH_ERROR:*)
+                echo "VM rejected GOOGLE_OAUTH_CONFIG (${google_status#CLINICCARE_GOOGLE_OAUTH_ERROR:})." >&2
+                exit 1 ;;
+              *)
+                echo 'VM did not confirm Google OAuth configuration. Check the format of GOOGLE_OAUTH_CONFIG.' >&2
+                exit 1 ;;
             esac
           fi
           script="$RUNNER_TEMP/cliniccare-deploy.sh"

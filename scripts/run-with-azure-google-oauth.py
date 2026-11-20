@@ -1,5 +1,6 @@
 """Store protected Google OAuth configuration on the VM and load it for deployments."""
 
+import base64
 import json
 import os
 from pathlib import Path
@@ -14,14 +15,17 @@ CONFIG = Path("/var/lib/cliniccare/google-oauth.json")
 def parse_credentials(raw):
     text = raw.strip()
     if text.startswith("{"):
-        data = json.loads(text)
+        try:
+            data = json.loads(text)
+        except json.JSONDecodeError as exc:
+            raise ValueError("invalid_json") from exc
         if isinstance(data, dict):
             for nested_key in ("web", "installed"):
                 if isinstance(data.get(nested_key), dict):
                     data = data[nested_key]
                     break
         if not isinstance(data, dict):
-            raise ValueError("Invalid Google OAuth configuration")
+            raise ValueError("invalid_json")
         client_id = data.get("clientId") or data.get("client_id")
         client_secret = data.get("clientSecret") or data.get("client_secret")
     else:
@@ -35,11 +39,25 @@ def parse_credentials(raw):
         client_id = pairs.get("GOOGLE_CLIENT_ID") or pairs.get("clientId") or pairs.get("client_id")
         client_secret = pairs.get("GOOGLE_CLIENT_SECRET") or pairs.get("clientSecret") or pairs.get("client_secret")
 
+    if not isinstance(client_id, str) or not client_id.strip():
+        raise ValueError("missing_client_id")
+    if not isinstance(client_secret, str) or not client_secret.strip():
+        raise ValueError("missing_client_secret")
     values = {"clientId": client_id, "clientSecret": client_secret}
-    if any(not isinstance(value, str) or not value.strip() or any(c in value for c in "\x00\r\n")
-           for value in values.values()):
-        raise ValueError("Invalid Google OAuth configuration")
+    if any(any(c in value for c in "\x00\r\n") for value in values.values()):
+        raise ValueError("invalid_value")
     return {key: value.strip() for key, value in values.items()}
+
+
+def read_store_input():
+    if "GOOGLE_OAUTH_CONFIG_B64" in os.environ:
+        try:
+            return base64.b64decode(os.environ["GOOGLE_OAUTH_CONFIG_B64"]).decode("utf-8")
+        except Exception as exc:
+            raise ValueError("invalid_base64") from exc
+    if "GOOGLE_OAUTH_CONFIG" in os.environ:
+        return os.environ["GOOGLE_OAUTH_CONFIG"]
+    raise ValueError("missing_env")
 
 
 def store(raw):
@@ -73,12 +91,15 @@ def oauth_environment():
 def main(args):
     try:
         if args == ["store"]:
-            changed = store(os.environ["GOOGLE_OAUTH_CONFIG"])
+            changed = store(read_store_input())
             print("CLINICCARE_GOOGLE_OAUTH_UPDATED" if changed else "CLINICCARE_GOOGLE_OAUTH_UNCHANGED")
             return 0
         env = os.environ | oauth_environment()
-    except (KeyError, OSError, ValueError, TypeError):
-        print("ClinicCare could not load or save its protected Google OAuth configuration.", file=sys.stderr)
+    except ValueError as exc:
+        print(f"CLINICCARE_GOOGLE_OAUTH_ERROR:{exc}")
+        return 1
+    except (KeyError, OSError, TypeError) as exc:
+        print(f"CLINICCARE_GOOGLE_OAUTH_ERROR:{type(exc).__name__}")
         return 1
     return subprocess.run(args, env=env, check=False).returncode
 
