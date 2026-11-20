@@ -5,7 +5,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Tạo tài khoản — ClinicCare</title>
-  <link rel="stylesheet" href="${url.resourcesPath}/css/cliniccare.css">
+  <link rel="stylesheet" href="${url.resourcesPath}/css/cliniccare-v2.css">
   <script src="${url.resourcesPath}/js/registration.js" defer></script>
 </head>
 <body>
@@ -44,6 +44,7 @@
       <@field name="password" label="Mật khẩu" type="password" autocomplete="new-password" limit=0 required=true />
       <@field name="password-confirm" label="Nhập lại mật khẩu" type="password" autocomplete="new-password" limit=0 required=true />
       <@field name="firstName" label="Họ và tên" type="text" autocomplete="name" limit=255 required=true />
+      <@field name="phoneNumber" label="Số điện thoại" type="tel" autocomplete="tel" limit=16 />
       <@field name="birthDate" label="Ngày tháng năm sinh" type="date" autocomplete="bday" limit=0 />
       <@field name="hometown" label="Quê quán" type="text" autocomplete="off" limit=255 />
       <@field name="permanentAddress" label="Địa chỉ thường trú" type="text" autocomplete="street-address" limit=255 />

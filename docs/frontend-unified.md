@@ -23,7 +23,7 @@ Không cần copy `.env` nếu dùng toàn bộ giá trị mặc định. Khi đ
 
 ## Đăng ký tài khoản bệnh nhân
 
-Chọn **Tạo tài khoản** dưới nút đăng nhập. Keycloak lưu email, họ tên và các thông tin tự nguyện trong hồ sơ danh tính. Khi tài khoản đăng nhập lần đầu, backend cấp vai trò `PATIENT` qua luồng xác thực hiện có. Bản local cho phép đăng ký và đăng nhập ngay bằng email.
+Chọn **Tạo tài khoản** dưới nút đăng nhập. Keycloak lưu email, họ tên và các trường tùy chọn đã điền: số điện thoại, ngày sinh, quê quán và địa chỉ thường trú. Có thể xem các trường này trong **Users → tài khoản → Details** của realm `clinic`. Khi người dùng đăng nhập lần đầu, backend tạo hồ sơ MySQL và cấp vai trò `PATIENT`. Các trường tùy chọn vẫn nằm trong Keycloak.
 
 `setup-local.ps1` bật đăng ký trong cấu hình dùng để tạo realm local. Với realm local đã chạy trước đó, đợi Keycloak sẵn sàng rồi cập nhật tại chỗ:
 
