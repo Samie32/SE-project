@@ -5,7 +5,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Tạo tài khoản — ClinicCare</title>
-  <link rel="stylesheet" href="${url.resourcesPath}/css/cliniccare.css">
+  <link rel="stylesheet" href="${url.resourcesPath}/css/cliniccare.css?v=20261120">
   <script src="${url.resourcesPath}/js/registration.js" defer></script>
 </head>
 <body>

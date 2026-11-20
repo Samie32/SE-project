@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Đăng nhập tài khoản — ClinicCare</title>
-  <link rel="stylesheet" href="${url.resourcesPath}/css/cliniccare.css">
+  <link rel="stylesheet" href="${url.resourcesPath}/css/cliniccare.css?v=20261120">
 </head>
 <body>
 <#macro icon kind>
