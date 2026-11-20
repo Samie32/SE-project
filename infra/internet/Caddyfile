@@ -8,9 +8,10 @@
 }
 
 {$AUTH_HOST} {
-	@cliniccare_theme path /resources/*/login/cliniccare/*
+	@cliniccare_theme path_regexp ^/resources/[^/]+/login/cliniccare/
 	handle @cliniccare_theme {
 		reverse_proxy keycloak:8080 {
+			header_up Accept-Encoding identity
 			header_down Cache-Control "no-cache"
 		}
 	}
