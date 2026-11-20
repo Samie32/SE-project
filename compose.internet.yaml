@@ -45,6 +45,19 @@ services:
       - ./infra/internet/Caddyfile:/etc/caddy/Caddyfile:ro
       - caddy-data:/data
       - caddy-config:/config
+  auth-config:
+    image: python:3.12-alpine
+    restart: "no"
+    working_dir: /app
+    depends_on:
+      keycloak:
+        condition: service_started
+    environment:
+      KC_BOOTSTRAP_ADMIN_USERNAME: admin
+      KC_BOOTSTRAP_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD:?Run prepare-internet.py}
+    command: ["python3", "-B", "/app/scripts/configure-keycloak-registration.py"]
+    volumes:
+      - ./scripts/configure-keycloak-registration.py:/app/scripts/configure-keycloak-registration.py:ro
   turn:
     image: coturn/coturn:4.7.0
     restart: unless-stopped

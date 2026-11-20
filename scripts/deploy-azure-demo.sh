@@ -79,25 +79,10 @@ else
 fi
 
 configure_keycloak_registration() {
-  for attempt in $(seq 1 30); do
-    if compose exec -T keycloak sh -lc '
-      /opt/keycloak/bin/kcadm.sh config credentials \
-        --server http://localhost:8080 \
-        --realm master \
-        --user "$KC_BOOTSTRAP_ADMIN_USERNAME" \
-        --password "$KC_BOOTSTRAP_ADMIN_PASSWORD" &&
-      /opt/keycloak/bin/kcadm.sh update realms/clinic \
-        --no-config \
-        -s loginTheme=cliniccare \
-        -s rememberMe=true \
-        -s registrationAllowed=true \
-        -s loginWithEmailAllowed=true
-    '; then
-      printf 'CLINICCARE_REGISTRATION_CONFIGURED\n'
-      return 0
-    fi
-    sleep 2
-  done
+  if compose run --rm auth-config | grep -Fxq "CLINICCARE_REGISTRATION_CONFIGURED"; then
+    printf 'CLINICCARE_REGISTRATION_CONFIGURED\n'
+    return 0
+  fi
   echo "Could not enable Keycloak email registration." >&2
   return 1
 }
