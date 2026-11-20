@@ -48,12 +48,13 @@ function openPage(role: Role) {
   return { fetch, user };
 }
 
-it("chỉ tra cứu mã đã gửi và yêu cầu lý do trước khi khóa hoặc mở khóa", async () => {
+it("chỉ tra cứu chính xác mã/email/SĐT và yêu cầu lý do trước khi khóa hoặc mở khóa", async () => {
   const { fetch } = openPage("ADMINISTRATOR");
   const patient = getDb().users.find((account) =>
     account.roles.includes("PATIENT"),
   )!;
-  const input = screen.getByLabelText("Mã tài khoản");
+  patient.phone = "0901234567";
+  const input = screen.getByLabelText("Mã tài khoản, email hoặc số điện thoại");
   const lookup = screen.getByRole("button", { name: "Tra cứu" });
   expect(screen.queryByText(patient.name)).toBeNull();
   expect(
@@ -66,6 +67,16 @@ it("chỉ tra cứu mã đã gửi và yêu cầu lý do trước khi khóa ho�
   fireEvent.click(lookup);
   await screen.findByText(patient.name);
   expect(screen.queryByText(patient.email)).toBeNull();
+
+  // Tra cứu chính xác theo email
+  fireEvent.change(input, { target: { value: patient.email } });
+  fireEvent.click(lookup);
+  await screen.findByText(patient.name);
+
+  // Tra cứu chính xác theo số điện thoại (+84 hoặc 0...)
+  fireEvent.change(input, { target: { value: "+84 901 234 567" } });
+  fireEvent.click(lookup);
+  await screen.findByText(patient.name);
 
   fireEvent.click(screen.getByRole("button", { name: "Khóa tài khoản" }));
   const lock = screen.getByRole("dialog");
@@ -91,10 +102,13 @@ it("chỉ tra cứu mã đã gửi và yêu cầu lý do trước khi khóa ho�
   await screen.findByText("Đang hoạt động");
   expect(patient.active).toBe(true);
 
-  fireEvent.change(input, { target: { value: "1-1-1-1-1" } });
+  // Từ chối tên / chuỗi không khớp định dạng UUID, email hoặc SĐT
+  fireEvent.change(input, { target: { value: "Nguyen Van A" } });
   expect(screen.queryByText(patient.name)).toBeNull();
   fireEvent.click(lookup);
-  await screen.findByText("Nhập mã tài khoản UUID hợp lệ.");
+  await screen.findByText(
+    "Nhập chính xác mã tài khoản (UUID), email hoặc số điện thoại hợp lệ.",
+  );
 });
 
 it("ẩn trang quản lý tài khoản bệnh nhân với lễ tân", () => {

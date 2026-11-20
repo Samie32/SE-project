@@ -41,7 +41,12 @@ public class Access {
     String issuer = jwt.getIssuer().toString(), subject = jwt.getSubject();
     Problem.require(subject != null && !subject.isBlank(), 401, "Invalid identity");
     String username = identityLabel(jwt.getClaimAsString("preferred_username"));
-    String byIdentity = "SELECT id,active,username FROM user_account WHERE issuer=? AND subject=?";
+    String jwtEmail = normalizeEmailOrNull(jwt.getClaimAsString("email"));
+    String jwtPhone = normalizePhoneOrNull(
+        jwt.getClaimAsString("phone_number") != null
+            ? jwt.getClaimAsString("phone_number")
+            : jwt.getClaimAsString("phoneNumber"));
+    String byIdentity = "SELECT id,active,username,email_hash,phone_hash FROM user_account WHERE issuer=? AND subject=?";
     var rows = db.list(byIdentity, issuer, subject);
     boolean firstLogin = rows.isEmpty();
     Map<String, Object> row;
@@ -54,12 +59,16 @@ public class Access {
       String displayName = identityLabel(jwt.getClaimAsString("name"));
       int inserted =
           db.update(
-              "INSERT IGNORE INTO user_account(id,issuer,subject,display_name,username) VALUES(?,?,?,?,?)",
+              "INSERT IGNORE INTO user_account(id,issuer,subject,display_name,username,email_encrypted,email_hash,phone_encrypted,phone_hash) VALUES(?,?,?,?,?,?,?,?,?)",
               id,
               issuer,
               subject,
               displayName != null ? displayName : Objects.requireNonNullElse(username, "Patient"),
-              username);
+              username,
+              jwtEmail != null ? crypto.encrypt(jwtEmail) : null,
+              jwtEmail != null ? crypto.hash(jwtEmail) : null,
+              jwtPhone != null ? crypto.encrypt(jwtPhone) : null,
+              jwtPhone != null ? crypto.hash(jwtPhone) : null);
       if (inserted == 1) {
         db.update("INSERT INTO user_role VALUES(?,'PATIENT')", id);
         db.update("INSERT INTO patient VALUES(?,?)", id, id);
@@ -74,6 +83,20 @@ public class Access {
     String id = row.get("id").toString();
     if (username != null && !username.equals(row.get("username"))) {
       db.update("UPDATE user_account SET username=? WHERE id=?", username, id);
+    }
+    if (jwtEmail != null && row.get("emailHash") == null) {
+      db.update(
+          "UPDATE user_account SET email_encrypted=COALESCE(email_encrypted,?),email_hash=? WHERE id=?",
+          crypto.encrypt(jwtEmail),
+          crypto.hash(jwtEmail),
+          id);
+    }
+    if (jwtPhone != null && row.get("phoneHash") == null) {
+      db.update(
+          "UPDATE user_account SET phone_encrypted=COALESCE(phone_encrypted,?),phone_hash=? WHERE id=?",
+          crypto.encrypt(jwtPhone),
+          crypto.hash(jwtPhone),
+          id);
     }
     Set<String> roles = new HashSet<>();
     db.list("SELECT role FROM user_role WHERE user_id=?" + (firstLogin ? " FOR SHARE" : ""), id)
@@ -137,9 +160,70 @@ public class Access {
     PATIENT_REQUEST
   }
 
+  private static final java.util.regex.Pattern EMAIL_PATTERN =
+      java.util.regex.Pattern.compile("^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$");
+  private static final java.util.regex.Pattern PHONE_DIGITS =
+      java.util.regex.Pattern.compile("^[0-9]{7,15}$");
+
+  private static String normalizeEmailOrNull(String value) {
+    if (value == null) return null;
+    String normalized = value.strip().toLowerCase(Locale.ROOT);
+    return normalized.length() <= 254 && EMAIL_PATTERN.matcher(normalized).matches() ? normalized : null;
+  }
+
+  private static String normalizePhoneOrNull(String value) {
+    if (value == null) return null;
+    String cleaned = value.strip().replaceAll("[\\s.\\-()]", "");
+    if (cleaned.startsWith("+84")) cleaned = "0" + cleaned.substring(3);
+    else if (cleaned.startsWith("+")) cleaned = cleaned.substring(1);
+    else if (cleaned.startsWith("84") && cleaned.length() >= 11) cleaned = "0" + cleaned.substring(2);
+    return PHONE_DIGITS.matcher(cleaned).matches() ? cleaned : null;
+  }
+
   @Transactional
   public PatientAccount patientAccount(Actor actor, UUID id) {
     var account = findPatientAccount(actor, id, false);
+    audit.record(actor.id(), "PATIENT_ACCOUNT_LOOKUP", account.id());
+    return account;
+  }
+
+  @Transactional
+  public PatientAccount patientAccountByQuery(Actor actor, String rawQuery) {
+    actor.require("ADMINISTRATOR");
+    Problem.require(rawQuery != null && !rawQuery.isBlank() && rawQuery.strip().length() <= 254,
+        400, "Invalid request");
+    String q = rawQuery.strip();
+    try {
+      UUID uuid = UUID.fromString(q);
+      if (uuid.toString().equalsIgnoreCase(q)) {
+        return patientAccount(actor, uuid);
+      }
+    } catch (IllegalArgumentException ignored) {
+      // Fall through to exact email/phone lookup.
+    }
+
+    String email = normalizeEmailOrNull(q);
+    String phone = email == null ? normalizePhoneOrNull(q) : null;
+    Problem.require(email != null || phone != null, 400, "Invalid request");
+
+    String column = email != null ? "u.email_hash" : "u.phone_hash";
+    String hash = crypto.hash(email != null ? email : phone);
+    var rows = db.list(
+        """
+        SELECT u.id,u.display_name,u.active
+        FROM user_account u
+        WHERE """ + column + """
+        =? AND u.id<>? AND u.staff=FALSE
+          AND EXISTS (SELECT 1 FROM patient p WHERE p.user_id=u.id)
+          AND EXISTS (SELECT 1 FROM user_role r WHERE r.user_id=u.id AND r.role='PATIENT')
+          AND NOT EXISTS (SELECT 1 FROM user_role r WHERE r.user_id=u.id AND r.role<>'PATIENT')
+        LIMIT 2
+        """, hash, actor.id());
+    Problem.require(!rows.isEmpty(), 404, "Resource not found");
+    Problem.require(rows.size() == 1, 409, "Multiple accounts match; use exact account ID");
+    var row = rows.getFirst();
+    var account = new PatientAccount(
+        row.get("id").toString(), row.get("displayName").toString(), enabled(row.get("active")));
     audit.record(actor.id(), "PATIENT_ACCOUNT_LOOKUP", account.id());
     return account;
   }
@@ -201,9 +285,26 @@ public class Access {
   }
 
   @Transactional
-  public void contact(Actor actor, String email) {
-    db.update(
-        "UPDATE user_account SET email_encrypted=? WHERE id=?", crypto.encrypt(email), actor.id());
+  public void contact(Actor actor, String email, String phone) {
+    String normalizedEmail = normalizeEmailOrNull(email);
+    Problem.require(normalizedEmail != null, 400, "Invalid email");
+    if (phone != null && !phone.isBlank()) {
+      String normalizedPhone = normalizePhoneOrNull(phone);
+      Problem.require(normalizedPhone != null, 400, "Invalid phone number");
+      db.update(
+          "UPDATE user_account SET email_encrypted=?,email_hash=?,phone_encrypted=?,phone_hash=? WHERE id=?",
+          crypto.encrypt(normalizedEmail),
+          crypto.hash(normalizedEmail),
+          crypto.encrypt(normalizedPhone),
+          crypto.hash(normalizedPhone),
+          actor.id());
+    } else {
+      db.update(
+          "UPDATE user_account SET email_encrypted=?,email_hash=? WHERE id=?",
+          crypto.encrypt(normalizedEmail),
+          crypto.hash(normalizedEmail),
+          actor.id());
+    }
     audit.record(actor.id(), "CONTACT_UPDATED", actor.id());
   }
 

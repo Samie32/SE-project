@@ -4,8 +4,8 @@ import { canSendDelayNotice, dayKey, MIN } from "@/core/datetime";
 import { NO_SHOW_REASON } from "@/core/labels";
 import { scheduleIntervalError, slotDurationError } from "@/core/schedule-rules";
 import { isValidClinicDay, type ClinicDayHours } from "@/core/clinic-hours";
-import { ACCOUNT_UUID, PATIENT_ACCOUNT_REASONS } from "@/api/patient-accounts";
-import { getDb, genSlots, mid, mockUsername, persist, type DB, type MAppt, type MNotif, type MTicket } from "./db";
+import { ACCOUNT_EMAIL, ACCOUNT_PHONE, ACCOUNT_UUID, normalizePhone, PATIENT_ACCOUNT_REASONS } from "@/api/patient-accounts";
+import { getDb, genSlots, mid, mockUsername, persist, type DB, type MAppt, type MNotif, type MTicket, type MUser } from "./db";
 
 class P extends Error { constructor(public status: number, public detail: string) { super(detail); } }
 const need = (c: unknown, status: number, detail: string) => { if (!c) throw new P(status, detail); };
@@ -114,7 +114,18 @@ on("GET", "/appointments/:id", c => {
 });
 on("PUT", "/me/contact", (c) => {
   need(typeof c.body?.email === "string" && /^\S+@\S+\.\S+$/.test(c.body.email), 400, "Invalid request");
-  const u = user(c.db, c.actor.id); if (u) u.email = c.body.email;
+  const rawPhone = c.body?.phone;
+  let normalizedPhone: string | undefined;
+  if (typeof rawPhone === "string" && rawPhone.trim()) {
+    const p = normalizePhone(rawPhone);
+    need(Boolean(p), 400, "Invalid phone number");
+    normalizedPhone = p!;
+  }
+  const u = user(c.db, c.actor.id);
+  if (u) {
+    u.email = c.body.email.trim().toLowerCase();
+    if (normalizedPhone) u.phone = normalizedPhone;
+  }
   audit(c.db, c.actor.id, "CONTACT_UPDATED", c.actor.id, c.now);
   return res(200);
 });
@@ -146,6 +157,32 @@ function patientAccount(c: Ctx) {
   return account;
 }
 
+on("GET", "/patient-accounts/lookup", (c) => {
+  req(c.actor, "ADMINISTRATOR");
+  const q = (c.query.get("q") ?? "").trim();
+  need(Boolean(q) && q.length <= 254, 400, "Invalid request");
+  const isPatientOnly = (account: MUser) =>
+    account.id !== c.actor.id && !isStaff(c.db, account)
+    && account.roles.length === 1 && account.roles[0] === "PATIENT";
+  let matches: MUser[] = [];
+  if (ACCOUNT_UUID.test(q)) {
+    matches = c.db.users.filter(account => account.id.toLowerCase() === q.toLowerCase() && isPatientOnly(account));
+  } else if (ACCOUNT_EMAIL.test(q)) {
+    const email = q.toLowerCase();
+    matches = c.db.users.filter(account => account.email.toLowerCase() === email && isPatientOnly(account));
+  } else if (ACCOUNT_PHONE.test(q)) {
+    const phone = normalizePhone(q);
+    need(Boolean(phone), 400, "Invalid request");
+    matches = c.db.users.filter(account => account.phone && normalizePhone(account.phone) === phone && isPatientOnly(account));
+  } else {
+    need(false, 400, "Invalid request");
+  }
+  need(matches.length > 0, 404, "Resource not found");
+  need(matches.length === 1, 409, "Multiple accounts match; use exact account ID");
+  const account = matches[0];
+  audit(c.db, c.actor.id, "PATIENT_ACCOUNT_LOOKUP", account.id, c.now);
+  return { id: account.id, displayName: account.name, active: account.active };
+});
 on("GET", "/patient-accounts/:id", (c) => {
   const account = patientAccount(c);
   audit(c.db, c.actor.id, "PATIENT_ACCOUNT_LOOKUP", account.id, c.now);

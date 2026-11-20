@@ -101,6 +101,43 @@ class PatientAccountIntegrationTest {
   }
 
   @Test
+  void exactLookupSupportsEmailAndPhoneAndRejectsPartialQueries() throws Exception {
+    mvc.perform(put("/api/me/contact").with(patient.token())
+        .contentType("application/json")
+        .content("""
+            {"email":"Patient.Lookup@Example.Test","phone":"+84 901 234 567"}
+            """))
+        .andExpect(status().isOk());
+
+    String expected = """
+        {"id":"%s","displayName":"Test Patient","active":true}
+        """.formatted(patient.id());
+
+    mvc.perform(get(PATH + "lookup").param("q", "patient.lookup@example.test").with(admin.token()))
+        .andExpect(status().isOk())
+        .andExpect(content().json(expected, JsonCompareMode.STRICT));
+
+    mvc.perform(get(PATH + "lookup").param("q", "0901234567").with(admin.token()))
+        .andExpect(status().isOk())
+        .andExpect(content().json(expected, JsonCompareMode.STRICT));
+
+    mvc.perform(get(PATH + "lookup").param("q", "+84-901-234-567").with(admin.token()))
+        .andExpect(status().isOk())
+        .andExpect(content().json(expected, JsonCompareMode.STRICT));
+
+    // Reject partial/name queries and non-matching values.
+    mvc.perform(get(PATH + "lookup").param("q", "Test Patient").with(admin.token()))
+        .andExpect(status().isBadRequest());
+    mvc.perform(get(PATH + "lookup").param("q", "0901234568").with(admin.token()))
+        .andExpect(status().isNotFound());
+    mvc.perform(get(PATH + "lookup").param("q", "other@example.test").with(admin.token()))
+        .andExpect(status().isNotFound());
+    mvc.perform(get(PATH + "lookup").param("q", "patient.lookup@example.test").with(receptionist.token()))
+        .andExpect(status().isForbidden());
+    assertEquals(3, countAudit("PATIENT_ACCOUNT_LOOKUP"));
+  }
+
+  @Test
   void accessControlsExcludeReceptionistsStaffAndSelf() throws Exception {
     mvc.perform(get(PATH + patient.id())).andExpect(status().isUnauthorized());
     mvc.perform(get(PATH + patient.id()).with(receptionist.token())).andExpect(status().isForbidden());

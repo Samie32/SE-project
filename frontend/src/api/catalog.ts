@@ -66,4 +66,5 @@ export const updateStaff = (id: string, body: { displayName: string; active: boo
 export const setUserRoles = (userId: string, roles: Role[]) =>
   api.put<void>(`/users/${userId}/roles`, { roles });
 // PUT /api/me/contact — chủ tài khoản.
-export const updateContact = (email: string) => api.put<void>("/me/contact", { email });
+export const updateContact = (email: string, phone?: string) =>
+  api.put<void>("/me/contact", phone ? { email, phone } : { email });

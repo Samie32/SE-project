@@ -44,4 +44,15 @@ public class Crypto {
       throw new IllegalStateException("Decryption failed", e);
     }
   }
+
+  public String hash(String value) {
+    try {
+      Mac mac = Mac.getInstance("HmacSHA256");
+      mac.init(new SecretKeySpec(key.getEncoded(), "HmacSHA256"));
+      byte[] digest = mac.doFinal(value.getBytes(java.nio.charset.StandardCharsets.UTF_8));
+      return HexFormat.of().formatHex(digest);
+    } catch (Exception e) {
+      throw new IllegalStateException("Hashing failed", e);
+    }
+  }
 }

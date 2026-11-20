@@ -1,6 +1,31 @@
 import { api } from "@/core/client";
 
 export const ACCOUNT_UUID = /^[\da-f]{8}(-[\da-f]{4}){3}-[\da-f]{12}$/i;
+export const ACCOUNT_EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+export const ACCOUNT_PHONE = /^[+]?[0-9\s.\-()]{7,20}$/;
+
+export function normalizePhone(value: string): string | null {
+  const cleaned = value.trim().replace(/[\s.\-()]/g, "");
+  const normalized = cleaned.startsWith("+84")
+    ? "0" + cleaned.slice(3)
+    : cleaned.startsWith("+")
+      ? cleaned.slice(1)
+      : cleaned.startsWith("84") && cleaned.length >= 11
+        ? "0" + cleaned.slice(2)
+        : cleaned;
+  return /^[0-9]{7,15}$/.test(normalized) ? normalized : null;
+}
+
+export function isValidPatientLookupQuery(value: string): boolean {
+  const q = value.trim();
+  if (!q || q.length > 254) return false;
+  return (
+    ACCOUNT_UUID.test(q) ||
+    ACCOUNT_EMAIL.test(q) ||
+    (ACCOUNT_PHONE.test(q) && normalizePhone(q) !== null)
+  );
+}
+
 export const PATIENT_ACCOUNT_REASONS = [
   "SECURITY_REVIEW",
   "POLICY_REVIEW",
@@ -17,6 +42,15 @@ export interface PatientAccount {
 
 export const getPatientAccount = (id: string) =>
   api.get<PatientAccount>(`/patient-accounts/${encodeURIComponent(id)}`);
+
+export const lookupPatientAccount = (query: string) => {
+  const q = query.trim();
+  return ACCOUNT_UUID.test(q)
+    ? getPatientAccount(q)
+    : api.get<PatientAccount>(
+        `/patient-accounts/lookup?q=${encodeURIComponent(q)}`,
+      );
+};
 
 export const updatePatientAccountAccess = (
   id: string,

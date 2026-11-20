@@ -47,6 +47,12 @@ public class AuthController {
     return access.users(access.actor(jwt), limit, offset, q, role, active);
   }
 
+  @GetMapping("/patient-accounts/lookup")
+  public Access.PatientAccount lookupPatientAccount(
+      @AuthenticationPrincipal Jwt jwt, @RequestParam String q) {
+    return access.patientAccountByQuery(access.actor(jwt), q);
+  }
+
   @GetMapping("/patient-accounts/{id}")
   public Access.PatientAccount patientAccount(
       @AuthenticationPrincipal Jwt jwt,
@@ -124,10 +130,12 @@ public class AuthController {
     access.roles(access.actor(jwt), id.toString(), body.roles());
   }
 
-  public record Contact(@NotBlank @Email @Size(max = 254) String email) {}
+  public record Contact(
+      @NotBlank @Email @Size(max = 254) String email,
+      @Size(max = 20) String phone) {}
 
   @PutMapping("/me/contact")
   public void contact(@AuthenticationPrincipal Jwt jwt, @Valid @RequestBody Contact body) {
-    access.contact(access.actor(jwt), body.email());
+    access.contact(access.actor(jwt), body.email(), body.phone());
   }
 }

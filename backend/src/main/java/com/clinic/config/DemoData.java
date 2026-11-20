@@ -32,21 +32,27 @@ public class DemoData {
             for (int i = 0; i < names.length; i++) {
               String id = String.format("00000000-0000-0000-0000-%012d", i + 1);
               String username = names[i];
+              String email = username + "@example.test";
+              String emailHash = crypto.hash(email);
               int inserted =
                   db.update(
                       "INSERT IGNORE INTO"
-                          + " user_account(id,issuer,subject,display_name,username,email_encrypted,staff)"
-                          + " VALUES(?,?,?,?,?,?,?)",
+                          + " user_account(id,issuer,subject,display_name,username,email_encrypted,email_hash,staff)"
+                          + " VALUES(?,?,?,?,?,?,?,?)",
                       id,
                       issuer,
                       id,
                       username,
                       username,
-                      crypto.encrypt(username + "@example.test"),
+                      crypto.encrypt(email),
+                      emailHash,
                       !roles[i].equals("PATIENT"));
-              if (inserted == 0)
+              if (inserted == 0) {
                 db.update("UPDATE user_account SET username=? WHERE issuer=? AND subject=? AND username IS NULL",
                     username, issuer, id);
+                db.update("UPDATE user_account SET email_hash=? WHERE issuer=? AND subject=? AND email_hash IS NULL",
+                    emailHash, issuer, id);
+              }
               if (inserted == 1) db.update("INSERT INTO user_role VALUES(?,?)", id, roles[i]);
               if (roles[i].equals("PATIENT"))
                 db.update("INSERT IGNORE INTO patient VALUES(?,?)", id, id);

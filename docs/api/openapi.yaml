@@ -2606,6 +2606,35 @@ paths:
       x-requirements:
       - FR-06
       x-access: DOCTOR sở hữu/ADMINISTRATOR; tương lai
+  /patient-accounts/lookup:
+    get:
+      tags: [M01]
+      operationId: lookupPatientAccount
+      summary: Tra cứu chính xác tài khoản bệnh nhân theo mã, email hoặc số điện thoại
+      x-access: ADMINISTRATOR
+      x-requirements: [FR-27]
+      parameters:
+      - name: q
+        in: query
+        required: true
+        schema: {type: string, minLength: 1, maxLength: 254}
+      responses:
+        '200':
+          description: Thông tin tài khoản tối thiểu
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PatientAccount'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
   /patient-accounts/{id}:
     get:
       tags: [M01]
@@ -3874,6 +3903,9 @@ components:
           maxLength: 254
           pattern: \S
           format: email
+        phone:
+          type: string
+          maxLength: 20
       required:
       - email
       example:

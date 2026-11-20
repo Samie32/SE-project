@@ -3,7 +3,7 @@ import { addDays, localToIso, todayKey } from "@/core/datetime";
 import type { NoShowReason, NotificationJob, Role } from "@/core/types";
 import { DEFAULT_CLINIC_HOURS, type ClinicDayHours } from "@/core/clinic-hours";
 
-export interface MUser { id: string; name: string; email: string; roles: Role[]; active: boolean; username?: string; staff?: boolean; subject?: string }
+export interface MUser { id: string; name: string; email: string; phone?: string; roles: Role[]; active: boolean; username?: string; staff?: boolean; subject?: string }
 export interface MDoctor { id: string; userId: string; active: boolean; specialtyIds: string[] }
 export interface MSpecialty { id: string; name: string; active: boolean }
 export interface MAvail { id: string; doctorId: string; startAt: string; endAt: string; slotMinutes: number; mode: string }

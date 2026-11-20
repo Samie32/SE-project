@@ -4190,6 +4190,36 @@
         }
       }
     },
+    "/patient-accounts/lookup": {
+      "get": {
+        "tags": [
+          "auth-controller"
+        ],
+        "operationId": "lookupPatientAccount",
+        "parameters": [
+          {
+            "name": "q",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/PatientAccount"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/patient-accounts/{id}": {
       "get": {
         "tags": [
@@ -5703,6 +5733,10 @@
             "maxLength": 254,
             "pattern": "\\S",
             "format": "email"
+          },
+          "phone": {
+            "type": "string",
+            "maxLength": 20
           }
         },
         "required": [

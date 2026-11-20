@@ -1,8 +1,8 @@
 import { useState, type FormEvent } from "react";
 import { LockKeyhole, LockKeyholeOpen, Search } from "lucide-react";
 import {
-  ACCOUNT_UUID,
-  getPatientAccount,
+  isValidPatientLookupQuery,
+  lookupPatientAccount,
   PATIENT_ACCOUNT_REASONS,
   updatePatientAccountAccess,
   type PatientAccount,
@@ -39,21 +39,25 @@ export function PatientAccountsPage() {
   const lookup = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (lookingUp || confirming) return;
-    const id = query.trim();
+    const target = query.trim();
     setAccount(undefined);
-    if (!ACCOUNT_UUID.test(id)) {
-      setLookupError("Nhập mã tài khoản UUID hợp lệ.");
+    if (!isValidPatientLookupQuery(target)) {
+      setLookupError(
+        "Nhập chính xác mã tài khoản (UUID), email hoặc số điện thoại hợp lệ.",
+      );
       return;
     }
     setLookingUp(true);
     setLookupError("");
     try {
-      setAccount(await getPatientAccount(id));
+      setAccount(await lookupPatientAccount(target));
     } catch (error) {
       setLookupError(
         error instanceof ApiError && error.status === 404
-          ? "Không tìm thấy tài khoản bệnh nhân với mã đã nhập."
-          : errorMessage(error),
+          ? "Không tìm thấy tài khoản bệnh nhân khớp chính xác thông tin đã nhập."
+          : error instanceof ApiError && error.status === 409
+            ? "Có nhiều tài khoản trùng thông tin liên hệ. Vui lòng nhập chính xác mã tài khoản (UUID)."
+            : errorMessage(error),
       );
     } finally {
       setLookingUp(false);
@@ -87,15 +91,16 @@ export function PatientAccountsPage() {
         <Panel title="Tra cứu tài khoản">
           <form className="stack" onSubmit={(event) => void lookup(event)}>
             <Field
-              label="Mã tài khoản"
+              label="Mã tài khoản, email hoặc số điện thoại"
               error={lookupError}
-              hint="Nhập mã tài khoản hiển thị trong mục Tài khoản của tôi của bệnh nhân."
+              hint="Chỉ hiển thị kết quả khi nhập chính xác mã tài khoản (UUID), email hoặc số điện thoại của bệnh nhân."
             >
               {(id) => (
                 <input
                   id={id}
                   className="field mono"
                   value={query}
+                  placeholder="UUID, ten@example.com hoặc 0901234567"
                   autoComplete="off"
                   spellCheck={false}
                   aria-invalid={Boolean(lookupError)}

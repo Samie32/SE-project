@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { updateContact } from "@/api/catalog";
+import { ACCOUNT_PHONE, normalizePhone } from "@/api/patient-accounts";
 import { errorMessage } from "@/core/client";
 import { useDirectory } from "@/core/directory";
 import { ROLE_LABEL } from "@/core/labels";
@@ -13,6 +14,7 @@ export function AccountPage() {
   const dir = useDirectory();
   const toast = useToast();
   const [email, setEmail] = useState("");
+  const [phone, setPhone] = useState("");
   const [err, setErr] = useState("");
   const [busy, setBusy] = useState(false);
 
@@ -26,9 +28,16 @@ export function AccountPage() {
 
   const save = async () => {
     const v = email.trim();
+    const p = phone.trim();
     if (!EMAIL.test(v) || v.length > 254) { setErr("Email không hợp lệ."); return; }
+    if (p && (!ACCOUNT_PHONE.test(p) || !normalizePhone(p))) { setErr("Số điện thoại không hợp lệ."); return; }
     setBusy(true); setErr("");
-    try { await updateContact(v); setEmail(""); toast.success("Đã cập nhật email nhận thông báo."); }
+    try {
+      await updateContact(v, p || undefined);
+      setEmail("");
+      setPhone("");
+      toast.success("Đã cập nhật thông tin liên hệ.");
+    }
     catch (e) { setErr(errorMessage(e)); }
     finally { setBusy(false); }
   };
@@ -86,10 +95,13 @@ export function AccountPage() {
             )}
           </dl>
         </Panel>
-        <Panel title="Email nhận thông báo" subtitle="Dùng để gửi xác nhận / nhắc lịch khám">
-          <Notice><span>Email được mã hóa khi lưu và không hiển thị lại. Nhập địa chỉ mới để thay thế.</span></Notice>
-          <Field label="Email mới" error={err}>{(id) => <input id={id} className="field" type="email" autoComplete="email" maxLength={254} value={email} onChange={(e) => setEmail(e.target.value)} placeholder="ten@example.com" />}</Field>
-          <div style={{ marginTop: 14 }}><button className="btn primary" disabled={busy || !email.trim()} onClick={() => void save()}>{busy ? "Đang lưu…" : "Lưu email"}</button></div>
+        <Panel title="Thông tin liên hệ" subtitle="Dùng để nhận thông báo lịch khám và hỗ trợ tài khoản">
+          <Notice><span>Email và số điện thoại được mã hóa khi lưu và không hiển thị lại. Nhập thông tin mới để cập nhật.</span></Notice>
+          <Field label="Email nhận thông báo" error={err}>{(id) => <input id={id} className="field" type="email" autoComplete="email" maxLength={254} value={email} onChange={(e) => setEmail(e.target.value)} placeholder="ten@example.com" />}</Field>
+          <div style={{ marginTop: 12 }}>
+            <Field label="Số điện thoại (tùy chọn)">{(id) => <input id={id} className="field" type="tel" autoComplete="tel" maxLength={20} value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="0901234567" />}</Field>
+          </div>
+          <div style={{ marginTop: 14 }}><button className="btn primary" disabled={busy || !email.trim()} onClick={() => void save()}>{busy ? "Đang lưu…" : "Lưu thông tin"}</button></div>
         </Panel>
       </div>
     </>
