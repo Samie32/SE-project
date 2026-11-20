@@ -38,6 +38,7 @@ class DeployScopeTests(unittest.TestCase):
         self.stub("docker", """printf '%s\\n' "$*" >> "$FIXTURE/docker.log"
 case "$*" in
   *'printenv APP_HOST') echo clinic.example.org ;;
+  *'run --rm auth-config') echo CLINICCARE_REGISTRATION_CONFIGURED ;;
 esac""")
         self.stub("curl", """case "$*" in
   *'/api/me/profile') printf '401' ;;

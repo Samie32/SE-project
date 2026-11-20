@@ -75,8 +75,26 @@ if [ "$mode" = frontend-only ]; then
 else
   python3 scripts/run-with-azure-smtp.py docker compose --env-file .env.internet \
     -f compose.yaml -f compose.internet.yaml up -d --build
-  compose restart frontend
+  compose restart frontend keycloak
+  compose up -d --force-recreate --no-deps gateway
 fi
+
+configure_keycloak_registration() {
+  if [ -f scripts/run-with-azure-google-oauth.py ]; then
+    auth_output=$(python3 scripts/run-with-azure-google-oauth.py docker compose --env-file .env.internet \
+      -f compose.yaml -f compose.internet.yaml run --rm auth-config)
+  else
+    auth_output=$(compose run --rm auth-config)
+  fi
+  if printf '%s\n' "$auth_output" | grep -Fxq "CLINICCARE_REGISTRATION_CONFIGURED"; then
+    printf 'CLINICCARE_REGISTRATION_CONFIGURED\n'
+    return 0
+  fi
+  echo "Could not enable Keycloak email registration." >&2
+  return 1
+}
+
+configure_keycloak_registration
 
 frontend_https_ready() {
   curl --fail --silent --show-error --max-time 5 \

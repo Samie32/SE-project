@@ -15,6 +15,7 @@ vi.mock("@/api/schedule",()=>({
 afterEach(()=>{cleanup();vi.clearAllMocks();});
 it("mặc định 20 phút, ẩn ca đã có và chặn trùng ca khác hình thức",async()=>{
   render(<ToastProvider><ScheduleManager doctorId="doctor" /></ToastProvider>);
+  fireEvent.click(await screen.findByRole("button",{name:"Tuần sau"}));
   const days=await screen.findAllByRole("button",{name:/Xem chi tiết ngày/});
   fireEvent.click(days[4]);
   fireEvent.click(screen.getByRole("button",{name:"Thêm ca làm việc"}));
@@ -34,6 +35,7 @@ it("mặc định 20 phút, ẩn ca đã có và chặn trùng ca khác hình th
 
 async function openShift() {
   render(<ToastProvider><ScheduleManager doctorId="doctor" /></ToastProvider>);
+  fireEvent.click(await screen.findByRole("button",{name:"Tuần sau"}));
   const days=await screen.findAllByRole("button",{name:/Xem chi tiết ngày/});
   fireEvent.click(days[4]);
   fireEvent.click(screen.getByRole("button",{name:"Thêm ca làm việc"}));
