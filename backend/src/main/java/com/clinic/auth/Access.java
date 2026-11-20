@@ -208,17 +208,15 @@ public class Access {
 
     String column = email != null ? "u.email_hash" : "u.phone_hash";
     String hash = crypto.hash(email != null ? email : phone);
-    var rows = db.list(
-        """
-        SELECT u.id,u.display_name,u.active
-        FROM user_account u
-        WHERE """ + column + """
-        =? AND u.id<>? AND u.staff=FALSE
-          AND EXISTS (SELECT 1 FROM patient p WHERE p.user_id=u.id)
-          AND EXISTS (SELECT 1 FROM user_role r WHERE r.user_id=u.id AND r.role='PATIENT')
-          AND NOT EXISTS (SELECT 1 FROM user_role r WHERE r.user_id=u.id AND r.role<>'PATIENT')
-        LIMIT 2
-        """, hash, actor.id());
+    String sql =
+        "SELECT u.id,u.display_name,u.active FROM user_account u WHERE "
+            + column
+            + "=? AND u.id<>? AND u.staff=FALSE"
+            + " AND EXISTS (SELECT 1 FROM patient p WHERE p.user_id=u.id)"
+            + " AND EXISTS (SELECT 1 FROM user_role r WHERE r.user_id=u.id AND r.role='PATIENT')"
+            + " AND NOT EXISTS (SELECT 1 FROM user_role r WHERE r.user_id=u.id AND r.role<>'PATIENT')"
+            + " LIMIT 2";
+    var rows = db.list(sql, hash, actor.id());
     Problem.require(!rows.isEmpty(), 404, "Resource not found");
     Problem.require(rows.size() == 1, 409, "Multiple accounts match; use exact account ID");
     var row = rows.getFirst();
