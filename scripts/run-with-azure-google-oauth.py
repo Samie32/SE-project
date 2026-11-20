@@ -12,8 +12,30 @@ CONFIG = Path("/var/lib/cliniccare/google-oauth.json")
 
 
 def parse_credentials(raw):
-    credentials = json.loads(raw)
-    values = {key: credentials[key] for key in ("clientId", "clientSecret")}
+    text = raw.strip()
+    if text.startswith("{"):
+        data = json.loads(text)
+        if isinstance(data, dict):
+            for nested_key in ("web", "installed"):
+                if isinstance(data.get(nested_key), dict):
+                    data = data[nested_key]
+                    break
+        if not isinstance(data, dict):
+            raise ValueError("Invalid Google OAuth configuration")
+        client_id = data.get("clientId") or data.get("client_id")
+        client_secret = data.get("clientSecret") or data.get("client_secret")
+    else:
+        pairs = {}
+        for line in text.splitlines():
+            line = line.strip()
+            if not line or line.startswith("#") or "=" not in line:
+                continue
+            key, value = line.split("=", 1)
+            pairs[key.strip()] = value.strip().strip('"').strip("'")
+        client_id = pairs.get("GOOGLE_CLIENT_ID") or pairs.get("clientId") or pairs.get("client_id")
+        client_secret = pairs.get("GOOGLE_CLIENT_SECRET") or pairs.get("clientSecret") or pairs.get("client_secret")
+
+    values = {"clientId": client_id, "clientSecret": client_secret}
     if any(not isinstance(value, str) or not value.strip() or any(c in value for c in "\x00\r\n")
            for value in values.values()):
         raise ValueError("Invalid Google OAuth configuration")

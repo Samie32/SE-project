@@ -48,6 +48,22 @@ class AzureGoogleOAuthTests(unittest.TestCase):
             google_oauth.store(json.dumps(self.credentials | {"clientSecret": "bad\nsecret"}))
         self.assertEqual(google_oauth.oauth_environment()["GOOGLE_CLIENT_SECRET"], "test-secret")
 
+    def test_accepts_google_console_json_and_key_value_formats(self):
+        console_json = json.dumps({
+            "web": {
+                "client_id": "console-id.apps.googleusercontent.com",
+                "client_secret": "console-secret",
+            }
+        })
+        self.assertTrue(google_oauth.store(console_json))
+        self.assertEqual(google_oauth.oauth_environment()["GOOGLE_CLIENT_ID"], "console-id.apps.googleusercontent.com")
+        self.assertEqual(google_oauth.oauth_environment()["GOOGLE_CLIENT_SECRET"], "console-secret")
+
+        kv_raw = "GOOGLE_CLIENT_ID=kv-id\nGOOGLE_CLIENT_SECRET=kv-secret\n"
+        self.assertTrue(google_oauth.store(kv_raw))
+        self.assertEqual(google_oauth.oauth_environment()["GOOGLE_CLIENT_ID"], "kv-id")
+        self.assertEqual(google_oauth.oauth_environment()["GOOGLE_CLIENT_SECRET"], "kv-secret")
+
     def test_configure_google_idp_creates_when_missing(self):
         opener = MagicMock()
         not_found = HTTPError(
