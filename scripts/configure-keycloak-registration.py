@@ -23,6 +23,7 @@ def configure_google_idp(opener, base, token, client_id, client_secret):
         "addReadTokenRoleOnCreate": False,
         "authenticateByDefault": False,
         "linkOnly": False,
+        "hideOnLogin": False,
         "firstBrokerLoginFlowAlias": "first broker login",
         "config": {
             "clientId": client_id,
@@ -140,6 +141,7 @@ def main():
             google_client_secret = os.environ.get("GOOGLE_CLIENT_SECRET", "").strip()
             if google_client_id and google_client_secret:
                 configure_google_idp(opener, base, token, google_client_id, google_client_secret)
+                print("CLINICCARE_GOOGLE_IDP_CONFIGURED")
 
             print("CLINICCARE_REGISTRATION_CONFIGURED")
             return
