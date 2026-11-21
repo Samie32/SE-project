@@ -51,16 +51,16 @@ class BackupRestoreIntegrationTest {
     String userId = Db.id();
     String sampleEmail = "backup-verify@example.test";
     db.update(
-        "INSERT INTO user_account(id,subject,display_name,email_encrypted,email_hash,staff,active)"
-            + " VALUES(?,?,?,?,?,FALSE,TRUE)",
+        "INSERT INTO user_account(id,issuer,subject,display_name,email_encrypted,email_hash,staff,active)"
+            + " VALUES(?,?,?,?,?,?,FALSE,TRUE)",
         userId,
+        "http://localhost:8180/realms/clinic",
         "backup-sub-" + userId,
         "Backup Verification Patient",
         crypto.encrypt(sampleEmail),
         crypto.hash(sampleEmail));
     db.update("INSERT INTO user_role(user_id,role) VALUES(?,'PATIENT')", userId);
-    db.update("INSERT INTO patient_profile(id,user_id,full_name) VALUES(?,?,?)",
-        Db.id(), userId, "Backup Verification Patient");
+    db.update("INSERT INTO patient(id,user_id) VALUES(?,?)", Db.id(), userId);
 
     String dbName = mysql.getDatabaseName();
     String rootPass = mysql.getPassword();
@@ -82,7 +82,7 @@ class BackupRestoreIntegrationTest {
 
     String restoreUrl = mysql.getJdbcUrl().replace("/" + dbName, "/" + restoredDb);
     try (Connection conn = DriverManager.getConnection(restoreUrl, "root", rootPass)) {
-      for (String table : List.of("user_account", "user_role", "specialty", "doctor", "patient_profile", "audit_log")) {
+      for (String table : List.of("user_account", "user_role", "specialty", "doctor", "patient", "audit_event")) {
         long srcCount = ((Number) db.one("SELECT COUNT(*) c FROM " + table).get("c")).longValue();
         long dstCount = count(conn, table);
         assertEquals(srcCount, dstCount, "Row count mismatch after restore for table " + table);
@@ -112,9 +112,9 @@ class BackupRestoreIntegrationTest {
         assertThrows(
             Exception.class,
             () -> st.executeUpdate(
-                "INSERT INTO patient_profile(id,user_id,full_name) VALUES('"
-                    + Db.id() + "','00000000-0000-0000-0000-000000000999','Orphan')"),
-            "Foreign key constraint must reject orphan patient_profile after restore");
+                "INSERT INTO patient(id,user_id) VALUES('"
+                    + Db.id() + "','00000000-0000-0000-0000-000000000999')"),
+            "Foreign key constraint must reject orphan patient row after restore");
       }
     }
   }
