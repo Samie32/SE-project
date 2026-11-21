@@ -60,7 +60,10 @@ export function OidcSessionProvider({ children }: { children: ReactNode }) {
       automaticSilentRenew
       onSigninCallback={(user) => {
         const from = (user as unknown as { state?: { from?: string } } | undefined)?.state?.from;
-        navigate(from && from.startsWith("/") && from !== "/login" ? from : "/", { replace: true });
+        navigate(from && from.startsWith("/") && from !== "/login" ? from : "/", {
+          replace: true,
+          state: { fromSignin: true },
+        });
       }}
     >
       <IdentityLoader>{children}</IdentityLoader>

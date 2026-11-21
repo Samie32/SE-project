@@ -30,7 +30,11 @@ export function Guard({ permission, children }: { permission?: Permission; child
         action={{ label: "Đăng xuất", onClick: logout }}
       />
     );
-  if (permission && !can(permission)) return <Forbidden />;
+  if (permission && !can(permission)) {
+    const fromSignin = Boolean((location.state as { fromSignin?: boolean } | null)?.fromSignin);
+    if (fromSignin) return <Navigate to={homePath(roles)} replace />;
+    return <Forbidden />;
+  }
   return <>{children}</>;
 }
 
