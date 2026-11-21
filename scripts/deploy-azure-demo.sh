@@ -29,9 +29,13 @@ if [ -n "$(git status --porcelain)" ]; then
 fi
 
 pending_deploy=/var/lib/cliniccare/deploy-pending
+prev_sha=""
+if [ -f "$deployed_sha" ]; then
+  prev_sha=$(cat "$deployed_sha")
+fi
 mode=full
-if [ "${DEPLOY_FORCE_FULL:-0}" != 1 ] && [ -f "$deployed_sha" ] && [ ! -e "$pending_deploy" ]; then
-  deployed_commit=$(cat "$deployed_sha")
+if [ "${DEPLOY_FORCE_FULL:-0}" != 1 ] && [ -n "$prev_sha" ] && [ ! -e "$pending_deploy" ]; then
+  deployed_commit="$prev_sha"
   if git merge-base --is-ancestor "$deployed_commit" "$DEPLOY_SHA"; then
     if git diff --quiet "$deployed_commit" "$DEPLOY_SHA" -- . ':(exclude)docs/' ':(exclude)README.md'; then
       mode=docs-only
@@ -69,15 +73,17 @@ compose() {
 compose config --quiet
 install -d -m 0755 /var/lib/cliniccare
 touch "$pending_deploy"
-if [ "$mode" = frontend-only ]; then
-  compose up -d --build --no-deps frontend
-  app_host=$(compose exec -T gateway printenv APP_HOST)
-else
-  python3 scripts/run-with-azure-smtp.py docker compose --env-file .env.internet \
-    -f compose.yaml -f compose.internet.yaml up -d --build
-  compose restart frontend keycloak
-  compose up -d --force-recreate --no-deps gateway
-fi
+deploy_services() {
+  if [ "$mode" = frontend-only ]; then
+    compose up -d --build --no-deps frontend
+    app_host=$(compose exec -T gateway printenv APP_HOST)
+  else
+    python3 scripts/run-with-azure-smtp.py docker compose --env-file .env.internet \
+      -f compose.yaml -f compose.internet.yaml up -d --build
+    compose restart frontend keycloak
+    compose up -d --force-recreate --no-deps gateway
+  fi
+}
 
 configure_keycloak_registration() {
   if [ -f scripts/run-with-azure-smtp.py ] && [ -f scripts/run-with-azure-google-oauth.py ]; then
@@ -97,8 +103,6 @@ configure_keycloak_registration() {
   return 1
 }
 
-configure_keycloak_registration
-
 frontend_https_ready() {
   curl --fail --silent --show-error --max-time 5 \
     --resolve "$app_host:443:127.0.0.1" -o /dev/null "https://$app_host/" &&
@@ -107,25 +111,57 @@ frontend_https_ready() {
     "https://$app_host/api/me/profile")" = 401 ]
 }
 
-for attempt in $(seq 1 30); do
-  if compose exec -T frontend wget -q -T 3 -O /dev/null http://backend:8080/actuator/health &&
-     compose exec -T frontend wget -q -T 3 -O /dev/null http://127.0.0.1/health &&
-     { [ "$mode" != frontend-only ] || frontend_https_ready; }; then
-    if ! cmp -s infra/internet/cliniccare-boot-deploy.service /etc/systemd/system/cliniccare-boot-deploy.service; then
-      install -m 0644 infra/internet/cliniccare-boot-deploy.service /etc/systemd/system/
-      systemctl daemon-reload
+wait_until_healthy() {
+  attempts="${DEPLOY_HEALTH_ATTEMPTS:-30}"
+  interval="${DEPLOY_HEALTH_SLEEP:-5}"
+  for attempt in $(seq 1 "$attempts"); do
+    if compose exec -T frontend wget -q -T 3 -O /dev/null http://backend:8080/actuator/health &&
+       compose exec -T frontend wget -q -T 3 -O /dev/null http://127.0.0.1/health &&
+       { [ "$mode" != frontend-only ] || frontend_https_ready; }; then
+      return 0
     fi
-    if ! systemctl is-enabled --quiet cliniccare-boot-deploy.service; then
-      systemctl enable cliniccare-boot-deploy.service
-    fi
-    systemctl is-enabled --quiet cliniccare-boot-deploy.service
-    printf 'CLINICCARE_BOOT_CHECK_ENABLED\n'
-    record_deployment
-    exit 0
-  fi
-  sleep 5
-done
+    sleep "$interval"
+  done
+  return 1
+}
 
-compose ps
-echo "ClinicCare health checks timed out." >&2
-exit 1
+rollback_deployment() {
+  reason="$1"
+  echo "ClinicCare deploy failed ($reason) for $DEPLOY_SHA." >&2
+  if [ -n "$prev_sha" ] && [ "$prev_sha" != "$DEPLOY_SHA" ] && git cat-file -e "$prev_sha^{commit}" 2>/dev/null; then
+    echo "Rolling back checkout and services to previous verified commit $prev_sha..." >&2
+    git reset --hard "$prev_sha"
+    if deploy_services && configure_keycloak_registration && wait_until_healthy; then
+      rm -f "$pending_deploy"
+      printf 'CLINICCARE_DEPLOY_ROLLED_BACK %s %s\n' "$DEPLOY_SHA" "$prev_sha"
+    else
+      echo "Rollback to $prev_sha did not become healthy; manual recovery required." >&2
+    fi
+  fi
+  compose ps || true
+  exit 1
+}
+
+if ! deploy_services; then
+  rollback_deployment "compose-up"
+fi
+
+if ! configure_keycloak_registration; then
+  rollback_deployment "keycloak-config"
+fi
+
+if wait_until_healthy; then
+  if ! cmp -s infra/internet/cliniccare-boot-deploy.service /etc/systemd/system/cliniccare-boot-deploy.service; then
+    install -m 0644 infra/internet/cliniccare-boot-deploy.service /etc/systemd/system/
+    systemctl daemon-reload
+  fi
+  if ! systemctl is-enabled --quiet cliniccare-boot-deploy.service; then
+    systemctl enable cliniccare-boot-deploy.service
+  fi
+  systemctl is-enabled --quiet cliniccare-boot-deploy.service
+  printf 'CLINICCARE_BOOT_CHECK_ENABLED\n'
+  record_deployment
+  exit 0
+fi
+
+rollback_deployment "health-check-timeout"

@@ -104,3 +104,26 @@ esac""")
     def test_manual_deploy_can_reconcile_all_services(self):
         commands = self.deploy(self.commit("docs/deploy.md"), DEPLOY_FORCE_FULL="1")
         self.assertIn("up -d --build\n", commands)
+
+    def test_failed_health_check_rolls_back_to_previous_commit(self):
+        prev = (self.state / "deployed-sha").read_text().strip()
+        broken = self.commit("backend/broken.java")
+        self.stub("docker", """printf '%s\\n' "$*" >> "$FIXTURE/docker.log"
+case "$*" in
+  *'run --rm auth-config') echo CLINICCARE_REGISTRATION_CONFIGURED ;;
+  *'wget -q -T 3 -O /dev/null http://backend:8080/actuator/health')
+    if [ "$(git -C "$FIXTURE/checkout" rev-parse HEAD)" = """ + f'"{broken}"' + """ ]; then
+      exit 1
+    fi
+    exit 0 ;;
+esac""")
+        res = subprocess.run(
+            ["sh", str(self.script)],
+            env=dict(self.env, DEPLOY_SHA=broken, DEPLOY_HEALTH_ATTEMPTS="1", DEPLOY_HEALTH_SLEEP="0"),
+            stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True,
+        )
+        self.assertNotEqual(res.returncode, 0)
+        self.assertIn(f"CLINICCARE_DEPLOY_ROLLED_BACK {broken} {prev}", res.stdout)
+        self.assertEqual(self.git("rev-parse", "HEAD", cwd=self.checkout), prev)
+        self.assertEqual((self.state / "deployed-sha").read_text().strip(), prev)
+        self.assertFalse((self.state / "deploy-pending").exists())

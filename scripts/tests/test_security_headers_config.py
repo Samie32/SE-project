@@ -28,3 +28,11 @@ class SecurityHeadersConfigTests(unittest.TestCase):
         self.assertIn("Content-Security-Policy", root_block)
         self.assertIn("frame-ancestors 'none'", root_block)
         self.assertNotIn("Strict-Transport-Security", nginx)
+
+    def test_nginx_conf_rate_limits_otp_endpoint_by_ip(self):
+        nginx = (ROOT / "frontend/nginx.conf").read_text(encoding="utf-8")
+        self.assertIn("limit_req_zone $clinic_client_ip zone=otp_ip:10m rate=10r/m;", nginx)
+        self.assertIn("location = /api/me/contact/otp {", nginx)
+        otp_block = nginx.split("location = /api/me/contact/otp {")[1].split("}")[0]
+        self.assertIn("limit_req zone=otp_ip burst=5 nodelay;", otp_block)
+        self.assertIn("limit_req_status 429;", otp_block)
