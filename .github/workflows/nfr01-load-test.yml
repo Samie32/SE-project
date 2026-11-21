@@ -104,6 +104,16 @@ jobs:
             --doctors 10 \
             --target-date "$TARGET_DATE"
 
+          mysql -h127.0.0.1 -P3306 -uroot -proot-load-pass clinic -e "
+            EXPLAIN SELECT s.id,s.availability_id,s.doctor_id,s.start_at,s.end_at,s.mode
+              FROM slot s JOIN doctor d ON d.id=s.doctor_id
+              WHERE d.active=TRUE AND s.start_at>='${TARGET_DATE} 00:00:00' AND s.start_at<'${TARGET_DATE} 23:59:59'
+              ORDER BY s.start_at,s.id;
+            EXPLAIN SELECT doctor_id,start_at,end_at FROM appointment
+              WHERE status IN ('CONFIRMED','CHECKED_IN','IN_PROGRESS')
+                AND start_at<'${TARGET_DATE} 23:59:59' AND end_at>'${TARGET_DATE} 00:00:00';
+          "
+
       - name: Run NFR-01 k6 load test
         id: k6
         run: |

@@ -138,26 +138,96 @@ public class ScheduleService {
 
   public List<Map<String, Object>> slots(
       String doctor, LocalDate date, String mode, String specialty) {
-    Instant start = date.atStartOfDay(ZONE).toInstant(),
-        end = date.plusDays(1).atStartOfDay(ZONE).toInstant();
-    return db.list(
-        """
-SELECT s.* FROM slot s JOIN doctor d ON d.id=s.doctor_id
-WHERE d.active=TRUE AND s.start_at>=? AND s.start_at<? AND s.start_at>?
-AND (? IS NULL OR s.doctor_id=?) AND (? IS NULL OR s.mode=?)
-AND (? IS NULL OR EXISTS(SELECT 1 FROM doctor_specialty ds WHERE ds.doctor_id=s.doctor_id AND ds.specialty_id=?))
-AND NOT EXISTS(SELECT 1 FROM time_off t WHERE t.doctor_id=s.doctor_id AND t.start_at<s.end_at AND t.end_at>s.start_at)
-AND NOT EXISTS(SELECT 1 FROM appointment a WHERE a.doctor_id=s.doctor_id AND a.status IN ('CONFIRMED','CHECKED_IN','IN_PROGRESS') AND a.start_at<s.end_at AND a.end_at>s.start_at)
-ORDER BY s.start_at,s.id LIMIT 500
-""",
-        start,
-        end,
-        clock.instant(),
-        doctor,
-        doctor,
-        mode,
-        mode,
-        specialty,
-        specialty);
+    Instant start = date.atStartOfDay(ZONE).toInstant();
+    Instant end = date.plusDays(1).atStartOfDay(ZONE).toInstant();
+    Instant now = clock.instant();
+    if (!end.isAfter(now)) return List.of();
+
+    StringBuilder sql = new StringBuilder(
+        "SELECT s.id,s.availability_id,s.doctor_id,s.start_at,s.end_at,s.mode"
+            + " FROM slot s JOIN doctor d ON d.id=s.doctor_id"
+            + " WHERE d.active=TRUE AND s.start_at>=? AND s.start_at<? AND s.start_at>?");
+    List<Object> params = new ArrayList<>();
+    params.add(start);
+    params.add(end);
+    params.add(now);
+    if (doctor != null) {
+      sql.append(" AND s.doctor_id=?");
+      params.add(doctor);
+    }
+    if (mode != null) {
+      sql.append(" AND s.mode=?");
+      params.add(mode);
+    }
+    if (specialty != null) {
+      sql.append(
+          " AND EXISTS(SELECT 1 FROM doctor_specialty ds"
+              + " WHERE ds.doctor_id=s.doctor_id AND ds.specialty_id=?)");
+      params.add(specialty);
+    }
+    sql.append(" ORDER BY s.start_at,s.id");
+
+    List<Map<String, Object>> candidates = db.list(sql.toString(), params.toArray());
+    if (candidates.isEmpty()) return List.of();
+
+    Instant minStart = Db.instant(candidates.getFirst(), "startAt");
+    Instant maxEnd = minStart;
+    for (var s : candidates) {
+      Instant e = Db.instant(s, "endAt");
+      if (e.isAfter(maxEnd)) maxEnd = e;
+    }
+
+    Map<String, List<Instant[]>> busyByDoctor = new HashMap<>();
+    List<Map<String, Object>> timeOffs = doctor != null
+        ? db.list(
+            "SELECT doctor_id,start_at,end_at FROM time_off"
+                + " WHERE doctor_id=? AND start_at<? AND end_at>?",
+            doctor, maxEnd, minStart)
+        : db.list(
+            "SELECT doctor_id,start_at,end_at FROM time_off"
+                + " WHERE start_at<? AND end_at>?",
+            maxEnd, minStart);
+    for (var t : timeOffs) {
+      busyByDoctor
+          .computeIfAbsent(t.get("doctorId").toString(), k -> new ArrayList<>())
+          .add(new Instant[] {Db.instant(t, "startAt"), Db.instant(t, "endAt")});
+    }
+
+    List<Map<String, Object>> activeAppts = doctor != null
+        ? db.list(
+            "SELECT doctor_id,start_at,end_at FROM appointment WHERE doctor_id=?"
+                + " AND status IN ('CONFIRMED','CHECKED_IN','IN_PROGRESS')"
+                + " AND start_at<? AND end_at>?",
+            doctor, maxEnd, minStart)
+        : db.list(
+            "SELECT doctor_id,start_at,end_at FROM appointment"
+                + " WHERE status IN ('CONFIRMED','CHECKED_IN','IN_PROGRESS')"
+                + " AND start_at<? AND end_at>?",
+            maxEnd, minStart);
+    for (var a : activeAppts) {
+      busyByDoctor
+          .computeIfAbsent(a.get("doctorId").toString(), k -> new ArrayList<>())
+          .add(new Instant[] {Db.instant(a, "startAt"), Db.instant(a, "endAt")});
+    }
+
+    List<Map<String, Object>> free = new ArrayList<>(Math.min(candidates.size(), 500));
+    for (var s : candidates) {
+      List<Instant[]> busy = busyByDoctor.get(s.get("doctorId").toString());
+      if (busy != null) {
+        Instant sStart = Db.instant(s, "startAt");
+        Instant sEnd = Db.instant(s, "endAt");
+        boolean overlaps = false;
+        for (Instant[] b : busy) {
+          if (b[0].isBefore(sEnd) && b[1].isAfter(sStart)) {
+            overlaps = true;
+            break;
+          }
+        }
+        if (overlaps) continue;
+      }
+      free.add(s);
+      if (free.size() == 500) break;
+    }
+    return free;
   }
 }

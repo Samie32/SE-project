@@ -193,6 +193,7 @@ def generate_seed_sql(
     )
     lines.append("SET unique_checks=1;")
     lines.append("COMMIT;")
+    lines.append("ANALYZE TABLE slot, appointment, time_off, doctor, user_account, user_role;")
     return "\n".join(lines) + "\n"
 
 

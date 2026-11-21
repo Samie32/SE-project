@@ -9,6 +9,7 @@ import com.clinic.appointment.Idempotency;
 import com.clinic.audit.Audit;
 import com.clinic.auth.Access;
 import com.clinic.availability.ClinicHours;
+import com.clinic.availability.ScheduleService;
 import com.clinic.catalog.CatalogService;
 import com.clinic.common.Commands;
 import com.clinic.common.Db;
@@ -161,5 +162,47 @@ class BusinessRulesUnitTest {
         () -> Map.of("sent", true));
     assertEquals(true, fresh.get("sent"));
     verify(idem).complete("r1", "DELAY_NOTICE:a1", "k-fresh", fresh);
+  }
+
+  @Test
+  void scheduleServiceSlotsFiltersOverlappingTimeOffAndActiveAppointments() {
+    Db db = mock(Db.class);
+    Access access = mock(Access.class);
+    Audit audit = mock(Audit.class);
+    ClinicHours hours = mock(ClinicHours.class);
+    ScheduleService service = new ScheduleService(db, access, audit, FIXED_CLOCK, hours);
+
+    // Past date returns empty immediately without querying DB
+    assertTrue(service.slots(null, LocalDate.of(2026, 11, 20), null, null).isEmpty());
+    verifyNoInteractions(db);
+
+    // Future date with candidate slots: slot-1 overlaps time_off, slot-2 overlaps active appointment, slot-3 is free
+    Map<String, Object> slot1 = Map.of(
+        "id", "s1", "availabilityId", "av1", "doctorId", "d1",
+        "startAt", "2026-11-22T01:00:00Z", "endAt", "2026-11-22T01:20:00Z", "mode", "IN_PERSON");
+    Map<String, Object> slot2 = Map.of(
+        "id", "s2", "availabilityId", "av1", "doctorId", "d1",
+        "startAt", "2026-11-22T01:20:00Z", "endAt", "2026-11-22T01:40:00Z", "mode", "IN_PERSON");
+    Map<String, Object> slot3 = Map.of(
+        "id", "s3", "availabilityId", "av1", "doctorId", "d2",
+        "startAt", "2026-11-22T01:40:00Z", "endAt", "2026-11-22T02:00:00Z", "mode", "IN_PERSON");
+
+    when(db.list(startsWith("SELECT s.id,s.availability_id"), any(Object[].class)))
+        .thenReturn(List.of(slot1, slot2, slot3));
+    when(db.list(startsWith("SELECT doctor_id,start_at,end_at FROM time_off"), any(Object[].class)))
+        .thenReturn(List.of(Map.of(
+            "doctorId", "d1", "startAt", "2026-11-22T01:00:00Z", "endAt", "2026-11-22T01:15:00Z")));
+    when(db.list(startsWith("SELECT doctor_id,start_at,end_at FROM appointment"), any(Object[].class)))
+        .thenReturn(List.of(Map.of(
+            "doctorId", "d1", "startAt", "2026-11-22T01:20:00Z", "endAt", "2026-11-22T01:40:00Z")));
+
+    List<Map<String, Object>> result = service.slots(null, LocalDate.of(2026, 11, 22), "IN_PERSON", "spec-1");
+    assertEquals(1, result.size());
+    assertEquals("s3", result.getFirst().get("id"));
+
+    // Filtered by doctorId when no candidates exist
+    when(db.list(startsWith("SELECT s.id,s.availability_id"), any(Object[].class)))
+        .thenReturn(List.of());
+    assertTrue(service.slots("d1", LocalDate.of(2026, 11, 22), null, null).isEmpty());
   }
 }

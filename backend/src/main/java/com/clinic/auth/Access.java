@@ -7,6 +7,7 @@ import java.util.*;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionTemplate;
 
 @Service
 public class Access {
@@ -30,15 +31,17 @@ public class Access {
   private final Audit audit;
   private final Crypto crypto;
   private final ContactOtpService contactOtp;
+  private final TransactionTemplate tx;
 
-  public Access(Db db, Audit audit, Crypto crypto, ContactOtpService contactOtp) {
+  public Access(
+      Db db, Audit audit, Crypto crypto, ContactOtpService contactOtp, TransactionTemplate tx) {
     this.db = db;
     this.audit = audit;
     this.crypto = crypto;
     this.contactOtp = contactOtp;
+    this.tx = tx;
   }
 
-  @Transactional
   public Actor actor(Jwt jwt) {
     String issuer = jwt.getIssuer().toString(), subject = jwt.getSubject();
     Problem.require(subject != null && !subject.isBlank(), 401, "Invalid identity");
@@ -49,6 +52,33 @@ public class Access {
             ? jwt.getClaimAsString("phone_number")
             : jwt.getClaimAsString("phoneNumber"));
     String byIdentity = "SELECT id,active,username,email_hash,phone_hash FROM user_account WHERE issuer=? AND subject=?";
+    var rows = db.list(byIdentity, issuer, subject);
+    if (!rows.isEmpty()) {
+      Map<String, Object> row = rows.getFirst();
+      boolean needsUpdate =
+          (username != null && !username.equals(row.get("username")))
+              || (jwtEmail != null && row.get("emailHash") == null)
+              || (jwtPhone != null && row.get("phoneHash") == null);
+      if (!needsUpdate) {
+        Problem.require(enabled(row.get("active")), 403, "Account disabled");
+        String id = row.get("id").toString();
+        Set<String> roles = new HashSet<>();
+        db.list("SELECT role FROM user_role WHERE user_id=?", id)
+            .forEach(x -> roles.add(x.get("role").toString()));
+        return new Actor(id, roles);
+      }
+    }
+    return tx.execute(status -> provisionOrSyncActor(jwt, issuer, subject, username, jwtEmail, jwtPhone, byIdentity));
+  }
+
+  private Actor provisionOrSyncActor(
+      Jwt jwt,
+      String issuer,
+      String subject,
+      String username,
+      String jwtEmail,
+      String jwtPhone,
+      String byIdentity) {
     var rows = db.list(byIdentity, issuer, subject);
     boolean firstLogin = rows.isEmpty();
     Map<String, Object> row;

@@ -21,23 +21,48 @@ public class Db {
   public List<Map<String, Object>> list(String sql, Object... args) {
     return jdbc.query(
         sql,
-        (rs, n) -> {
-          Map<String, Object> row = new LinkedHashMap<>();
+        rs -> {
           var md = rs.getMetaData();
-          for (int i = 1; i <= md.getColumnCount(); i++) {
-            String[] words = md.getColumnLabel(i).toLowerCase(Locale.ROOT).split("_");
-            String key = words[0];
-            for (int j = 1; j < words.length; j++)
-              key += words[j].substring(0, 1).toUpperCase() + words[j].substring(1);
-            Object value = rs.getObject(i);
-            if (value instanceof Timestamp t) value = t.toInstant().toString();
-            if (value instanceof LocalDateTime t) value = t.toInstant(ZoneOffset.UTC).toString();
-            if (value instanceof java.sql.Date d) value = d.toLocalDate().toString();
-            row.put(key, value);
+          int cols = md.getColumnCount();
+          String[] keys = new String[cols];
+          for (int i = 0; i < cols; i++) {
+            keys[i] = toCamel(md.getColumnLabel(i + 1));
           }
-          return row;
+          List<Map<String, Object>> rows = new ArrayList<>();
+          while (rs.next()) {
+            Map<String, Object> row = new LinkedHashMap<>(cols * 2);
+            for (int i = 0; i < cols; i++) {
+              Object value = rs.getObject(i + 1);
+              if (value instanceof Timestamp t) value = t.toInstant().toString();
+              else if (value instanceof LocalDateTime t) value = t.toInstant(ZoneOffset.UTC).toString();
+              else if (value instanceof java.sql.Date d) value = d.toLocalDate().toString();
+              row.put(keys[i], value);
+            }
+            rows.add(row);
+          }
+          return rows;
         },
         convert(args));
+  }
+
+  private static String toCamel(String label) {
+    String lower = label.toLowerCase(Locale.ROOT);
+    int under = lower.indexOf('_');
+    if (under < 0) return lower;
+    StringBuilder out = new StringBuilder(lower.length());
+    boolean upperNext = false;
+    for (int i = 0; i < lower.length(); i++) {
+      char c = lower.charAt(i);
+      if (c == '_') {
+        upperNext = true;
+      } else if (upperNext) {
+        out.append(Character.toUpperCase(c));
+        upperNext = false;
+      } else {
+        out.append(c);
+      }
+    }
+    return out.toString();
   }
 
   public Map<String, Object> one(String sql, Object... args) {
