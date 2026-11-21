@@ -9,6 +9,7 @@ import java.sql.DriverManager;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.Statement;
+import java.util.Base64;
 import java.util.List;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -36,7 +37,10 @@ class BackupRestoreIntegrationTest {
     registry.add("spring.datasource.password", mysql::getPassword);
     registry.add("spring.flyway.user", () -> "root");
     registry.add("spring.flyway.password", mysql::getPassword);
-    registry.add("clinic.notifications-enabled", () -> "false");
+    registry.add("clinic.encryption-key", () -> Base64.getEncoder().encodeToString(new byte[32]));
+    registry.add("clinic.notifications-enabled", () -> false);
+    registry.add("clinic.mail-from", () -> "clinic@example.test");
+    registry.add("management.health.mail.enabled", () -> false);
   }
 
   @Autowired Db db;
