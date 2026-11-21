@@ -39,11 +39,14 @@ TC-N02: chạy ma trận vai trò × chủ sở hữu/khác chủ sở hữu/kh�
 TC-N03: sao lưu và phục hồi dữ liệu trình diễn, kiểm tra số bản ghi, nội dung mẫu và khóa ngoại.
 TC-N04: nhật ký kiểm toán storage fault injection, kiểm tra không trả hồ sơ khi thiếu nhật ký kiểm toán và không log PHI/token.
 TC-N05: đánh giá giao diện với 5 người dùng; ghi nhận tỷ lệ hoàn thành, thời gian và lỗi thao tác.
-TC-N06: mất mạng video, callback trùng/đảo thứ tự, token phòng hết hạn, kết thúc khi client ngắt.
+TC-N06: mất mạng video WebRTC, ICE restart, fallback audio-only, callback trùng/đảo thứ tự, token phòng hết hạn, kết thúc khi client ngắt, và kiểm tra giới hạn quota/chặn dải IP nội bộ của TURN (NFR-13).
 TC-N07: đối chiếu cấu hình mã hóa, phân quyền khóa và backup; kiểm tra truy cập trái quyền bị chặn.
 TC-N08: ngắt DB/provider; kiểm tra báo lỗi rõ và không xác nhận giao dịch chưa commit.
 TC-N09: kiểm tra OpenAPI/sơ đồ UML/stack và báo cáo coverage package sau triển khai; xác định rõ các thành phần được loại trừ.
 TC-N10: kiểm tra dữ liệu trình diễn giả và không có nội dung hồ sơ/token trong Email hoặc log kỹ thuật.
+TC-N11: quét giao diện tất cả vai trò ở kích thước desktop và mobile (`npm run test:scan`), kiểm tra 0 tràn ngang, 0 lỗi console và 0 vi phạm `axe` (NFR-14).
+TC-N12: kiểm thử chống lạm dụng đa tầng gồm brute-force 5 lần sai trên Keycloak, cooldown/rate-limit OTP theo tài khoản và email đích, và giới hạn `10r/m` theo IP trên Nginx trả `429` (NFR-15).
+TC-N13: kiểm thử cổng CI trước deploy, rollback tự động khi kiểm tra sức khỏe trên VM thất bại (`test_azure_deploy_scope.py`), và kiểm thử khói tự động sau deploy trên HTTPS thật (`scripts/verify-live-demo.py`) (NFR-16).
 
 ## Kiểm thử giá trị biên
 

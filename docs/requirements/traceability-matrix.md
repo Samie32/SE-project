@@ -48,5 +48,9 @@ Ma trận thể hiện mối liên hệ giữa nguồn yêu cầu, chức năng,
 | NFR-10 | Architecture / OpenAPI / model source | TC-N09 — **Đạt** (OpenAPI 3.1 + `check-api-contract.py` chạy trong CI) |
 | NFR-11 | Test plan / coverage | TC-N09 — **Chưa nghiệm thu riêng** (JaCoCo tổng hợp `78,25%` dòng / `59,41%` nhánh theo báo cáo 19/11; chưa tách đo riêng unit coverage cho logic nghiệp vụ) |
 | NFR-12 | Dữ liệu giả và kiểm tra log | TC-N10 — **Đạt** (dữ liệu mô phỏng, không log token/PHI/OTP) |
+| NFR-13 | M09 WebRTC, `coturn`, `ice-config.mjs` | TC-N06 — **Một phần** (đã đạt `npm run test:rtc` 2/2 với thiết bị giả và cấu hình TURN; chờ kiểm chứng 2 thiết bị / 2 mạng `ICE_POLICY=relay`) |
+| NFR-14 | Giao diện đa vai trò (React/Tailwind) | TC-N11 — **Đạt** (`npm run test:scan`: 10/10, 52 lượt viewport không tràn ngang/lỗi console, 26 lượt `axe` 0 vi phạm) |
+| NFR-15 | M01 Keycloak brute-force, `ContactOtpService`, `frontend/nginx.conf` | TC-N12 — **Đạt** (`ContactOtpServiceTest`, `PatientAccountIntegrationTest`, `test_azure_google_oauth.py`, `test_security_headers_config.py`) |
+| NFR-16 | `.github/workflows/deploy-azure-demo.yml`, `scripts/deploy-azure-demo.sh`, `scripts/verify-live-demo.py` | TC-N13 — **Đạt** (CI `#39` `539c375`, `test_failed_health_check_rolls_back_to_previous_commit`, `post-deploy-smoke` 4/4) |
 
 Các quy tắc BR được ánh xạ đến phân hệ trong [quy tắc nghiệp vụ](business-rules.md). G-01 → M02/M03/M04; G-02 → M05; G-03 → M06/M08/M09; G-04 → M01/M07.
