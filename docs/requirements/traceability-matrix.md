@@ -36,19 +36,19 @@ Ma trận thể hiện mối liên hệ giữa nguồn yêu cầu, chức năng,
 
 | NFR | Thiết kế / quy tắc | Kiểm chứng và trạng thái hiện tại |
 |---|---|---|
-| NFR-01 | Architecture / index | TC-N01 — **Chưa nghiệm thu đủ** (k6 tra cứu đạt p95 `33,87 ms` với 10 VU / 2 phút, ghi nhận 1 ngoại lệ `24,37 s`; chưa chạy đúng ngưỡng 50 VU, 10.000 lịch, 15 phút đọc + ghi) |
+| NFR-01 | Architecture / index | TC-N01 — **Một phần** (k6 tra cứu đạt p95 `33,87 ms` với 10 VU / 2 phút, ghi nhận 1 ngoại lệ `24,37 s`; đã tạo sẵn kịch bản chuẩn `tests/k6/nfr01-full-load.js` cho 50 VU / 15 phút đọc + ghi chờ chạy trên môi trường riêng) |
 | NFR-02 | BR-03/04, giao dịch InnoDB, khóa và kiểm tra xung đột | TC-08/09/20 — **Đạt** (k6 tranh chấp 1/99 và tích hợp đồng thời MySQL RG-05..12) |
 | NFR-03 | Security matrix / BR-01 | TC-N02, TC-02/12/23 — **Đạt** trên bộ tích hợp hiện hành (`SchedulingIntegrationTest`, `PatientAccountIntegrationTest`, `JwtValidationTest`) |
 | NFR-04 | Encryption / backup / key management / security headers | TC-N07, `AGENT-TC-009`, `AGENT-TC-013`, `AGENT-TC-014` — **Đạt phần lớn** (đã xác minh HSTS/CSP runtime, unit OTP & tách khóa HMAC; giữ `DemoClinic` ở diện rủi ro chấp nhận trên demo) |
 | NFR-05 | Audit / BR-13/16 | TC-17/18, TC-N04 — **Đạt** (bao gồm kiểm thử fault injection audit) |
-| NFR-06 | Backup/restore dữ liệu trình diễn | TC-N03 — **Chưa nghiệm thu** (chưa có biên bản diễn tập sao lưu/khôi phục MySQL và kho Keycloak) |
+| NFR-06 | Backup/restore dữ liệu trình diễn | TC-N03, `AGENT-TC-021` — **Đã có test tích hợp tự động** (`BackupRestoreIntegrationTest`: `mysqldump` + restore sang schema sạch + kiểm chứng khóa ngoại & giải mã AES-GCM; chờ CI MySQL xác nhận runtime) |
 | NFR-07 | Xử lý lỗi phụ thuộc | TC-N08 — **Đạt** ở kiểm thử tích hợp lỗi SMTP và rollback audit |
 | NFR-08 | Screen specifications | TC-N05 — **Chưa nghiệm thu** (có thủ tục đo với 5 người dùng, chưa thực thi lấy số liệu) |
-| NFR-09 | Telehealth state machine | TC-N06, TC-24, `AGENT-TC-001` — **Đạt một phần** (WebRTC fixture đạt; ca mất mạng offline trên UI `AGENT-TC-001` chưa thực thi) |
+| NFR-09 | Telehealth state machine & Booking offline UI | TC-N06, TC-24, `AGENT-TC-001` — **Đạt** (WebRTC fixture đạt; `frontend/tests/booking-offline.test.tsx` xác minh báo lỗi mất mạng `<10 s`, giữ nguyên lựa chọn và tái sử dụng cùng `Idempotency-Key`) |
 | NFR-10 | Architecture / OpenAPI / model source | TC-N09 — **Đạt** (OpenAPI 3.1 + `check-api-contract.py` chạy trong CI) |
-| NFR-11 | Test plan / coverage | TC-N09 — **Chưa nghiệm thu riêng** (JaCoCo tổng hợp `78,25%` dòng / `59,41%` nhánh theo báo cáo 19/11; chưa tách đo riêng unit coverage cho logic nghiệp vụ) |
+| NFR-11 | Test plan / coverage | TC-N09, `AGENT-TC-020` — **Đã gắn cổng `jacoco:check` ($\ge 60\%$ dòng & nhánh)** trong `backend/pom.xml` kèm `BusinessRulesUnitTest` (4/4 đạt cục bộ; chờ CI `backend` xác nhận tỷ lệ tổng hợp mới) |
 | NFR-12 | Dữ liệu giả và kiểm tra log | TC-N10 — **Đạt** (dữ liệu mô phỏng, không log token/PHI/OTP) |
-| NFR-13 | M09 WebRTC, `coturn`, `ice-config.mjs` | TC-N06 — **Một phần** (đã đạt `npm run test:rtc` 2/2 với thiết bị giả và cấu hình TURN; chờ kiểm chứng 2 thiết bị / 2 mạng `ICE_POLICY=relay`) |
+| NFR-13 | M09 WebRTC, `coturn`, `ice-config.mjs` | TC-N06, `AGENT-TC-019` — **Một phần** (đã đạt `npm run test:rtc` 2/2 với thiết bị giả và `test_webrtc_turn_config.py` 2/2; chờ kiểm chứng 2 thiết bị / 2 mạng `ICE_POLICY=relay`) |
 | NFR-14 | Giao diện đa vai trò (React/Tailwind) | TC-N11 — **Đạt** (`npm run test:scan`: 10/10, 52 lượt viewport không tràn ngang/lỗi console, 26 lượt `axe` 0 vi phạm) |
 | NFR-15 | M01 Keycloak brute-force, `ContactOtpService`, `frontend/nginx.conf` | TC-N12 — **Đạt** (`ContactOtpServiceTest`, `PatientAccountIntegrationTest`, `test_azure_google_oauth.py`, `test_security_headers_config.py`) |
 | NFR-16 | `.github/workflows/deploy-azure-demo.yml`, `scripts/deploy-azure-demo.sh`, `scripts/verify-live-demo.py` | TC-N13 — **Đạt** (CI `#39` `539c375`, `test_failed_health_check_rolls_back_to_previous_commit`, `post-deploy-smoke` 4/4) |
