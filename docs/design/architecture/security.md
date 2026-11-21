@@ -27,8 +27,11 @@ Vai trò cấp cao không tự động có quyền lâm sàng. Backend kiểm tr
 | Token bị dùng lại/sai người | Expiry, audience, session binding; revoke khi kết thúc | TC-23/24 |
 | Callback giả hoặc đến trễ | Chữ ký nhà cung cấp dịch vụ, event ID, kiểm tra trạng thái/version | TC-N06 |
 | Sửa nhật ký kiểm toán | Tài khoản ứng dụng chỉ có quyền INSERT; tài khoản tra cứu riêng; sao lưu và kiểm tra toàn vẹn | TC-18 |
-| Lộ backup/khóa | Mã hóa, quản lý khóa riêng và giới hạn quyền restore | TC-N03/N07 |
+| Lộ backup/khóa | Mã hóa AES-256-GCM; tách khóa dẫn xuất riêng (`cliniccare:blind-index:v1`) cho HMAC blind index; giới hạn quyền restore | TC-N03/N07 |
 | Audit hỏng | Ghi cùng transaction; từ chối trả dữ liệu nhạy cảm nếu không ghi được nhật ký | TC-17 |
+| Dò mật khẩu / giả mạo đổi email | Keycloak khóa tạm sau 5 lần sai (60–900 s, mở khóa khi đặt lại mật khẩu qua email); đổi email liên hệ yêu cầu OTP 6 chữ số (TTL 300 s, cooldown 30 s, tối đa 5 lần sai và 5 lượt/giờ/email đích) | `AGENT-TC-013`, `AGENT-TC-014` |
+| Clickjacking / XSS / hạ cấp HTTPS | Caddy/Nginx gắn HSTS (`max-age=31536000; includeSubDomains`), CSP (`frame-ancestors 'none'`, `object-src 'none'`), `X-Frame-Options: DENY`, `X-Content-Type-Options: nosniff` | `AGENT-TC-009`, `AGENT-TC-012` |
+| Lộ danh sách bệnh nhân khi hỗ trợ | Chỉ quản trị tra cứu chính xác UUID/email/SĐT qua blind index; cấm tìm theo tên (`400`), trả `409` khi trùng SĐT gia đình; chỉ trả `id`, `displayName`, `active` | TC-27 |
 
 Không lưu token và nội dung lâm sàng trong audit. Tài khoản ứng dụng chỉ INSERT nhật ký kiểm toán; vai trò kiểm toán chỉ đọc. Dữ liệu giả được giữ suốt đồ án, không có API xóa audit.
 Bệnh nhân xác nhận tham gia phiên từ xa; không ghi hình. Chức năng xuất hồ sơ và chứng nhận tuân thủ pháp lý nằm ngoài phạm vi đồ án.
@@ -40,3 +43,5 @@ Audit ghi nhận tác nhân USER bằng tài khoản nội bộ; tác vụ nền
 Cấp token tham gia yêu cầu xác nhận của bệnh nhân và kiểm tra phiên hiện tại. Khi kết thúc, hệ thống từ chối cấp mới ngay và gửi tác vụ thu hồi/đóng phòng đến nhà cung cấp. Nếu dịch vụ ngoài lỗi, trạng thái tác vụ còn chờ xử lý phải được theo dõi; không coi việc đổi trạng thái trong MySQL là bằng chứng nhà cung cấp đã đóng luồng media.
 
 Bệnh nhân tự đặt/đổi/hủy lịch của mình. Quyền điều phối của lễ tân/quản trị giới hạn ở xem lịch và các tác vụ được đặc tả riêng; không bao gồm đặt thay hoặc vượt hạn đổi/hủy.
+
+**Rủi ro đã chấp nhận (bản demo):** Khi triển khai demo mà không truyền `DEMO_PASSWORD`, bộ tài khoản mẫu giữ mật khẩu mặc định `DemoClinic` để phục vụ kiểm thử và trình diễn với dữ liệu giả hoàn toàn (xem [NFR-04](../../requirements/non-functional-requirements.md#rủi-ro-đã-chấp-nhận-phạm-vi-demo)). Khi đưa vào môi trường thật phải truyền `DEMO_PASSWORD` ngẫu nhiên hoặc vô hiệu hóa toàn bộ tài khoản mẫu.

@@ -1,6 +1,6 @@
 # Hợp đồng tích hợp BE–FE 1.0.0
 
-Chốt ngày **16/11/2026** (cập nhật ngày **19/11/2026**) theo yêu cầu thống nhất BE với frontend gộp. Baseline backend: `main` tại `a04dcb1`. Phạm vi hiện tại: chín phân hệ, **59 thao tác trên 48 đường dẫn**. Hợp đồng này là chuẩn để triển khai tiếp, không phải biên bản nghiệm thu.
+Chốt ngày **16/11/2026** (cập nhật ngày **21/11/2026**) theo yêu cầu thống nhất BE với frontend gộp. Baseline backend: `main` tại `a04dcb1` cộng các bổ sung xác thực/liên hệ P0. Phạm vi hiện tại: chín phân hệ, **61 thao tác trên 50 đường dẫn**. Hợp đồng này là chuẩn để triển khai tiếp, không phải biên bản nghiệm thu.
 
 ## 1. Nguồn chuẩn và quy tắc thay đổi
 
@@ -23,13 +23,13 @@ Khi thay tên trường, endpoint, mã thành công hoặc điều kiện quyề
 | Callback / logout | `http://localhost:5173/callback`; trở về `/login` trên cùng origin |
 | JWT | `Authorization: Bearer <access_token>`, audience `clinic-api`; token giữ trong bộ nhớ |
 | Vai trò | `PATIENT`, `DOCTOR`, `RECEPTIONIST`, `ADMINISTRATOR`, `AUDITOR`; lấy từ database qua `/me`, không lấy quyền từ localStorage/JWT claim để tự cấp quyền |
-| Danh tính nghiệp vụ | Dùng **GET `/me/profile`** lấy `patientId`, `doctorId`, `displayName`, `roles`; không dò bác sĩ bằng thử quyền từng lịch |
+| Danh tính nghiệp vụ | Dùng **GET `/me/profile`** lấy `id`, `username`, `displayName`, `email`, `phone` (giải mã cho chính chủ), `patientId`, `doctorId`, `roles`; không dò bác sĩ bằng thử quyền từng lịch |
 
-`id` trong `/me` là user ID nội bộ. Không giả định nó luôn bằng patient ID hoặc doctor ID. `GET /users` dành cho quản trị và chỉ trả tài khoản nhân sự. Tham số `q` tìm theo username hoặc tên hiển thị. Có thể lọc theo `role` (gồm `UNASSIGNED`) và `active`. Mỗi dòng trả vai trò hiện tại, `doctorId` nếu đã có hồ sơ bác sĩ và `username` nếu đã có định danh. Quyền đọc bệnh án và vào phòng từ xa vẫn theo vai trò và quan hệ với lần khám. HTTPS là yêu cầu triển khai ngoài local. HTTP ở bảng trên chỉ dùng phát triển.
+`id` trong `/me` là user ID nội bộ. Không giả định nó luôn bằng patient ID hoặc doctor ID. Chủ tài khoản cập nhật thông tin liên hệ qua `PUT /me/contact` (`{email, phone?, otp?}`); khi đổi sang địa chỉ `email` mới khác email hiện tại phải gọi `POST /me/contact/otp` (`{email}`) trước để nhận mã OTP 6 chữ số (TTL 300 giây, cooldown 30 giây, tối đa 5 lần nhập sai và 5 lượt/giờ/email đích). Nếu chỉ cập nhật `phone` và giữ nguyên `email` hiện tại thì không yêu cầu `otp`. Khi vừa hoàn tất đăng nhập với tài khoản mới mà đường dẫn lưu trước đó trái quyền vai trò hiện tại, frontend chuyển thẳng về trang chủ của vai trò mới. `GET /users` dành cho quản trị và chỉ trả tài khoản nhân sự. Tham số `q` tìm theo username hoặc tên hiển thị. Có thể lọc theo `role` (gồm `UNASSIGNED`) và `active`. Mỗi dòng trả vai trò hiện tại, `doctorId` nếu đã có hồ sơ bác sĩ và `username` nếu đã có định danh. Quyền đọc bệnh án và vào phòng từ xa vẫn theo vai trò và quan hệ với lần khám. HTTPS là yêu cầu triển khai ngoài local. HTTP ở bảng trên chỉ dùng phát triển.
 
 **Thêm nhân sự** gọi `POST /staff/provision` để tạo tài khoản Keycloak, cấp vai trò trong ClinicCare và tạo hồ sơ bác sĩ kèm chuyên khoa nếu chọn vai trò `DOCTOR`. Người dùng đổi mật khẩu tạm thời khi đăng nhập lần đầu. Hồ sơ bác sĩ mới chờ bật nhận lịch. `POST /staff` giữ luồng liên kết định danh Keycloak đã tạo cho trình nạp dữ liệu. `PUT /staff/{id}` cập nhật họ tên và trạng thái truy cập ClinicCare. Phải ngừng nhận lịch trước khi thu hồi quyền bác sĩ hoặc vô hiệu hóa tài khoản. Tài khoản bệnh nhân độc lập giữ nguyên lịch sử.
 
-**Tra cứu tài khoản bệnh nhân** dùng GET `/patient-accounts/{id}` với mã nội bộ chính xác. PUT `/patient-accounts/{id}/access` nhận `active` và `reason` (`SECURITY_REVIEW`, `POLICY_REVIEW`, `PATIENT_REQUEST`). Hai API chỉ dành cho quản trị và trả `id`, `displayName`, `active`. Khi khóa, backend chặn truy cập ngay cả nếu token đang dùng còn hạn. Gửi lại cùng trạng thái giữ nguyên tài khoản và không tạo thêm audit thay đổi.
+**Tra cứu tài khoản bệnh nhân** dùng GET `/patient-accounts/{id}` (theo mã UUID chính xác) hoặc GET `/patient-accounts/lookup?q=...` (nhận chính xác UUID, email hoặc SĐT chuẩn hóa `7–15` chữ số qua blind index HMAC-SHA256; trả `400` nếu tìm theo tên/chuỗi không hợp lệ; trả `409` nếu nhiều tài khoản dùng chung SĐT). PUT `/patient-accounts/{id}/access` nhận `active` và `reason` (`SECURITY_REVIEW`, `POLICY_REVIEW`, `PATIENT_REQUEST`). Các API này chỉ dành cho quản trị và trả `id`, `displayName`, `active`. Khi khóa, backend chặn truy cập ngay cả nếu token đang dùng còn hạn. Gửi lại cùng trạng thái giữ nguyên tài khoản và không tạo thêm audit thay đổi.
 
 ## 3. Dữ liệu, danh sách và lỗi
 

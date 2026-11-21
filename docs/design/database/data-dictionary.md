@@ -4,7 +4,9 @@ Mô hình dữ liệu được thiết kế cho MySQL, bao gồm các thực th�
 
 | Thực thể | Khóa và thuộc tính chính | Ràng buộc và phân hệ quản lý |
 |---|---|---|
-| UserAccount | id CHAR(36) (UUID), issuer, subject, status | UNIQUE(issuer,subject); M01; không lưu mật khẩu IdP |
+| UserAccount | id CHAR(36) (UUID), issuer, subject, username, display_name, email_encrypted, email_hash, phone_encrypted, phone_hash, staff, active | UNIQUE(issuer,subject); index trên email_hash, phone_hash (HMAC-SHA256 dẫn xuất riêng); không lưu mật khẩu IdP |
+| ContactOtp | actor_id CHAR(36) PK/FK, email_hash, otp_hash, expires_at, sent_at, attempts | Lưu tạm mã OTP đổi email (TTL 300 s, tối đa 5 lần thử); xóa ngay khi xác thực hoặc khi hết hạn; M01 |
+| ContactOtpSendLog | id CHAR(36) PK, email_hash, sent_at | Nhật ký tần suất gửi OTP theo email đích (cooldown 30 s, tối đa 5 lượt/3600 s); M01 |
 | UserRole | user_id, role | PK ghép; vai trò nội bộ, thay đổi có nhật ký kiểm toán |
 | Patient | id, user_id, display_name, contact_encrypted | user_id unique; chỉ trường tối thiểu |
 | Doctor | id, user_id, display_name, active | user_id unique; không xóa lịch sử |

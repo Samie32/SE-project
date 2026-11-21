@@ -4,8 +4,8 @@ Các yêu cầu được đặc tả theo điều kiện kích hoạt và hành 
 
 | ID | Phân hệ | Nguồn | Yêu cầu hệ thống (EARS) |
 |---|---|---|---|
-| FR-01 | M01 | Đề bài | Khi IdP xác thực hợp lệ, hệ thống phải tạo phiên gắn đúng danh tính và quyền nội bộ. |
-| FR-02 | M01 | Phạm vi cụ thể hóa hoặc mở rộng | Khi nhận yêu cầu được bảo vệ, hệ thống phải kiểm tra vai trò và quyền trên tài nguyên trước xử lý. |
+| FR-01 | M01 | Đề bài | Khi IdP xác thực hợp lệ (tài khoản/email mật khẩu tối thiểu 8 ký tự hoặc Google OAuth2), hệ thống phải tạo phiên PKCE S256 gắn đúng danh tính UUIDv3(issuer\|subject) và quyền nội bộ, tự cấp vai trò `PATIENT` khi đăng nhập lần đầu, khóa tạm sau 5 lần nhập sai trong 15 phút (60–900 giây), hỗ trợ đặt lại/đổi mật khẩu qua email (khi cấu hình SMTP) với thông báo trung tính, hiển thị thông tin liên hệ giải mã cho chính chủ và yêu cầu xác thực OTP 6 chữ số (TTL 300 giây, cooldown 30 giây, tối đa 5 lần nhập sai và 5 lượt/giờ/email đích) khi đổi sang email nhận thông báo mới. |
+| FR-02 | M01 | Phạm vi cụ thể hóa hoặc mở rộng | Khi nhận yêu cầu được bảo vệ, hệ thống phải kiểm tra vai trò và quyền trên tài nguyên trước xử lý; khi người dùng đăng nhập lại bằng tài khoản có vai trò khác với URL lưu từ phiên trước, giao diện tự điều hướng về trang chủ đúng vai trò thay vì báo lỗi 403, đồng thời giữ nguyên từ chối 403 cho mọi truy cập trực tiếp trái quyền. |
 | FR-03 | M02 | Phạm vi cụ thể hóa hoặc mở rộng | Khi quản trị tạo hoặc sửa bác sĩ, hệ thống phải lưu hồ sơ, chuyên khoa và trạng thái nhận lịch. |
 | FR-04 | M02 | Phạm vi cụ thể hóa hoặc mở rộng | Khi ngừng hoạt động bác sĩ, hệ thống phải chặn nếu còn lịch tương lai chưa xử lý và giữ các hồ sơ lịch sử. |
 | FR-05 | M03 | Đề bài | Khi lưu khoảng làm việc, hệ thống phải kiểm tra start/end, thời lượng khung giờ và tạo danh sách khung giờ trong khoảng. |
@@ -30,4 +30,17 @@ Các yêu cầu được đặc tả theo điều kiện kích hoạt và hành 
 | FR-24 | M09 | Phạm vi cụ thể hóa hoặc mở rộng | Nếu luồng âm thanh, hình ảnh bị ngắt, hệ thống phải cho phép nối lại phiên còn mở; khi bác sĩ kết thúc phải thu hồi quyền tham gia. |
 | FR-25 | M06 | Phạm vi mở rộng | Khi lễ tân báo chậm cho lịch đủ điều kiện, hệ thống phải tạo một tác vụ email trên mỗi phiên bản lịch, kèm giờ dự kiến nếu có. Giờ hẹn và trạng thái được giữ. |
 | FR-26 | M04/M06 | Phạm vi mở rộng | Khi người phụ trách ghi nhận vắng hẹn hợp lệ, hệ thống phải lưu lý do nếu được chọn và chỉ gửi email mời đặt lại khi người thao tác yêu cầu. |
-| FR-27 | M01/M07 | Phạm vi mở rộng | Khi quản trị tra đúng mã tài khoản bệnh nhân, hệ thống chỉ được trả mã, tên hiển thị và trạng thái. Khóa hoặc mở khóa cần lý do và phải có audit. |
+| FR-27 | M01/M07 | Phạm vi mở rộng | Khi quản trị tra cứu chính xác theo mã tài khoản (UUID), email hoặc số điện thoại (khớp 100% qua chỉ mục mù HMAC-SHA256, cấm tìm theo tên/gần đúng), hệ thống chỉ trả mã, tên hiển thị và trạng thái (`409` nếu nhiều tài khoản dùng chung SĐT). Khóa hoặc mở khóa cần lý do hợp lệ và phải ghi audit cùng giao dịch. |
+
+## Lượng hóa tham số chức năng chính
+
+Các hàm tính toán chi tiết, miền giá trị và điều kiện biên được đặc tả đầy đủ tại [Công thức và lượng hóa nghiệp vụ](../design/business-formulas-and-quantification.md).
+
+| Nhóm chức năng | Tham số lượng hóa hiện hành | Nguồn mã nguồn |
+|---|---|---|
+| Mật khẩu & Brute-force (M01) | Tối thiểu 8 ký tự; khóa tạm sau 5 lần sai trong 900 s (`60 s` tăng dần tối đa `900 s`), mở khóa ngay khi đặt lại mật khẩu qua email | `configure-keycloak-registration.py`, `realm-template.json` |
+| OTP đổi email liên hệ (M01) | Mã 6 chữ số (`SecureRandom`), TTL `300 s`, cooldown `30 s` theo tác nhân & email đích, tối đa `5` lần nhập sai, tối đa `5 lượt/3600 s`/email đích | `ContactOtpService.java`, `V9__contact_otp.sql` |
+| Chuẩn hóa tra cứu liên hệ (M01/M07) | Email $\le 254$ ký tự (chữ thường); SĐT `7–15` chữ số (chuẩn hóa `+84`/`84` $\to$ `0`); blind index HMAC-SHA256 64 ký tự hex | `Access.java`, `Crypto.java` |
+| Cửa sổ lịch & slot (M03/M04) | Slot mặc định `20` phút (chia hết khoảng `[start, end)`); đổi/hủy trước $\ge 2$ giờ (`7200 s`); `NO_SHOW` từ `+15` phút (`900 s`); Idempotency TTL `24` giờ (`86400 s`) | `ScheduleService.java`, `AppointmentService.java`, `Idempotency.java` |
+| Hàng đợi & Telehealth (M08/M09) | Check-in `[-15 phút, +15 phút)`; mở phòng chờ `[-10 phút, +15 phút)`; token phòng `300 s`; signaling $\le 65536$ ký tự và $\le 300$ tin/người/phòng/phút | `WorkflowService.java`, `TelehealthService.java` |
+| Nhắc lịch & thử lại SMTP (M06) | Nhắc trước `30` phút (`1800 s`); thử lại backoff tối đa `3` lần sau `60 s`, `300 s`, `900 s`; lease worker `60 s` | `NotificationStore.java` |

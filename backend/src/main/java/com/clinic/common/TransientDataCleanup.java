@@ -25,5 +25,9 @@ public class TransientDataCleanup {
         "DELETE FROM telehealth_signal WHERE created_at<? LIMIT 1000",
         clock.instant().minusSeconds(300));
     db.update("DELETE FROM idempotency_record WHERE expires_at<=? LIMIT 1000", clock.instant());
+    db.update("DELETE FROM contact_otp WHERE expires_at<? LIMIT 1000", clock.instant());
+    db.update(
+        "DELETE FROM contact_otp_send_log WHERE sent_at<? LIMIT 1000",
+        clock.instant().minusSeconds(3600));
   }
 }

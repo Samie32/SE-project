@@ -15,12 +15,17 @@ Các ca sử dụng mô tả tương tác giữa người dùng, hệ thống v�
 
 **Luồng chính**
 
-1. Người dùng lựa chọn chức năng đăng nhập.
-2. Dịch vụ danh tính xác thực tài khoản và trả kết quả xác thực.
-3. Hệ thống kiểm tra trạng thái tài khoản, xác lập danh tính và quyền truy cập.
-4. Hệ thống chuyển người dùng đến giao diện phù hợp.
+1. Người dùng lựa chọn chức năng đăng nhập (tài khoản/email + mật khẩu hoặc nút **Tiếp tục với Google**).
+2. Dịch vụ danh tính (Keycloak / Google OAuth2) xác thực tài khoản và trả kết quả xác thực PKCE S256.
+3. Hệ thống kiểm tra trạng thái tài khoản (`active`), tự tạo tài khoản `PATIENT` và lưu email mã hóa + blind index nếu là lần đăng nhập đầu tiên, sau đó xác lập danh tính và quyền truy cập.
+4. Hệ thống chuyển người dùng đến giao diện phù hợp (tự chuyển về trang chủ vai trò mới nếu đường dẫn lưu trước đó trái quyền).
 
-**Ngoại lệ:** IdP lỗi hoặc tài khoản bị khóa → không tạo phiên; hiển thị lỗi có thể thử lại.
+**Luồng thay thế**
+
+- **Quên mật khẩu:** Người dùng chọn *Quên mật khẩu?*, nhập tài khoản/email; hệ thống hiển thị thông báo trung tính và gửi liên kết đặt lại mật khẩu một lần qua SMTP nếu tài khoản tồn tại. Đặt lại thành công đồng thời mở khóa nếu tài khoản đang bị khóa tạm.
+- **Cập nhật liên hệ & đổi mật khẩu:** Tại *Tài khoản của tôi*, người dùng mở chế độ chỉnh sửa; khi đổi sang email mới phải xác nhận OTP 6 chữ số gửi tới email mới (cập nhật chỉ SĐT không cần OTP). Có nút *Đổi mật khẩu* gọi luồng Keycloak `UPDATE_PASSWORD`.
+
+**Ngoại lệ:** IdP lỗi, nhập sai mật khẩu 5 lần (khóa tạm 60–900 s), sai/hết hạn OTP hoặc tài khoản bị khóa → từ chối cập nhật / không tạo phiên; hiển thị thông báo tiếng Việt để thử lại hoặc khôi phục qua email.
 
 **Hậu điều kiện:** Phiên đăng nhập gắn với đúng danh tính và quyền nội bộ.
 
@@ -525,7 +530,7 @@ Các ca sử dụng mô tả tương tác giữa người dùng, hệ thống v�
 |---|---|---|
 | UC-25 — Báo chậm giờ | Lễ tân | Chọn lịch đang chờ và nhập giờ dự kiến nếu có. Hệ thống kiểm tra quyền và trạng thái, rồi đưa email vào hàng đợi. Giờ hẹn giữ nguyên. |
 | UC-26 — Ghi nhận vắng hẹn | Lễ tân hoặc bác sĩ phụ trách theo hình thức khám | Từ mốc BR-08, chọn lý do nếu biết và tùy chọn gửi lời mời đặt lại. Hệ thống ghi nhận vắng hẹn và lưu tác vụ email khi được yêu cầu. |
-| UC-27 — Quản lý quyền truy cập bệnh nhân | Quản trị | Nhập chính xác mã tài khoản. Hệ thống chỉ trả định danh tối thiểu. Nếu cần khóa hoặc mở khóa, quản trị xác nhận lý do rồi hệ thống cập nhật quyền và ghi audit. |
+| UC-27 — Quản lý quyền truy cập bệnh nhân | Quản trị | Nhập chính xác mã tài khoản (UUID), email hoặc số điện thoại (chỉ mục mù HMAC-SHA256; cấm tìm theo tên). Hệ thống chỉ trả định danh tối thiểu (`id`, `displayName`, `active`) hoặc `409` nếu nhiều tài khoản dùng chung SĐT. Khi khóa/mở khóa, quản trị chọn lý do (`SECURITY_REVIEW`, `POLICY_REVIEW`, `PATIENT_REQUEST`), hệ thống cập nhật và ghi audit. |
 
 ## Điều kiện chi tiết của các luồng liên quan
 

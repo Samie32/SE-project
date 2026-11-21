@@ -38,6 +38,7 @@ clinic:
   cors: ${FRONTEND_ORIGIN:http://localhost:5173}
   encryption-key: ${DATA_ENCRYPTION_KEY}
   notifications-enabled: ${NOTIFICATIONS_ENABLED:true}
+  contact-otp-required: ${CONTACT_OTP_REQUIRED:true}
 management:
   endpoints:
     web:

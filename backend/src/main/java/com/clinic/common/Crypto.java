@@ -1,5 +1,6 @@
 package com.clinic.common;
 
+import java.nio.charset.StandardCharsets;
 import java.security.SecureRandom;
 import java.util.*;
 import javax.crypto.*;
@@ -9,13 +10,28 @@ import org.springframework.stereotype.Component;
 
 @Component
 public class Crypto {
+  private static final byte[] BLIND_INDEX_CONTEXT =
+      "cliniccare:blind-index:v1".getBytes(StandardCharsets.UTF_8);
+
   private final SecretKeySpec key;
+  private final SecretKeySpec hmacKey;
 
   public Crypto(@Value("${clinic.encryption-key}") String encoded) {
     byte[] bytes = Base64.getDecoder().decode(encoded);
     if (bytes.length != 32)
       throw new IllegalArgumentException("DATA_ENCRYPTION_KEY must encode 32 bytes");
     key = new SecretKeySpec(bytes, "AES");
+    hmacKey = new SecretKeySpec(deriveHmacKey(bytes), "HmacSHA256");
+  }
+
+  private static byte[] deriveHmacKey(byte[] masterKey) {
+    try {
+      Mac mac = Mac.getInstance("HmacSHA256");
+      mac.init(new SecretKeySpec(masterKey, "HmacSHA256"));
+      return mac.doFinal(BLIND_INDEX_CONTEXT);
+    } catch (Exception e) {
+      throw new IllegalStateException("Key derivation failed", e);
+    }
   }
 
   public byte[] encrypt(String value) {
@@ -24,7 +40,7 @@ public class Crypto {
       new SecureRandom().nextBytes(iv);
       Cipher c = Cipher.getInstance("AES/GCM/NoPadding");
       c.init(Cipher.ENCRYPT_MODE, key, new GCMParameterSpec(128, iv));
-      byte[] data = c.doFinal(value.getBytes(java.nio.charset.StandardCharsets.UTF_8));
+      byte[] data = c.doFinal(value.getBytes(StandardCharsets.UTF_8));
       byte[] result = Arrays.copyOf(iv, iv.length + data.length);
       System.arraycopy(data, 0, result, iv.length, data.length);
       return result;
@@ -38,18 +54,26 @@ public class Crypto {
       Cipher c = Cipher.getInstance("AES/GCM/NoPadding");
       c.init(Cipher.DECRYPT_MODE, key, new GCMParameterSpec(128, Arrays.copyOf(value, 12)));
       return new String(
-          c.doFinal(Arrays.copyOfRange(value, 12, value.length)),
-          java.nio.charset.StandardCharsets.UTF_8);
+          c.doFinal(Arrays.copyOfRange(value, 12, value.length)), StandardCharsets.UTF_8);
     } catch (Exception e) {
       throw new IllegalStateException("Decryption failed", e);
+    }
+  }
+
+  public String decryptOrNull(Object raw) {
+    if (!(raw instanceof byte[] bytes) || bytes.length <= 12) return null;
+    try {
+      return decrypt(bytes);
+    } catch (RuntimeException ignored) {
+      return null;
     }
   }
 
   public String hash(String value) {
     try {
       Mac mac = Mac.getInstance("HmacSHA256");
-      mac.init(new SecretKeySpec(key.getEncoded(), "HmacSHA256"));
-      byte[] digest = mac.doFinal(value.getBytes(java.nio.charset.StandardCharsets.UTF_8));
+      mac.init(hmacKey);
+      byte[] digest = mac.doFinal(value.getBytes(StandardCharsets.UTF_8));
       return HexFormat.of().formatHex(digest);
     } catch (Exception e) {
       throw new IllegalStateException("Hashing failed", e);

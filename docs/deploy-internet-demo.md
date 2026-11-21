@@ -19,7 +19,13 @@ Trong repository GitHub, vào **Settings → Secrets and variables → Actions �
 
 Push lên `main` sẽ kích hoạt workflow **Deploy ClinicCare to Azure** nếu `AZURE_DEPLOY_ENABLED=true`. Workflow chuyển cấu hình qua **Protected Parameters** của Azure Managed Run Command, lưu trong `/var/lib/cliniccare/smtp.json` với quyền `0600` và cập nhật backend nếu SMTP thay đổi. Cấu hình được giữ khi VM khởi động lại. Khi đổi key, cập nhật secret trên GitHub và chạy **Deploy ClinicCare to Azure → Run workflow** từ `main`.
 
-Để đồng bộ SMTP, danh tính Azure của GitHub Actions cần thêm `Microsoft.Compute/virtualMachines/runCommands/read` và `Microsoft.Compute/virtualMachines/runCommands/write` ở phạm vi VM `vm-cliniccare-azure-test`. Giữ các quyền triển khai hiện có. Nếu workflow báo `AuthorizationFailed`, quản trị viên Azure cập nhật quyền cho cùng danh tính mà workflow dùng qua `AZURE_CLIENT_ID`. VM cần kết nối ra Brevo qua TCP 587. Khi chưa có cấu hình được đồng bộ, mặc định là Mailpit. Kiểm chứng bằng một lịch mô phỏng, theo dõi job `SENT` và xác nhận thư đến hộp nhận.
+Để đồng bộ SMTP, danh tính Azure của GitHub Actions cần thêm `Microsoft.Compute/virtualMachines/runCommands/read` và `Microsoft.Compute/virtualMachines/runCommands/write` ở phạm vi VM `vm-cliniccare-azure-test`. Giữ các quyền triển khai hiện có. Nếu workflow báo `AuthorizationFailed`, quản trị viên Azure cập nhật quyền cho cùng danh tính mà workflow dùng qua `AZURE_CLIENT_ID`. VM cần kết nối ra Brevo qua TCP 587. Khi chưa có cấu hình được đồng bộ, mặc định là Mailpit. Kiểm chứng bằng một lịch mô phỏng, theo dõi job `SENT` và xác nhận thư đến hộp nhận. Khi có đủ cấu hình SMTP, script `scripts/configure-keycloak-registration.py` tự bật chức năng **Quên mật khẩu?** (`resetPasswordAllowed: true`) và cấu hình `smtpServer` cho Keycloak, đồng thời dịch vụ OTP đổi email (`ContactOtpService`) gửi mã xác thực 6 chữ số qua chính kênh SMTP này.
+
+## Tự nạp cấu hình Google OAuth2 và bảo mật gateway
+
+1. Trên **Google Cloud Console → Google Auth Platform → Clients**, bổ sung Authorized redirect URI: `https://<AUTH_HOST>/realms/clinic/broker/google/endpoint`.
+2. Trên GitHub Repository → **Secrets → Actions**, tạo secret `GOOGLE_OAUTH_CONFIG` (hỗ trợ JSON `{"clientId":"...","clientSecret":"..."}`, JSON tải trực tiếp từ Google Cloud Console, hoặc dạng `GOOGLE_CLIENT_ID=...` / `GOOGLE_CLIENT_SECRET=...`). Workflow tự mã hóa Base64 một dòng và đồng bộ xuống `/var/lib/cliniccare/google-oauth.json` (`0600`) qua Azure Managed Run Command, rồi `auth-config` tạo/cập nhật Identity Provider `google` trong realm `clinic` kèm chính sách chống dò mật khẩu (`failureFactor: 5`, khóa tạm `60–900 s`).
+3. Trong `infra/internet/Caddyfile`: hostname ứng dụng (`APP_HOST`) gắn `header` với `defer` (HSTS `max-age=31536000; includeSubDomains`, CSP `frame-ancestors 'none'`, `X-Frame-Options: DENY`, `X-Content-Type-Options: nosniff`); hostname xác thực (`AUTH_HOST`) ép `Accept-Encoding: identity` và `Cache-Control: no-cache` cho `/resources/*/login/cliniccare/` để vượt qua cache gzip cũ của Keycloak khi cập nhật giao diện đăng nhập. Khi triển khai đổi giao diện hoặc cổng, `deploy-azure-demo.sh` khởi động lại `frontend`, `keycloak` và `--force-recreate` cho `gateway`.
 
 ## Tạo môi trường và khởi động
 
@@ -32,7 +38,7 @@ docker compose --env-file .env.internet -f compose.yaml -f compose.internet.yaml
 docker compose --env-file .env.internet -f compose.yaml -f compose.internet.yaml ps
 ```
 
-Tất cả tài khoản mẫu của ClinicCare dùng mật khẩu mặc định `DemoClinic`. Đặt `DEMO_PASSWORD` khi tạo cấu hình hoặc sửa biến này trong `.env.internet` để dùng giá trị khác. Mật khẩu quản trị hạ tầng Keycloak (`KEYCLOAK_ADMIN_PASSWORD`) được sinh riêng. Giữ các file cấu hình trên máy chủ và chỉ dùng bộ tài khoản này với dữ liệu mô phỏng.
+Tất cả tài khoản mẫu của ClinicCare dùng mật khẩu mặc định `DemoClinic` khi không đặt `DEMO_PASSWORD` (rủi ro được **chấp nhận có kiểm soát trong phạm vi demo** với dữ liệu giả hoàn toàn; bắt buộc thay bằng `DEMO_PASSWORD` mạnh hoặc vô hiệu hóa tài khoản mẫu nếu dùng ngoài phạm vi trình diễn). Đặt `DEMO_PASSWORD` khi tạo cấu hình hoặc sửa biến này trong `.env.internet` để dùng giá trị khác. Mật khẩu quản trị hạ tầng Keycloak (`KEYCLOAK_ADMIN_PASSWORD`) luôn được sinh ngẫu nhiên riêng. Giữ các file cấu hình trên máy chủ và chỉ dùng bộ tài khoản này với dữ liệu mô phỏng.
 
 ### Tự động cập nhật VM Azure từ main
 

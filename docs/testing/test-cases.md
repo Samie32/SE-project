@@ -1,10 +1,10 @@
 # Danh mục ca kiểm thử
 
-Trạng thái: **Chưa thực thi**. Mỗi ca kiểm thử gồm tình huống A và tình huống B, tương ứng với các điều kiện và kết quả mong đợi trong tiêu chí chấp nhận.
+Trạng thái: danh mục tình huống theo yêu cầu; mức thực thi hiện tại không đồng nhất. Một phần suite đã chạy theo các báo cáo trong `docs/testing/reports/`; các ca còn lại cần đối chiếu báo cáo và chưa được xem là đạt chỉ vì có trong danh mục. Mỗi ca gồm tình huống A/B theo điều kiện và kết quả mong đợi trong tiêu chí chấp nhận.
 
 | ID | Tiền điều kiện và thao tác A | Kết quả mong đợi A | Tình huống B và kết quả mong đợi | Loại |
 |---|---|---|---|---|
-| TC-01 | IdP xác thực đúng người dùng đang đang hoạt động; người dùng hoàn tất đăng nhập | tạo phiên đúng danh tính và quyền | IdP lỗi hoặc tài khoản bị khóa → không tạo phiên; hiển thị lỗi có thể thử lại | Chức năng / Tích hợp |
+| TC-01 | IdP xác thực đúng người dùng đang hoạt động (tài khoản/email hoặc Google OAuth2); người dùng hoàn tất đăng nhập | tạo phiên PKCE S256 gắn đúng danh tính và quyền; lần đầu tự cấp vai trò `PATIENT` | IdP lỗi, sai mật khẩu 5 lần (khóa tạm 60–900 s), hoặc tài khoản bị khóa → không tạo phiên; hiển thị lỗi tiếng Việt có hướng dẫn khôi phục qua email | Chức năng / Bảo mật |
 | TC-02 | bệnh nhân A có phiên hợp lệ; A yêu cầu hồ sơ của B | từ chối và không trả nội dung hồ sơ | token hết hạn → trả 401; không thực hiện tác vụ | Bảo mật / Tích hợp |
 | TC-03 | quản trị có quyền và chuyên khoa tồn tại; lưu bác sĩ với thông tin hợp lệ | hiển thị bác sĩ ở danh mục đúng chuyên khoa | chuyên khoa không tồn tại → từ chối; không lưu tham chiếu sai | Chức năng / Tích hợp |
 | TC-04 | bác sĩ không có lịch tương lai còn hiệu lực; quản trị ngừng nhận lịch | bác sĩ không xuất hiện trong kết quả có thể đặt | bác sĩ còn lịch tương lai → trả xung đột và giữ trạng thái hiện tại | Chức năng / Tích hợp |
@@ -30,7 +30,7 @@ Trạng thái: **Chưa thực thi**. Mỗi ca kiểm thử gồm tình huống A
 | TC-24 | phiên ACTIVE có hồ sơ bản nháp đã lưu; mất mạng rồi nối lại trước khi kết thúc | phiên tiếp tục, hồ sơ đã lưu giữ nguyên | callback ACTIVE đến sau ENDED → bỏ callback cũ; không mở lại phiên | Chức năng / Tích hợp |
 | TC-25 | Lễ tân báo chậm rồi gửi lại, có hoặc không có giờ dự kiến | Một tác vụ, giờ và trạng thái giữ nguyên | Chặn sai vai trò, bỏ thông báo lỗi thời | Chức năng / Tích hợp |
 | TC-26 | Người phụ trách xác nhận vắng, chọn lý do và bật/tắt lời mời | Lưu lý do, email theo lựa chọn | Chặn nếu đã check-in, trước mốc hoặc sai quyền | Chức năng / Tích hợp |
-| TC-27 | Admin tra đúng mã, khóa bằng lý do, thử lại phiên cũ rồi mở khóa | Phản hồi tối thiểu, audit, thu hồi rồi khôi phục truy cập | Chặn người thường và tài khoản đích là nhân sự; không trả email hoặc bệnh án | Bảo mật / Tích hợp |
+| TC-27 | Admin tra đúng mã UUID, email hoặc SĐT; khóa bằng lý do, thử lại phiên cũ rồi mở khóa | Phản hồi tối thiểu (`id`, `displayName`, `active`), audit, thu hồi rồi khôi phục truy cập | Chặn người thường (`403`), từ chối tìm theo tên (`400`), từ chối tài khoản nhân sự (`404`), trả `409` khi nhiều tài khoản trùng SĐT; không trả email hoặc bệnh án | Bảo mật / Tích hợp |
 
 ## Kiểm thử các thuộc tính chất lượng
 
@@ -73,3 +73,13 @@ Các ca dưới đây chưa thực thi, dùng để kiểm chứng thiết kế 
 | TC-24-E | Nhà cung cấp lỗi khi đóng phòng | Tác vụ thu hồi vẫn tồn tại, được thử lại; không cấp token mới; không báo nhà cung cấp đã đóng khi chưa có xác nhận |
 | TC-24-F | Callback trùng hoặc ACTIVE sau trạng thái kết thúc | Chỉ xử lý event ID một lần; không mở lại phiên |
 | TC-08/09/10-G | Gửi lại cùng idempotency key hoặc đổi payload với cùng key | Cùng yêu cầu trả kết quả cũ; payload khác trả 409; không lặp tác dụng phụ |
+
+## Kiểm thử xác thực mở rộng và liên hệ tài khoản
+
+| ID | Tình huống | Kết quả mong đợi |
+|---|---|---|
+| TC-01-C | Đăng nhập/đăng ký nhanh lần đầu bằng Google OAuth2 | Tự tạo tài khoản `PATIENT`, lưu `email_encrypted` + `email_hash` từ JWT, chuyển tới cổng bệnh nhân |
+| TC-01-D | Gửi yêu cầu Quên mật khẩu với email đã đăng ký và email chưa tồn tại | Cả hai trả cùng thông báo trung tính tiếng Việt; chỉ email đã đăng ký nhận liên kết đặt lại mật khẩu qua SMTP |
+| TC-01-E | Nhập sai mật khẩu liên tiếp 5 lần trong 15 phút | Khóa tạm 60–900 giây ở máy chủ Keycloak; đặt lại mật khẩu qua email mở khóa ngay lập tức |
+| TC-01-F | Đổi sang email nhận thông báo mới và cập nhật chỉ số điện thoại tại *Tài khoản của tôi* | Đổi email mới bắt buộc xác thực OTP 6 chữ số (TTL 300 s, cooldown 30 s, tối đa 5 lần sai và 5 lượt/giờ/email đích); sửa chỉ SĐT giữ nguyên email lưu trực tiếp không cần OTP |
+| TC-27-B | Tra cứu tài khoản bệnh nhân bằng email, SĐT chuẩn hóa (`+84`/`0...`), tên và SĐT trùng nhiều tài khoản | Email/SĐT chính xác của 1 bệnh nhân trả 200 (chỉ 3 trường tối thiểu); tên bệnh nhân trả 400; SĐT trùng $\ge 2$ tài khoản trả 409 |

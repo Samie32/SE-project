@@ -16,6 +16,26 @@ Scenario: Đăng nhập - ngoại lệ
   Given IdP lỗi hoặc tài khoản bị khóa
   When người dùng hoặc hệ thống thực hiện tác vụ đăng nhập
   Then không tạo phiên; hiển thị lỗi có thể thử lại
+
+Scenario: Đăng nhập nhanh bằng Google OAuth2
+  Given người dùng chưa có tài khoản nội bộ và chọn "Tiếp tục với Google"
+  When Google xác thực hợp lệ email đã xác minh
+  Then hệ thống tự tạo tài khoản với vai trò PATIENT, lưu email đã mã hóa cùng blind index và chuyển đến cổng bệnh nhân
+
+Scenario: Quên mật khẩu qua email và chống dò tài khoản
+  Given hệ thống đã cấu hình SMTP và tính năng đặt lại mật khẩu
+  When người dùng gửi email đã đăng ký hoặc chưa đăng ký tại màn hình "Quên mật khẩu"
+  Then hiển thị thông báo trung tính giống nhau trong mọi trường hợp; chỉ gửi liên kết đặt lại mật khẩu nếu tài khoản tồn tại và mở khóa ngay khi đặt lại thành công
+
+Scenario: Khóa tạm khi nhập sai mật khẩu 5 lần
+  Given tài khoản hợp lệ đang hoạt động
+  When nhập sai mật khẩu liên tiếp 5 lần trong 15 phút
+  Then Keycloak tạm khóa đăng nhập mật khẩu (60–900 giây), giữ mở khóa khẩn cấp qua luồng "Quên mật khẩu?"
+
+Scenario: Đổi email nhận thông báo phải xác thực OTP 6 chữ số
+  Given người dùng đã đăng nhập mở chế độ chỉnh sửa tại "Tài khoản của tôi"
+  When đổi sang địa chỉ email mới
+  Then hệ thống yêu cầu gửi OTP 6 chữ số (TTL 300 giây, cooldown 30 giây, tối đa 5 lần sai) tới email mới trước khi lưu; nếu chỉ sửa số điện thoại và giữ nguyên email hiện tại thì lưu trực tiếp không cần OTP
 ```
 
 ## AC-02 — Phân quyền
@@ -398,7 +418,7 @@ Scenario: Mất kết nối và kết thúc phiên - ngoại lệ
 
 ## AC-27 — Tra cứu và kiểm soát quyền truy cập
 
-- Khi quản trị tra đúng mã tài khoản bệnh nhân, API chỉ trả mã, tên hiển thị và trạng thái. Từ chối người không có quyền và tài khoản đích là nhân sự.
+- Khi quản trị tra chính xác mã tài khoản (UUID), email hoặc số điện thoại (chuẩn hóa `+84`/`0...`) của bệnh nhân, API chỉ trả mã, tên hiển thị và trạng thái cùng ghi audit `PATIENT_ACCOUNT_LOOKUP`. Từ chối tìm theo tên hoặc chuỗi không hợp lệ (400), từ chối người không có quyền (403) và tài khoản đích là nhân sự (404); trả 409 nếu có từ hai tài khoản trở lên dùng chung số điện thoại.
 - Khi quản trị khóa với lý do hợp lệ, backend chặn phiên đang dùng. Khi mở khóa, quyền truy cập được khôi phục. Cả hai thao tác đều có audit và giữ nguyên lịch sử nghiệp vụ.
 
 ## Tiêu chí biên bổ sung

@@ -1,52 +1,52 @@
 # Ma trận truy vết
 
-Ma trận thể hiện mối liên hệ giữa nguồn yêu cầu, chức năng, ca sử dụng, thiết kế và ca kiểm thử. Trạng thái triển khai và kiểm thử được ghi nhận riêng cho từng yêu cầu.
+Ma trận thể hiện mối liên hệ giữa nguồn yêu cầu, chức năng, ca sử dụng, thiết kế, công thức lượng hóa và ca kiểm thử. Trạng thái được đối chiếu theo mã nguồn hiện hành, báo cáo ngày [19/11/2026](../testing/reports/2026-11-19-test-report.md) và kết quả rà soát ngày [21/11/2026](../testing/reports/2026-11-21-p0-audit-and-gaps.md).
 
 | Nguồn | FR / Module | Story / AC / UC / Test | Thiết kế | Thao tác API hoặc xử lý nội bộ | Trạng thái triển khai / kiểm thử |
 |---|---|---|---|---|---|
-| Đề bài | FR-01 / M01 | US-01 / AC-01 / UC-01 / TC-01 | [security](../design/architecture/security.md) | `getMe`; quy tắc tầng dịch vụ | Chưa triển khai / Chưa thực thi |
-| Phạm vi cụ thể hóa hoặc mở rộng | FR-02 / M01 | US-02 / AC-02 / UC-02 / TC-02 | [security](../design/architecture/security.md) | `getMe`, `setRoles`, `listAppointments`; quy tắc tầng dịch vụ | Chưa triển khai / Chưa thực thi |
-| Phạm vi cụ thể hóa hoặc mở rộng | FR-03 / M02 | US-03 / AC-03 / UC-03 / TC-03 | [class](../design/class-diagram/class-diagram.png) | `listSpecialties`, `createSpecialty`, `listDoctors`, `createDoctor`, `updateDoctor`; quy tắc tầng dịch vụ | Chưa triển khai / Chưa thực thi |
-| Phạm vi cụ thể hóa hoặc mở rộng | FR-04 / M02 | US-04 / AC-04 / UC-04 / TC-04 | [class](../design/class-diagram/class-diagram.png) | `updateDoctor`; quy tắc tầng dịch vụ | Chưa triển khai / Chưa thực thi |
-| Đề bài | FR-05 / M03 | US-05 / AC-05 / UC-05 / TC-05 | [ERD](../design/database/erd.png) | `createAvailability`; quy tắc tầng dịch vụ | Chưa triển khai / Chưa thực thi |
-| Đề bài và phạm vi cụ thể hóa | FR-06 / M03 | US-06 / AC-06 / UC-06 / TC-06 | [ERD](../design/database/erd.png) | `createTimeOff`; quy tắc tầng dịch vụ | Chưa triển khai / Chưa thực thi |
-| Đề bài | FR-07 / M03 | US-07 / AC-07 / UC-07 / TC-07 | [ERD](../design/database/erd.png) | `listSlots`; quy tắc tầng dịch vụ | Chưa triển khai / Chưa thực thi |
-| Đề bài | FR-08 / M04 | US-08 / AC-08 / UC-08 / TC-08 | [sequence](../design/sequence-diagrams/book-appointment.png), [states](../design/state-diagrams/appointment.png) | `bookAppointment`; quy tắc tầng dịch vụ | Chưa triển khai / Chưa thực thi |
-| Phạm vi cụ thể hóa hoặc mở rộng | FR-09 / M04 | US-09 / AC-09 / UC-09 / TC-09 | [sequence](../design/sequence-diagrams/book-appointment.png), [states](../design/state-diagrams/appointment.png) | `rescheduleAppointment`; quy tắc tầng dịch vụ | Chưa triển khai / Chưa thực thi |
-| Phạm vi cụ thể hóa hoặc mở rộng | FR-10 / M04 | US-10 / AC-10 / UC-10 / TC-10 | [hủy lịch](../design/sequence-diagrams/cancel-appointment.png), [trạng thái](../design/state-diagrams/appointment.png) | `cancelAppointment`; quy tắc tầng dịch vụ | Chưa triển khai / Chưa thực thi |
-| Phạm vi cụ thể hóa hoặc mở rộng | FR-11 / M04 | US-11 / AC-11 / UC-11 / TC-11 | [tiến trình khám](../design/sequence-diagrams/consultation-progress.png), [trạng thái](../design/state-diagrams/appointment.png) | `listAppointments`, `progressAppointment`; quy tắc tầng dịch vụ | Chưa triển khai / Chưa thực thi |
-| Đề bài | FR-12 / M05 | US-12 / AC-12 / UC-12 / TC-12 | [clinical sequence](../design/sequence-diagrams/medical-record.png) | `listPatientRecords`; quy tắc tầng dịch vụ | Chưa triển khai / Chưa thực thi |
-| Đề bài | FR-13 / M05 | US-13 / AC-13 / UC-13 / TC-13 | [hồ sơ](../design/sequence-diagrams/medical-record.png), [trạng thái hồ sơ](../design/state-diagrams/medical-record.png) | `saveRecord`, `amendRecord`; quy tắc tầng dịch vụ | Chưa triển khai / Chưa thực thi |
-| Đề bài | FR-14 / M05 | US-14 / AC-14 / UC-14 / TC-14 | [đơn thuốc](../design/sequence-diagrams/prescription.png) | `createPrescription`, `issuePrescription`, `listPatientPrescriptions`; quy tắc tầng dịch vụ | Chưa triển khai / Chưa thực thi |
-| Đề bài | FR-15 / M06 | US-15 / AC-15 / UC-15 / TC-15 | [thông báo](../design/sequence-diagrams/notifications.png) | `listNotificationJobs`; bộ xử lý nền + outbox | Chưa triển khai / Chưa thực thi |
-| Cụ thể hóa yêu cầu đề bài | FR-16 / M06 | US-16 / AC-16 / UC-16 / TC-16 | [thông báo](../design/sequence-diagrams/notifications.png) | `listNotificationJobs`; bộ xử lý nền + outbox | Chưa triển khai / Chưa thực thi |
-| Đề bài | FR-17 / M07 | US-17 / AC-17 / UC-17 / TC-17 | [security](../design/architecture/security.md) | `setRoles`, `listAuditEvents`; thành phần ghi nhật ký kiểm toán | Chưa triển khai / Chưa thực thi |
-| Đề bài | FR-18 / M07 | US-18 / AC-18 / UC-18 / TC-18 | [security](../design/architecture/security.md) | `listAuditEvents`; thành phần ghi nhật ký kiểm toán | Chưa triển khai / Chưa thực thi |
-| Phạm vi cụ thể hóa hoặc mở rộng | FR-19 / M08 | US-19 / AC-19 / UC-19 / TC-19 | [queue sequence](../design/sequence-diagrams/checkin-and-queue.png) | `checkIn`; quy tắc tầng dịch vụ | Chưa triển khai / Chưa thực thi |
-| Phạm vi cụ thể hóa hoặc mở rộng | FR-20 / M08 | US-20 / AC-20 / UC-20 / TC-20 | [queue sequence](../design/sequence-diagrams/checkin-and-queue.png) | `callNext`; quy tắc tầng dịch vụ | Chưa triển khai / Chưa thực thi |
-| Phạm vi cụ thể hóa hoặc mở rộng | FR-21 / M08 | US-21 / AC-21 / UC-21 / TC-21 | [bỏ lượt](../design/sequence-diagrams/skip-ticket.png), [hàng đợi](../design/state-diagrams/queue-ticket.png) | `skipTicket`; quy tắc tầng dịch vụ | Chưa triển khai / Chưa thực thi |
-| Phạm vi cụ thể hóa hoặc mở rộng | FR-22 / M09 | US-22 / AC-22 / UC-22 / TC-22 | [remote sequence](../design/sequence-diagrams/telehealth.png), [states](../design/state-diagrams/telehealth.png) | `prepareSession`; quy tắc tầng dịch vụ | Chưa triển khai / Chưa thực thi |
-| Phạm vi cụ thể hóa hoặc mở rộng | FR-23 / M09 | US-23 / AC-23 / UC-23 / TC-23 | [remote sequence](../design/sequence-diagrams/telehealth.png), [states](../design/state-diagrams/telehealth.png) | `joinSession`, `startSession`; quy tắc tầng dịch vụ | Chưa triển khai / Chưa thực thi |
-| Phạm vi cụ thể hóa hoặc mở rộng | FR-24 / M09 | US-24 / AC-24 / UC-24 / TC-24 | [remote sequence](../design/sequence-diagrams/telehealth.png), [states](../design/state-diagrams/telehealth.png) | `endSession`; quy tắc tầng dịch vụ | Chưa triển khai / Chưa thực thi |
-| Phạm vi mở rộng | FR-25 / M06 | US-25 / AC-25 / UC-25 / TC-25 | Hàng đợi email; BR-17 | Báo chậm giờ | Kiểm thử tích hợp |
-| Phạm vi mở rộng | FR-26 / M04/M06 | US-26 / AC-26 / UC-26 / TC-26 | [Trạng thái lịch](../design/state-diagrams/appointment.png); BR-18 | Tiến trình lịch; email mời đặt lại | Kiểm thử tích hợp |
-| Phạm vi mở rộng | FR-27 / M01/M07 | US-27 / AC-27 / UC-27 / TC-27 | [Phân quyền](../design/architecture/security.md); BR-19 | Quản lý quyền truy cập tài khoản bệnh nhân | Kiểm thử tích hợp |
+| Đề bài | FR-01 / M01 | US-01 / AC-01 / UC-01 / TC-01 | [security](../design/architecture/security.md), [công thức](../design/business-formulas-and-quantification.md#1-m01--m07--%C4%91%E1%BB%8Bnh-danh-m%C3%A3-h%C3%B3a-otp-v%C3%A0-ch%E1%BB%91ng-d%C3%B2-m%E1%BA%ADt-kh%E1%BA%A9u) | `getMe`, `profile`, `requestContactOtp`, `updateMyContact`, Google OAuth2, quên mật khẩu, brute-force 5 lần | Đã triển khai; đạt unit OTP/JWT/Playwright auth; còn thiếu E2E tự động trên `main` cho Google OAuth, quên mật khẩu và khóa 5 lần; tích hợp OTP chờ Docker/CI |
+| Phạm vi cụ thể hóa hoặc mở rộng | FR-02 / M01 | US-02 / AC-02 / UC-02 / TC-02 | [security](../design/architecture/security.md) | `getMe`, `setRoles`, `listAppointments`, `Guard.tsx` | Đã triển khai; đạt kiểm thử phân quyền API (`SchedulingIntegrationTest`, `PatientAccountIntegrationTest`) và UI `guard-redirect.test.tsx` |
+| Phạm vi cụ thể hóa hoặc mở rộng | FR-03 / M02 | US-03 / AC-03 / UC-03 / TC-03 | [class](../design/class-diagram/class-diagram.png) | `listSpecialties`, `createSpecialty`, `listDoctors`, `createDoctor`, `updateDoctor` | Đã triển khai; đạt kiểm thử tích hợp MySQL và UI (`specialties-ui.test.tsx`) |
+| Phạm vi cụ thể hóa hoặc mở rộng | FR-04 / M02 | US-04 / AC-04 / UC-04 / TC-04 | [class](../design/class-diagram/class-diagram.png) | `updateDoctor` | Đã triển khai; đạt hồi quy đồng thời RG-08, RG-09 |
+| Đề bài | FR-05 / M03 | US-05 / AC-05 / UC-05 / TC-05 | [ERD](../design/database/erd.png), [công thức](../design/business-formulas-and-quantification.md#2-m03--gi%E1%BB%9D-ho%E1%BA%A1t-%C4%91%E1%BB%99ng-ng%C3%A0y-l%E1%BB%85-v%C3%A0-sinh-khung-gi%E1%BB%9D-kh%C3%A1m-slot) | `createAvailability`, `updateClinicHours`, `createClinicHoliday` | Đã triển khai; đạt hồi quy RG-06, `clinic-hours.test.ts`, `schedule-manager.test.tsx` |
+| Đề bài và phạm vi cụ thể hóa | FR-06 / M03 | US-06 / AC-06 / UC-06 / TC-06 | [ERD](../design/database/erd.png) | `createTimeOff`, `deleteTimeOff` | Đã triển khai; đạt hồi quy RG-07, `schedule-delete.test.ts` |
+| Đề bài | FR-07 / M03 | US-07 / AC-07 / UC-07 / TC-07 | [ERD](../design/database/erd.png) | `listSlots` | Đã triển khai; đạt tích hợp và `schedule-rules.test.ts` |
+| Đề bài | FR-08 / M04 | US-08 / AC-08 / UC-08 / TC-08 | [sequence](../design/sequence-diagrams/book-appointment.png), [states](../design/state-diagrams/appointment.png), [công thức](../design/business-formulas-and-quantification.md#3-m04--%C4%91%E1%BA%B7t-%C4%91%E1%BB%95i-h%E1%BB%A7y-v%E1%BA%AFng-h%E1%BA%B9n-b%C3%A1o-ch%E1%BA%ADm-v%C3%A0-idempotency) | `bookAppointment` | Đã triển khai; đạt MySQL concurrency & k6 tranh chấp (1 thành công / 99 `409`) |
+| Phạm vi cụ thể hóa hoặc mở rộng | FR-09 / M04 | US-09 / AC-09 / UC-09 / TC-09 | [sequence](../design/sequence-diagrams/book-appointment.png), [states](../design/state-diagrams/appointment.png) | `rescheduleAppointment` | Đã triển khai; đạt kiểm thử tích hợp MySQL |
+| Phạm vi cụ thể hóa hoặc mở rộng | FR-10 / M04 | US-10 / AC-10 / UC-10 / TC-10 | [hủy lịch](../design/sequence-diagrams/cancel-appointment.png), [trạng thái](../design/state-diagrams/appointment.png) | `cancelAppointment` | Đã triển khai; đạt kiểm thử tích hợp MySQL |
+| Phạm vi cụ thể hóa hoặc mở rộng | FR-11 / M04 | US-11 / AC-11 / UC-11 / TC-11 | [tiến trình khám](../design/sequence-diagrams/consultation-progress.png), [trạng thái](../design/state-diagrams/appointment.png) | `listAppointments`, `progressAppointment` | Đã triển khai; đạt tích hợp; luồng khám E2E xuyên UI chờ nghiệm thu bổ sung |
+| Đề bài | FR-12 / M05 | US-12 / AC-12 / UC-12 / TC-12 | [clinical sequence](../design/sequence-diagrams/medical-record.png) | `listPatientRecords` | Đã triển khai; đạt kiểm thử tích hợp MySQL và audit READ |
+| Đề bài | FR-13 / M05 | US-13 / AC-13 / UC-13 / TC-13 | [hồ sơ](../design/sequence-diagrams/medical-record.png), [trạng thái hồ sơ](../design/state-diagrams/medical-record.png), [công thức](../design/business-formulas-and-quantification.md#4-m05--kh%C3%B3a-l%E1%BA%A1c-quan-h%E1%BB%93-s%C6%A1-b%E1%BB%87nh-%C3%A1n--%C4%91%C6%A1n-thu%E1%BB%91c) | `saveRecord`, `amendRecord` | Đã triển khai; đạt kiểm thử tích hợp MySQL và `clinical-flow.test.tsx` |
+| Đề bài | FR-14 / M05 | US-14 / AC-14 / UC-14 / TC-14 | [đơn thuốc](../design/sequence-diagrams/prescription.png) | `createPrescription`, `issuePrescription`, `listPatientPrescriptions` | Đã triển khai; đạt tích hợp MySQL và `clinical-flow.test.tsx`; E2E UI phát hành đơn chờ nghiệm thu |
+| Đề bài | FR-15 / M06 | US-15 / AC-15 / UC-15 / TC-15 | [thông báo](../design/sequence-diagrams/notifications.png), [công thức](../design/business-formulas-and-quantification.md#5-m06--nh%E1%BA%AFc-l%E1%BB%8Bch-email-v%C3%A0-l%E1%BB%8Bch-th%E1%BB%AD-l%E1%BA%A1i-backoff) | `listNotificationJobs`, `NotificationWorker` | Đã triển khai; đạt tích hợp MySQL + Mailpit smoke |
+| Cụ thể hóa yêu cầu đề bài | FR-16 / M06 | US-16 / AC-16 / UC-16 / TC-16 | [thông báo](../design/sequence-diagrams/notifications.png) | `listNotificationJobs`, `NotificationStore` | Đã triển khai; đạt tích hợp retry backoff (1/5/15 phút) |
+| Đề bài | FR-17 / M07 | US-17 / AC-17 / UC-17 / TC-17 | [security](../design/architecture/security.md) | `setRoles`, `listAuditEvents`, thành phần `Audit` | Đã triển khai; đạt tích hợp MySQL (kể cả fault injection audit rollback) |
+| Đề bài | FR-18 / M07 | US-18 / AC-18 / UC-18 / TC-18 | [security](../design/architecture/security.md) | `listAuditEvents` | Đã triển khai; đạt tích hợp MySQL |
+| Phạm vi cụ thể hóa hoặc mở rộng | FR-19 / M08 | US-19 / AC-19 / UC-19 / TC-19 | [queue sequence](../design/sequence-diagrams/checkin-and-queue.png), [công thức](../design/business-formulas-and-quantification.md#6-m08--check-in-v%C3%A0-h%C3%A0ng-%C4%91%E1%BB%A3i-kh%C3%A1m-fifo) | `checkIn` | Đã triển khai; đạt hồi quy đồng thời RG-10, RG-11 |
+| Phạm vi cụ thể hóa hoặc mở rộng | FR-20 / M08 | US-20 / AC-20 / UC-20 / TC-20 | [queue sequence](../design/sequence-diagrams/checkin-and-queue.png) | `callNext` | Đã triển khai; đạt hồi quy RG-04, RG-12 |
+| Phạm vi cụ thể hóa hoặc mở rộng | FR-21 / M08 | US-21 / AC-21 / UC-21 / TC-21 | [bỏ lượt](../design/sequence-diagrams/skip-ticket.png), [hàng đợi](../design/state-diagrams/queue-ticket.png) | `skipTicket` | Đã triển khai; đạt tích hợp MySQL |
+| Phạm vi cụ thể hóa hoặc mở rộng | FR-22 / M09 | US-22 / AC-22 / UC-22 / TC-22 | [remote sequence](../design/sequence-diagrams/telehealth.png), [states](../design/state-diagrams/telehealth.png), [công thức](../design/business-formulas-and-quantification.md#7-m09--kh%C3%A1m-t%E1%BB%AB-xa-telehealth--webrtc) | `prepareSession` | Đã triển khai; đạt tích hợp MySQL & `telehealth-lifecycle.test.tsx` |
+| Phạm vi cụ thể hóa hoặc mở rộng | FR-23 / M09 | US-23 / AC-23 / UC-23 / TC-23 | [remote sequence](../design/sequence-diagrams/telehealth.png), [states](../design/state-diagrams/telehealth.png) | `joinSession`, `startSession` | Đã triển khai; đạt hồi quy RG-01 và Playwright WebRTC fixture |
+| Phạm vi cụ thể hóa hoặc mở rộng | FR-24 / M09 | US-24 / AC-24 / UC-24 / TC-24 | [remote sequence](../design/sequence-diagrams/telehealth.png), [states](../design/state-diagrams/telehealth.png) | `endSession`, `connectionState` | Đã triển khai; đạt WebRTC fixture; **chưa nghiệm thu** hai thiết bị khác mạng qua TURN và provider webhook (`AC-24-E`) |
+| Phạm vi mở rộng | FR-25 / M06 | US-25 / AC-25 / UC-25 / TC-25 | Hàng đợi email; BR-17 | `sendDelayNotice` | Đã triển khai; đạt tích hợp MySQL |
+| Phạm vi mở rộng | FR-26 / M04/M06 | US-26 / AC-26 / UC-26 / TC-26 | [Trạng thái lịch](../design/state-diagrams/appointment.png); BR-18 | `progressAppointment` (`NO_SHOW` + lý do) | Đã triển khai; đạt tích hợp MySQL |
+| Phạm vi mở rộng | FR-27 / M01/M07 | US-27 / AC-27 / UC-27 / TC-27 | [Phân quyền](../design/architecture/security.md); BR-19 | `getPatientAccount`, `lookupPatientAccount`, `updatePatientAccountAccess` | Đã triển khai tra cứu chính xác UUID/email/SĐT; đạt mock UI (`patient-accounts.test.tsx`); tích hợp MySQL mới bổ sung chờ xác nhận trên CI (local thiếu Docker) |
 
 ## Truy vết chất lượng
 
-| NFR | Thiết kế / quy tắc | Kiểm chứng dự kiến |
+| NFR | Thiết kế / quy tắc | Kiểm chứng và trạng thái hiện tại |
 |---|---|---|
-| NFR-01 | Architecture / index | TC-N01 |
-| NFR-02 | BR-03/04, giao dịch InnoDB, khóa và kiểm tra xung đột | TC-08/09/20 |
-| NFR-03 | Security matrix / BR-01 | TC-N02, TC-02/12/23 |
-| NFR-04 | Encryption / backup / key management | TC-N07, TC-N03 |
-| NFR-05 | Audit / BR-13/16 | TC-17/18, TC-N04 |
-| NFR-06 | Backup/restore dữ liệu trình diễn | TC-N03 |
-| NFR-07 | Xử lý lỗi phụ thuộc | TC-N08 |
-| NFR-08 | Screen specifications | TC-N05 |
-| NFR-09 | Telehealth state machine | TC-N06, TC-24 |
-| NFR-10 | Architecture / OpenAPI / model source | TC-N09 |
-| NFR-11 | Test plan / coverage | TC-N09 |
-| NFR-12 | Dữ liệu giả và kiểm tra log | TC-N10 |
+| NFR-01 | Architecture / index | TC-N01 — **Chưa nghiệm thu đủ** (k6 tra cứu đạt p95 `33,87 ms` với 10 VU / 2 phút, ghi nhận 1 ngoại lệ `24,37 s`; chưa chạy đúng ngưỡng 50 VU, 10.000 lịch, 15 phút đọc + ghi) |
+| NFR-02 | BR-03/04, giao dịch InnoDB, khóa và kiểm tra xung đột | TC-08/09/20 — **Đạt** (k6 tranh chấp 1/99 và tích hợp đồng thời MySQL RG-05..12) |
+| NFR-03 | Security matrix / BR-01 | TC-N02, TC-02/12/23 — **Đạt** trên bộ tích hợp hiện hành (`SchedulingIntegrationTest`, `PatientAccountIntegrationTest`, `JwtValidationTest`) |
+| NFR-04 | Encryption / backup / key management / security headers | TC-N07, `AGENT-TC-009`, `AGENT-TC-013`, `AGENT-TC-014` — **Đạt phần lớn** (đã xác minh HSTS/CSP runtime, unit OTP & tách khóa HMAC; giữ `DemoClinic` ở diện rủi ro chấp nhận trên demo) |
+| NFR-05 | Audit / BR-13/16 | TC-17/18, TC-N04 — **Đạt** (bao gồm kiểm thử fault injection audit) |
+| NFR-06 | Backup/restore dữ liệu trình diễn | TC-N03 — **Chưa nghiệm thu** (chưa có biên bản diễn tập sao lưu/khôi phục MySQL và kho Keycloak) |
+| NFR-07 | Xử lý lỗi phụ thuộc | TC-N08 — **Đạt** ở kiểm thử tích hợp lỗi SMTP và rollback audit |
+| NFR-08 | Screen specifications | TC-N05 — **Chưa nghiệm thu** (có thủ tục đo với 5 người dùng, chưa thực thi lấy số liệu) |
+| NFR-09 | Telehealth state machine | TC-N06, TC-24, `AGENT-TC-001` — **Đạt một phần** (WebRTC fixture đạt; ca mất mạng offline trên UI `AGENT-TC-001` chưa thực thi) |
+| NFR-10 | Architecture / OpenAPI / model source | TC-N09 — **Đạt** (OpenAPI 3.1 + `check-api-contract.py` chạy trong CI) |
+| NFR-11 | Test plan / coverage | TC-N09 — **Chưa nghiệm thu riêng** (JaCoCo tổng hợp `78,25%` dòng / `59,41%` nhánh theo báo cáo 19/11; chưa tách đo riêng unit coverage cho logic nghiệp vụ) |
+| NFR-12 | Dữ liệu giả và kiểm tra log | TC-N10 — **Đạt** (dữ liệu mô phỏng, không log token/PHI/OTP) |
 
 Các quy tắc BR được ánh xạ đến phân hệ trong [quy tắc nghiệp vụ](business-rules.md). G-01 → M02/M03/M04; G-02 → M05; G-03 → M06/M08/M09; G-04 → M01/M07.

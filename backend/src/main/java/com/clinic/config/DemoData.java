@@ -50,8 +50,8 @@ public class DemoData {
               if (inserted == 0) {
                 db.update("UPDATE user_account SET username=? WHERE issuer=? AND subject=? AND username IS NULL",
                     username, issuer, id);
-                db.update("UPDATE user_account SET email_hash=? WHERE issuer=? AND subject=? AND email_hash IS NULL",
-                    emailHash, issuer, id);
+                db.update("UPDATE user_account SET email_hash=? WHERE issuer=? AND subject=? AND (email_hash IS NULL OR email_hash<>?)",
+                    emailHash, issuer, id, emailHash);
               }
               if (inserted == 1) db.update("INSERT INTO user_role VALUES(?,?)", id, roles[i]);
               if (roles[i].equals("PATIENT"))
