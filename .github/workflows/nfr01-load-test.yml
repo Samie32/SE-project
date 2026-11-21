@@ -1,0 +1,138 @@
+name: NFR-01 Load Test (k6)
+
+on:
+  workflow_dispatch:
+    inputs:
+      vus:
+        description: 'Concurrent virtual users (NFR-01 standard: 50)'
+        required: true
+        default: '50'
+      hold:
+        description: 'Steady load duration (NFR-01 standard: 15m)'
+        required: true
+        default: '15m'
+      appointments:
+        description: 'Number of simulated appointments seeded (NFR-01 standard: 10000)'
+        required: true
+        default: '10000'
+
+permissions:
+  contents: read
+
+jobs:
+  load-test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    services:
+      mysql:
+        image: mysql:8.4
+        env:
+          MYSQL_ROOT_PASSWORD: root-load-pass
+          MYSQL_DATABASE: clinic
+          MYSQL_USER: clinic
+          MYSQL_PASSWORD: clinic-load-pass
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping -h localhost -proot-load-pass --silent"
+          --health-interval=5s
+          --health-timeout=5s
+          --health-retries=30
+
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: maven
+          cache-dependency-path: backend/pom.xml
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install k6, mysql-client and JWT harness dependencies
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq mysql-client gnupg ca-certificates curl
+          curl -fsSL https://dl.k6.io/key.gpg | sudo gpg --dearmor -o /usr/share/keyrings/k6-archive-keyring.gpg
+          echo "deb [signed-by=/usr/share/keyrings/k6-archive-keyring.gpg] https://dl.k6.io/deb stable main" | sudo tee /etc/apt/sources.list.d/k6.list
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq k6
+          python3 -m pip install --quiet PyJWT cryptography
+
+      - name: Build backend JAR
+        working-directory: backend
+        run: sh mvnw -B -DskipTests package
+
+      - name: Start local JWKS server and backend, then seed NFR-01 dataset
+        run: |
+          TARGET_DATE="$(date -u -d '+5 days' '+%Y-%m-%d')"
+          echo "TARGET_DATE=$TARGET_DATE" >> "$GITHUB_ENV"
+
+          python3 scripts/nfr01-load-harness.py jwks-server \
+            --port 8199 --issuer http://127.0.0.1:8199 --audience clinic-api \
+            --tokens-out /tmp/nfr01-tokens.json --count "${{ inputs.vus }}" &
+          sleep 2
+
+          DATA_KEY="$(openssl rand -base64 32)"
+          DB_URL="jdbc:mysql://127.0.0.1:3306/clinic?connectionTimeZone=UTC&forceConnectionTimeZoneToSession=true&allowPublicKeyRetrieval=true&useSSL=false" \
+          DB_USER="clinic" \
+          DB_PASSWORD="clinic-load-pass" \
+          MIGRATION_USER="root" \
+          MIGRATION_PASSWORD="root-load-pass" \
+          DATA_ENCRYPTION_KEY="$DATA_KEY" \
+          OIDC_ISSUER="http://127.0.0.1:8199" \
+          OIDC_JWKS="http://127.0.0.1:8199/jwks" \
+          NOTIFICATIONS_ENABLED="false" \
+          MANAGEMENT_HEALTH_MAIL_ENABLED="false" \
+          java -Xms512m -Xmx1024m -jar backend/target/clinic-backend-*.jar > /tmp/backend.log 2>&1 &
+
+          for i in $(seq 1 40); do
+            if curl -fsS http://127.0.0.1:8080/actuator/health | grep -q '"UP"'; then
+              break
+            fi
+            sleep 2
+          done
+          curl -fsS http://127.0.0.1:8080/actuator/health
+
+          python3 scripts/nfr01-load-harness.py seed \
+            --host 127.0.0.1 --port 3306 --user root --password root-load-pass --db clinic \
+            --issuer http://127.0.0.1:8199 \
+            --appointments "${{ inputs.appointments }}" \
+            --patients "${{ inputs.vus }}" \
+            --doctors 10 \
+            --target-date "$TARGET_DATE"
+
+      - name: Run NFR-01 k6 load test
+        id: k6
+        run: |
+          k6 run \
+            -e BASE_URL=http://127.0.0.1:8080 \
+            -e TOKENS_FILE=/tmp/nfr01-tokens.json \
+            -e APPOINTMENT_DATE="$TARGET_DATE" \
+            -e VUS="${{ inputs.vus }}" \
+            -e HOLD="${{ inputs.hold }}" \
+            --summary-export=nfr01-summary.json \
+            tests/k6/nfr01-full-load.js
+
+      - name: Publish NFR-01 summary report
+        if: always() && hashFiles('nfr01-summary.json') != ''
+        run: |
+          python3 scripts/nfr01-load-harness.py report \
+            --summary-json nfr01-summary.json \
+            --out-md nfr01-report.md \
+            --vus "${{ inputs.vus }}" \
+            --hold "${{ inputs.hold }}" \
+            --appointments "${{ inputs.appointments }}"
+          cat nfr01-report.md >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload NFR-01 load test artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: nfr01-load-report
+          path: |
+            nfr01-summary.json
+            nfr01-report.md
+            /tmp/backend.log

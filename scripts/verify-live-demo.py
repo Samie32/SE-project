@@ -14,7 +14,10 @@ import csv
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 import json
+import os
 from pathlib import Path
+import socket
+import struct
 import subprocess
 import sys
 import urllib.error
@@ -200,12 +203,71 @@ def check_foreign_redirect_rejected(auth_url: str, requester=fetch, timeout: int
     )
 
 
-def run_all_checks(app_url: str, auth_url: str, requester=fetch, timeout: int = 15) -> list[CheckResult]:
+def check_webrtc_ice_guard(app_url: str, requester=fetch, timeout: int = 15) -> CheckResult:
+    resp = requester(f"{app_url.rstrip('/')}/api/webrtc/ice", timeout=timeout)
+    cache = resp.header_joined("Cache-Control").lower()
+    passed = resp.status == 401 and "no-store" in cache
+    return CheckResult(
+        check_id="webrtc-ice-guard",
+        case_id="NA",
+        passed=passed,
+        summary="Endpoint /api/webrtc/ice chặn ẩn danh 401 với Cache-Control: no-store" if passed else f"/api/webrtc/ice trả {resp.status} (Cache-Control={cache or 'NONE'})",
+        detail=f"GET /api/webrtc/ice -> HTTP {resp.status}, Cache-Control={cache or 'NONE'}",
+    )
+
+
+def probe_stun(host: str, port: int = 3478, timeout: int = 5) -> tuple[bool, str]:
+    ip = socket.gethostbyname(host)
+    tx = os.urandom(12)
+    pkt = struct.pack("!HHI", 0x0001, 0, 0x2112A442) + tx
+    for proto, sock_type in (("TCP", socket.SOCK_STREAM), ("UDP", socket.SOCK_DGRAM)):
+        sock = socket.socket(socket.AF_INET, sock_type)
+        sock.settimeout(timeout)
+        try:
+            if sock_type == socket.SOCK_STREAM:
+                sock.connect((ip, port))
+                sock.sendall(pkt)
+                data = sock.recv(1024)
+            else:
+                sock.sendto(pkt, (ip, port))
+                data, _ = sock.recvfrom(1024)
+            if len(data) >= 20:
+                mtype, _mlen, cookie = struct.unpack("!HHI", data[:8])
+                if mtype == 0x0101 and cookie == 0x2112A442 and data[8:20] == tx:
+                    return True, f"STUN {proto} {ip}:{port} -> Binding Success (0x0101, {len(data)}B)"
+        except OSError:
+            continue
+        finally:
+            sock.close()
+    return False, f"STUN/TURN {ip}:{port} không phản hồi Binding Success trên TCP/UDP"
+
+
+def check_stun_turn_server(app_url: str, stun_prober=probe_stun, port: int = 3478, timeout: int = 5) -> CheckResult:
+    host = urllib.parse.urlparse(app_url).hostname or app_url
+    ok, detail = stun_prober(host, port=port, timeout=timeout)
+    return CheckResult(
+        check_id="webrtc-stun-turn",
+        case_id="NA",
+        passed=ok,
+        summary="Máy chủ coturn STUN/TURN 3478 phản hồi Binding Success" if ok else "Máy chủ coturn STUN/TURN 3478 không phản hồi",
+        detail=detail,
+    )
+
+
+def run_all_checks(
+    app_url: str,
+    auth_url: str,
+    requester=fetch,
+    stun_prober=probe_stun,
+    timeout: int = 15,
+) -> list[CheckResult]:
     return [
         check_security_headers(app_url, auth_url, requester=requester, timeout=timeout),
         check_api_unauthenticated_guard(app_url, requester=requester, timeout=timeout),
         check_direct_access_grants_blocked(auth_url, requester=requester, timeout=timeout),
         check_foreign_redirect_rejected(auth_url, requester=requester, timeout=timeout),
+        check_webrtc_ice_guard(app_url, requester=requester, timeout=timeout),
+        check_stun_turn_server(app_url, stun_prober=stun_prober, timeout=min(timeout, 5)),
     ]
 
 

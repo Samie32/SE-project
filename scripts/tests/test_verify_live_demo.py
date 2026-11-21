@@ -31,6 +31,8 @@ class VerifyLiveDemoTests(unittest.TestCase):
             )
         if url == "https://app.test/api/me/profile":
             return MOD.HttpResponse(status=401, headers={}, body="")
+        if url == "https://app.test/api/webrtc/ice":
+            return MOD.HttpResponse(status=401, headers={"Cache-Control": ["no-store"]}, body="")
         if url == "https://auth.test/realms/clinic/.well-known/openid-configuration":
             return MOD.HttpResponse(
                 status=200,
@@ -46,12 +48,21 @@ class VerifyLiveDemoTests(unittest.TestCase):
             return MOD.HttpResponse(status=400, headers={}, body="Invalid redirect_uri")
         raise AssertionError(f"Unexpected URL: {url}")
 
+    def _healthy_stun(self, host, *, port=3478, timeout=5):
+        return True, f"STUN TCP {host}:{port} -> Binding Success (0x0101, 40B)"
+
     def test_run_all_checks_passes_when_vm_responses_match_security_baseline(self):
-        results = MOD.run_all_checks("https://app.test", "https://auth.test", requester=self._healthy_requester)
-        self.assertEqual(len(results), 4)
+        results = MOD.run_all_checks(
+            "https://app.test",
+            "https://auth.test",
+            requester=self._healthy_requester,
+            stun_prober=self._healthy_stun,
+        )
+        self.assertEqual(len(results), 6)
         self.assertTrue(all(r.passed for r in results), results)
         md = MOD.render_markdown_summary(results, "https://app.test", "https://auth.test")
         self.assertIn("AGENT-TC-009", md)
+        self.assertIn("webrtc-stun-turn", md)
         self.assertIn("**PASS**", md)
 
     def test_security_headers_fails_when_csp_or_hsts_missing(self):
@@ -66,7 +77,12 @@ class VerifyLiveDemoTests(unittest.TestCase):
         self.assertIn("CSP", res.detail)
 
     def test_update_agent_catalog_appends_runs_and_updates_projection(self):
-        results = MOD.run_all_checks("https://app.test", "https://auth.test", requester=self._healthy_requester)
+        results = MOD.run_all_checks(
+            "https://app.test",
+            "https://auth.test",
+            requester=self._healthy_requester,
+            stun_prober=self._healthy_stun,
+        )
         with tempfile.TemporaryDirectory() as tmp:
             catalog = Path(tmp) / "catalog.csv"
             runs = Path(tmp) / "runs.csv"
