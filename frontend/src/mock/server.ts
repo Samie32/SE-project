@@ -110,6 +110,7 @@ on("GET", "/me/profile", c => {
   const u = user(c.db, c.actor.id);
   return {
     id: c.actor.id,
+    username: u ? mockUsername(u) : null,
     roles: c.actor.roles,
     displayName: u?.name ?? "",
     email: u?.email ?? null,

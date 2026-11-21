@@ -210,6 +210,12 @@ export function AccountPage() {
         </div>
 
         <dl className="detail">
+          {identity?.username && (
+            <div>
+              <dt>Tên đăng nhập</dt>
+              <dd className="mono">{identity.username}</dd>
+            </div>
+          )}
           <div>
             <dt>Mã tài khoản</dt>
             <dd>

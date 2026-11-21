@@ -8,6 +8,7 @@ export const ALL_ROLES: Role[] = ["PATIENT", "DOCTOR", "RECEPTIONIST", "ADMINIST
 /** GET /api/me/profile; không suy patientId/doctorId từ user ID. */
 export interface Identity {
   id: string;
+  username?: string | null;
   roles: Role[];
   doctorId?: string | null;
   patientId?: string | null;

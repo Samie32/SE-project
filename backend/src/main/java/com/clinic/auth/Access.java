@@ -335,7 +335,7 @@ public class Access {
   public Map<String, Object> profile(Actor actor) {
     var result =
         db.one(
-            "SELECT id,display_name,active,email_encrypted,phone_encrypted FROM user_account WHERE id=?",
+            "SELECT id,username,display_name,active,email_encrypted,phone_encrypted FROM user_account WHERE id=?",
             actor.id());
     String email = decryptOrNull(result.remove("emailEncrypted"));
     String phone = decryptOrNull(result.remove("phoneEncrypted"));

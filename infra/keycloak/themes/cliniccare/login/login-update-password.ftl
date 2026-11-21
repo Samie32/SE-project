@@ -41,6 +41,9 @@
         <label class="remember"><input id="logout-sessions" name="logout-sessions" type="checkbox" value="on" checked>Đăng xuất khỏi các thiết bị khác</label>
       </div>
       <button type="submit">Cập nhật mật khẩu</button>
+      <#if isAppInitiatedAction??>
+        <button type="submit" name="cancel-aia" value="true" class="social-btn" formnovalidate style="margin-top:10px">Hủy</button>
+      </#if>
     </form>
   </div>
 </main>
