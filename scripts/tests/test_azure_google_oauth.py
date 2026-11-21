@@ -135,3 +135,13 @@ class AzureGoogleOAuthTests(unittest.TestCase):
         self.assertEqual(smtp["auth"], "true")
         self.assertEqual(smtp["user"], "user")
         self.assertEqual(smtp["password"], "secret")
+
+    def test_build_realm_payload_enables_temporary_brute_force_lockout(self):
+        payload = kc_reg.build_realm_payload(None)
+        self.assertTrue(payload["bruteForceProtected"])
+        self.assertFalse(payload["permanentLockout"])
+        self.assertEqual(payload["failureFactor"], 5)
+        self.assertEqual(payload["waitIncrementSeconds"], 60)
+        self.assertEqual(payload["maxFailureWaitSeconds"], 900)
+        self.assertEqual(payload["maxDeltaTimeSeconds"], 900)
+        self.assertFalse(payload["resetPasswordAllowed"])

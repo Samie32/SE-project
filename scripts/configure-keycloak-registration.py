@@ -36,6 +36,30 @@ def build_smtp_server(env):
     return smtp
 
 
+def build_realm_payload(smtp_server):
+    """Build realm settings including registration, brute-force protection, and email recovery."""
+    payload = {
+        "loginTheme": "cliniccare",
+        "rememberMe": True,
+        "registrationAllowed": True,
+        "registrationEmailAsUsername": True,
+        "loginWithEmailAllowed": True,
+        "editUsernameAllowed": False,
+        "duplicateEmailsAllowed": False,
+        "passwordPolicy": "length(8)",
+        "bruteForceProtected": True,
+        "permanentLockout": False,
+        "failureFactor": 5,
+        "waitIncrementSeconds": 60,
+        "maxFailureWaitSeconds": 900,
+        "maxDeltaTimeSeconds": 900,
+        "resetPasswordAllowed": smtp_server is not None,
+    }
+    if smtp_server is not None:
+        payload["smtpServer"] = smtp_server
+    return payload
+
+
 def configure_google_idp(opener, base, token, client_id, client_secret):
     """Create or update the Google OIDC identity provider in the clinic realm."""
     instance_url = base + "/admin/realms/clinic/identity-provider/instances/google"
@@ -102,19 +126,7 @@ def main():
                 token = json.load(response)["access_token"]
 
             smtp_server = build_smtp_server(os.environ)
-            realm_payload = {
-                "loginTheme": "cliniccare",
-                "rememberMe": True,
-                "registrationAllowed": True,
-                "registrationEmailAsUsername": True,
-                "loginWithEmailAllowed": True,
-                "editUsernameAllowed": False,
-                "duplicateEmailsAllowed": False,
-                "passwordPolicy": "length(8)",
-                "resetPasswordAllowed": smtp_server is not None,
-            }
-            if smtp_server is not None:
-                realm_payload["smtpServer"] = smtp_server
+            realm_payload = build_realm_payload(smtp_server)
 
             realm_request = Request(
                 base + "/admin/realms/clinic",
