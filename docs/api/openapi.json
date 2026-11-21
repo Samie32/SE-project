@@ -2144,6 +2144,36 @@
         "x-access": "Đã đăng nhập"
       }
     },
+    "/me/contact/otp": {
+      "post": {
+        "tags": [
+          "auth-controller"
+        ],
+        "operationId": "requestContactOtp",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ContactOtpRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ContactOtpResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/me/contact": {
       "put": {
         "tags": [
@@ -5724,6 +5754,33 @@
           ]
         }
       },
+      "ContactOtpRequest": {
+        "type": "object",
+        "properties": {
+          "email": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 254,
+            "pattern": "\\S",
+            "format": "email"
+          }
+        },
+        "required": [
+          "email"
+        ]
+      },
+      "ContactOtpResponse": {
+        "type": "object",
+        "properties": {
+          "expiresInSeconds": {
+            "type": "integer",
+            "format": "int32"
+          }
+        },
+        "required": [
+          "expiresInSeconds"
+        ]
+      },
       "Contact": {
         "type": "object",
         "properties": {
@@ -5737,6 +5794,10 @@
           "phone": {
             "type": "string",
             "maxLength": 20
+          },
+          "otp": {
+            "type": "string",
+            "pattern": "^[0-9]{6}$"
           }
         },
         "required": [

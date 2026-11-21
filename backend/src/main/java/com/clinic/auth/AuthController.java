@@ -130,12 +130,23 @@ public class AuthController {
     access.roles(access.actor(jwt), id.toString(), body.roles());
   }
 
+  public record ContactOtpRequest(@NotBlank @Email @Size(max = 254) String email) {}
+
+  public record ContactOtpResponse(int expiresInSeconds) {}
+
+  @PostMapping("/me/contact/otp")
+  public ContactOtpResponse requestContactOtp(
+      @AuthenticationPrincipal Jwt jwt, @Valid @RequestBody ContactOtpRequest body) {
+    return new ContactOtpResponse(access.requestContactOtp(access.actor(jwt), body.email()));
+  }
+
   public record Contact(
       @NotBlank @Email @Size(max = 254) String email,
-      @Size(max = 20) String phone) {}
+      @Size(max = 20) String phone,
+      @Pattern(regexp = "^[0-9]{6}$") String otp) {}
 
   @PutMapping("/me/contact")
   public void contact(@AuthenticationPrincipal Jwt jwt, @Valid @RequestBody Contact body) {
-    access.contact(access.actor(jwt), body.email(), body.phone());
+    access.contact(access.actor(jwt), body.email(), body.phone(), body.otp());
   }
 }

@@ -65,6 +65,14 @@ export const updateStaff = (id: string, body: { displayName: string; active: boo
 // PUT /api/users/{id}/roles — ADMINISTRATOR.
 export const setUserRoles = (userId: string, roles: Role[]) =>
   api.put<void>(`/users/${userId}/roles`, { roles });
+// POST /api/me/contact/otp — gửi mã OTP xác nhận đổi email.
+export const requestContactOtp = (email: string) =>
+  api.post<{ expiresInSeconds: number }>("/me/contact/otp", { email });
+
 // PUT /api/me/contact — chủ tài khoản.
-export const updateContact = (email: string, phone?: string) =>
-  api.put<void>("/me/contact", phone ? { email, phone } : { email });
+export const updateContact = (email: string, phone?: string, otp?: string) =>
+  api.put<void>("/me/contact", {
+    email,
+    ...(phone ? { phone } : {}),
+    ...(otp ? { otp } : {}),
+  });

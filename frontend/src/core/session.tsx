@@ -27,6 +27,7 @@ export interface Session {
   displayName: string;
   can: (permission: Permission) => boolean;
   login: (returnTo?: string) => void;
+  changePassword?: () => void;
   logout: () => void;
   retry: () => void;
 }
@@ -156,6 +157,14 @@ function IdentityLoader({ children }: { children: ReactNode }) {
       displayName,
       can: (p) => hasPermission(roles, p),
       login,
+      changePassword: () => {
+        void auth
+          .signinRedirect({
+            extraQueryParams: { kc_action: "UPDATE_PASSWORD" },
+            state: { from: "/account" },
+          })
+          .catch(() => undefined);
+      },
       logout: () => {
         void auth.signoutRedirect().catch(() => auth.removeUser());
       },

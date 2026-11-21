@@ -1470,6 +1470,37 @@ paths:
       - FR-01
       - FR-02
       x-access: Đã đăng nhập
+  /me/contact/otp:
+    post:
+      tags:
+      - M01
+      operationId: requestContactOtp
+      summary: Gửi mã OTP xác nhận đổi email nhận thông báo
+      x-access: Chủ tài khoản
+      x-requirements:
+      - FR-01
+      - FR-17
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ContactOtpRequest'
+      responses:
+        '200':
+          description: Đã gửi mã OTP tới email mới
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ContactOtpResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '429':
+          description: Quá giới hạn gửi lại mã OTP
+        '503':
+          $ref: '#/components/responses/Unavailable'
   /me/contact:
     put:
       tags:
@@ -3894,6 +3925,29 @@ components:
       example:
         roles:
         - PATIENT
+    ContactOtpRequest:
+      type: object
+      properties:
+        email:
+          type: string
+          minLength: 1
+          maxLength: 254
+          pattern: \S
+          format: email
+      required:
+      - email
+      example:
+        email: patient@example.test
+    ContactOtpResponse:
+      type: object
+      properties:
+        expiresInSeconds:
+          type: integer
+          format: int32
+      required:
+      - expiresInSeconds
+      example:
+        expiresInSeconds: 300
     Contact:
       type: object
       properties:
@@ -3906,6 +3960,9 @@ components:
         phone:
           type: string
           maxLength: 20
+        otp:
+          type: string
+          pattern: '^[0-9]{6}$'
       required:
       - email
       example:

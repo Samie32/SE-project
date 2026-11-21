@@ -124,6 +124,11 @@ on("GET", "/appointments/:id", c => {
   need(a.patientId === c.actor.id || c.actor.roles.some(r => ["RECEPTIONIST","ADMINISTRATOR"].includes(r)) || isDoctorOf(c.db,c.actor,a.doctorId),404,"Resource not found");
   return a.patientId === c.actor.id ? outPatientAppointment(a) : strip(a);
 });
+on("POST", "/me/contact/otp", (c) => {
+  need(typeof c.body?.email === "string" && /^\S+@\S+\.\S+$/.test(c.body.email), 400, "Invalid request");
+  audit(c.db, c.actor.id, "CONTACT_OTP_SENT", c.actor.id, c.now);
+  return { expiresInSeconds: 300 };
+});
 on("PUT", "/me/contact", (c) => {
   need(typeof c.body?.email === "string" && /^\S+@\S+\.\S+$/.test(c.body.email), 400, "Invalid request");
   const rawPhone = c.body?.phone;

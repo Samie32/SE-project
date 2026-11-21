@@ -29,11 +29,13 @@ public class Access {
   private final Db db;
   private final Audit audit;
   private final Crypto crypto;
+  private final ContactOtpService contactOtp;
 
-  public Access(Db db, Audit audit, Crypto crypto) {
+  public Access(Db db, Audit audit, Crypto crypto, ContactOtpService contactOtp) {
     this.db = db;
     this.audit = audit;
     this.crypto = crypto;
+    this.contactOtp = contactOtp;
   }
 
   @Transactional
@@ -283,16 +285,30 @@ public class Access {
   }
 
   @Transactional
-  public void contact(Actor actor, String email, String phone) {
+  public int requestContactOtp(Actor actor, String email) {
     String normalizedEmail = normalizeEmailOrNull(email);
     Problem.require(normalizedEmail != null, 400, "Invalid email");
+    return contactOtp.sendOtp(actor.id(), normalizedEmail);
+  }
+
+  @Transactional
+  public void contact(Actor actor, String email, String phone, String otp) {
+    String normalizedEmail = normalizeEmailOrNull(email);
+    Problem.require(normalizedEmail != null, 400, "Invalid email");
+    String newEmailHash = crypto.hash(normalizedEmail);
+    var current = db.one("SELECT email_hash FROM user_account WHERE id=?", actor.id());
+    Object existingHash = current.get("emailHash");
+    boolean emailChanged = existingHash == null || !newEmailHash.equals(existingHash.toString());
+    if (emailChanged) {
+      contactOtp.verifyAndConsume(actor.id(), normalizedEmail, otp);
+    }
     if (phone != null && !phone.isBlank()) {
       String normalizedPhone = normalizePhoneOrNull(phone);
       Problem.require(normalizedPhone != null, 400, "Invalid phone number");
       db.update(
           "UPDATE user_account SET email_encrypted=?,email_hash=?,phone_encrypted=?,phone_hash=? WHERE id=?",
           crypto.encrypt(normalizedEmail),
-          crypto.hash(normalizedEmail),
+          newEmailHash,
           crypto.encrypt(normalizedPhone),
           crypto.hash(normalizedPhone),
           actor.id());
@@ -300,7 +316,7 @@ public class Access {
       db.update(
           "UPDATE user_account SET email_encrypted=?,email_hash=? WHERE id=?",
           crypto.encrypt(normalizedEmail),
-          crypto.hash(normalizedEmail),
+          newEmailHash,
           actor.id());
     }
     audit.record(actor.id(), "CONTACT_UPDATED", actor.id());
