@@ -106,7 +106,19 @@ on("DELETE", "/clinic/holidays/:id", (c) => {
 
 
 on("GET", "/me", (c) => ({ id: c.actor.id, roles: c.actor.roles }));
-on("GET", "/me/profile", c => ({id:c.actor.id,roles:c.actor.roles,displayName:user(c.db,c.actor.id)?.name ?? "",active:true,patientId:c.actor.roles.includes("PATIENT") ? c.actor.id : null,doctorId:c.db.doctors.find(d => d.userId === c.actor.id)?.id ?? null}));
+on("GET", "/me/profile", c => {
+  const u = user(c.db, c.actor.id);
+  return {
+    id: c.actor.id,
+    roles: c.actor.roles,
+    displayName: u?.name ?? "",
+    email: u?.email ?? null,
+    phone: u?.phone ?? null,
+    active: true,
+    patientId: c.actor.roles.includes("PATIENT") ? c.actor.id : null,
+    doctorId: c.db.doctors.find(d => d.userId === c.actor.id)?.id ?? null,
+  };
+});
 on("GET", "/appointments/:id", c => {
   const a=find(c.db.appts,c.params[0]);
   need(a.patientId === c.actor.id || c.actor.roles.some(r => ["RECEPTIONIST","ADMINISTRATOR"].includes(r)) || isDoctorOf(c.db,c.actor,a.doctorId),404,"Resource not found");

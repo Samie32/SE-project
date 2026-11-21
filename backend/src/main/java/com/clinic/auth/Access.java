@@ -306,9 +306,25 @@ public class Access {
     audit.record(actor.id(), "CONTACT_UPDATED", actor.id());
   }
 
+  private String decryptOrNull(Object raw) {
+    if (!(raw instanceof byte[] bytes) || bytes.length <= 12) return null;
+    try {
+      return crypto.decrypt(bytes);
+    } catch (RuntimeException ignored) {
+      return null;
+    }
+  }
+
   @Transactional
   public Map<String, Object> profile(Actor actor) {
-    var result = db.one("SELECT id,display_name,active FROM user_account WHERE id=?", actor.id());
+    var result =
+        db.one(
+            "SELECT id,display_name,active,email_encrypted,phone_encrypted FROM user_account WHERE id=?",
+            actor.id());
+    String email = decryptOrNull(result.remove("emailEncrypted"));
+    String phone = decryptOrNull(result.remove("phoneEncrypted"));
+    result.put("email", email);
+    result.put("phone", phone);
     result.put("roles", actor.roles());
     var patients = db.list("SELECT id FROM patient WHERE user_id=?", actor.id());
     var doctors = db.list("SELECT id FROM doctor WHERE user_id=?", actor.id());

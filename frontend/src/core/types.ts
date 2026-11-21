@@ -12,6 +12,8 @@ export interface Identity {
   doctorId?: string | null;
   patientId?: string | null;
   displayName?: string;
+  email?: string | null;
+  phone?: string | null;
   active?: boolean | number;
 }
 
