@@ -139,20 +139,28 @@ public class AppointmentService {
             == 0,
         409,
         "Doctor is unavailable");
-    Problem.require(
-        db.count(
-                """
-SELECT COUNT(*) FROM appointment WHERE id<>? AND status IN ('CONFIRMED','CHECKED_IN','IN_PROGRESS')
-AND (doctor_id=? OR patient_id=?) AND start_at<? AND end_at>?
-""",
-                excluded,
+    boolean doctorBusy =
+        !db.list(
+                "SELECT id FROM appointment WHERE doctor_id=? AND status IN"
+                    + " ('CONFIRMED','CHECKED_IN','IN_PROGRESS') AND start_at<? AND end_at>?"
+                    + " AND id<>? LIMIT 1",
                 doctor,
-                patient,
                 end,
-                start)
-            == 0,
-        409,
-        "Doctor or patient already booked");
+                start,
+                excluded)
+            .isEmpty();
+    boolean patientBusy =
+        !doctorBusy
+            && !db.list(
+                    "SELECT id FROM appointment WHERE patient_id=? AND status IN"
+                        + " ('CONFIRMED','CHECKED_IN','IN_PROGRESS') AND start_at<? AND end_at>?"
+                        + " AND id<>? LIMIT 1",
+                    patient,
+                    end,
+                    start,
+                    excluded)
+                .isEmpty();
+    Problem.require(!doctorBusy && !patientBusy, 409, "Doctor or patient already booked");
   }
 
   private Map<String, Object> finish(

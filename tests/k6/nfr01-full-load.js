@@ -7,6 +7,8 @@
 import http from 'k6/http';
 import { check, sleep } from 'k6';
 
+http.setResponseCallback(http.expectedStatuses(200, 201, 409));
+
 const BASE_URL = (__ENV.BASE_URL || 'http://127.0.0.1:8080').replace(/\/$/, '');
 const SINGLE_TOKEN = __ENV.ACCESS_TOKEN || '';
 const TOKENS = __ENV.TOKENS_FILE ? JSON.parse(open(__ENV.TOKENS_FILE)) : (SINGLE_TOKEN ? [SINGLE_TOKEN] : []);

@@ -7,6 +7,7 @@ spring:
     password: ${DB_PASSWORD}
     hikari:
       transaction-isolation: TRANSACTION_READ_COMMITTED
+      maximum-pool-size: ${DB_POOL_MAX:30}
   flyway:
     user: ${MIGRATION_USER:${DB_USER:clinic}}
     password: ${MIGRATION_PASSWORD:${DB_PASSWORD}}
