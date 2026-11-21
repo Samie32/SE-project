@@ -109,3 +109,29 @@ class AzureGoogleOAuthTests(unittest.TestCase):
         second_req = opener.open.call_args_list[1].args[0]
         self.assertEqual(second_req.get_method(), "PUT")
         self.assertTrue(second_req.full_url.endswith("/identity-provider/instances/google"))
+
+    def test_build_smtp_server_enables_recovery_only_when_complete(self):
+        self.assertIsNone(kc_reg.build_smtp_server({}))
+        self.assertIsNone(kc_reg.build_smtp_server({
+            "SMTP_HOST": "smtp-relay.brevo.com",
+            "SMTP_FROM": "clinic@example.test",
+            "SMTP_AUTH": "true",
+            "SMTP_USERNAME": "user",
+        }))
+        smtp = kc_reg.build_smtp_server({
+            "SMTP_HOST": "smtp-relay.brevo.com",
+            "SMTP_PORT": "587",
+            "SMTP_FROM": "clinic@example.test",
+            "SMTP_AUTH": "true",
+            "SMTP_STARTTLS": "true",
+            "SMTP_USERNAME": "user",
+            "SMTP_PASSWORD": "secret",
+        })
+        self.assertEqual(smtp["host"], "smtp-relay.brevo.com")
+        self.assertEqual(smtp["port"], "587")
+        self.assertEqual(smtp["from"], "clinic@example.test")
+        self.assertEqual(smtp["fromDisplayName"], "ClinicCare")
+        self.assertEqual(smtp["starttls"], "true")
+        self.assertEqual(smtp["auth"], "true")
+        self.assertEqual(smtp["user"], "user")
+        self.assertEqual(smtp["password"], "secret")

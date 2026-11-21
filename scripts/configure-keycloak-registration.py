@@ -9,6 +9,33 @@ from urllib.parse import urlencode
 from urllib.request import HTTPHandler, ProxyHandler, Request, build_opener
 
 
+def build_smtp_server(env):
+    """Build Keycloak realm smtpServer settings when SMTP credentials are complete."""
+    host = env.get("SMTP_HOST", "").strip()
+    sender = env.get("SMTP_FROM", "").strip()
+    if not host or not sender:
+        return None
+    port = env.get("SMTP_PORT", "587").strip() or "587"
+    auth = env.get("SMTP_AUTH", "false").strip().lower() == "true"
+    starttls = env.get("SMTP_STARTTLS", "false").strip().lower() == "true"
+    smtp = {
+        "host": host,
+        "port": port,
+        "from": sender,
+        "fromDisplayName": "ClinicCare",
+        "starttls": "true" if starttls else "false",
+        "auth": "true" if auth else "false",
+    }
+    if auth:
+        user = env.get("SMTP_USERNAME", "").strip()
+        password = env.get("SMTP_PASSWORD", "").strip()
+        if not user or not password:
+            return None
+        smtp["user"] = user
+        smtp["password"] = password
+    return smtp
+
+
 def configure_google_idp(opener, base, token, client_id, client_secret):
     """Create or update the Google OIDC identity provider in the clinic realm."""
     instance_url = base + "/admin/realms/clinic/identity-provider/instances/google"
@@ -74,18 +101,24 @@ def main():
             with opener.open(token_request, timeout=10) as response:
                 token = json.load(response)["access_token"]
 
+            smtp_server = build_smtp_server(os.environ)
+            realm_payload = {
+                "loginTheme": "cliniccare",
+                "rememberMe": True,
+                "registrationAllowed": True,
+                "registrationEmailAsUsername": True,
+                "loginWithEmailAllowed": True,
+                "editUsernameAllowed": False,
+                "duplicateEmailsAllowed": False,
+                "passwordPolicy": "length(8)",
+                "resetPasswordAllowed": smtp_server is not None,
+            }
+            if smtp_server is not None:
+                realm_payload["smtpServer"] = smtp_server
+
             realm_request = Request(
                 base + "/admin/realms/clinic",
-                data=json.dumps({
-                    "loginTheme": "cliniccare",
-                    "rememberMe": True,
-                    "registrationAllowed": True,
-                    "registrationEmailAsUsername": True,
-                    "loginWithEmailAllowed": True,
-                    "editUsernameAllowed": False,
-                    "duplicateEmailsAllowed": False,
-                    "passwordPolicy": "length(8)",
-                }).encode(),
+                data=json.dumps(realm_payload).encode(),
                 headers={
                     "Authorization": "Bearer " + token,
                     "Content-Type": "application/json",
@@ -94,6 +127,8 @@ def main():
             )
             with opener.open(realm_request, timeout=10):
                 pass
+            if smtp_server is not None:
+                print("CLINICCARE_PASSWORD_RECOVERY_CONFIGURED")
 
             profile_provider = template.get("components", {}).get(
                 "org.keycloak.userprofile.UserProfileProvider", []

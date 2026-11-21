@@ -58,6 +58,13 @@ services:
       APP_HOST: ${APP_HOST:?Set APP_HOST}
       GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
       GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET:-}
+      SMTP_HOST: ${SMTP_HOST:-}
+      SMTP_PORT: ${SMTP_PORT:-587}
+      SMTP_AUTH: ${SMTP_AUTH:-false}
+      SMTP_STARTTLS: ${SMTP_STARTTLS:-false}
+      SMTP_USERNAME: ${SMTP_USERNAME:-}
+      SMTP_PASSWORD: ${SMTP_PASSWORD:-}
+      SMTP_FROM: ${SMTP_FROM:-}
     command: ["python3", "-B", "/app/scripts/configure-keycloak-registration.py"]
     volumes:
       - ./scripts/configure-keycloak-registration.py:/app/scripts/configure-keycloak-registration.py:ro

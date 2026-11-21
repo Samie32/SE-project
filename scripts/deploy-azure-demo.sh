@@ -80,7 +80,10 @@ else
 fi
 
 configure_keycloak_registration() {
-  if [ -f scripts/run-with-azure-google-oauth.py ]; then
+  if [ -f scripts/run-with-azure-smtp.py ] && [ -f scripts/run-with-azure-google-oauth.py ]; then
+    auth_output=$(python3 scripts/run-with-azure-smtp.py python3 scripts/run-with-azure-google-oauth.py \
+      docker compose --env-file .env.internet -f compose.yaml -f compose.internet.yaml run --rm auth-config)
+  elif [ -f scripts/run-with-azure-google-oauth.py ]; then
     auth_output=$(python3 scripts/run-with-azure-google-oauth.py docker compose --env-file .env.internet \
       -f compose.yaml -f compose.internet.yaml run --rm auth-config)
   else
