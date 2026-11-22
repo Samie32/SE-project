@@ -1,4 +1,5 @@
-import { useSearchParams } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
+import { ArrowLeft } from "lucide-react";
 import { useDirectory } from "@/core/directory";
 import { formatDate, formatTime } from "@/core/datetime";
 import { Empty, PageHead, Panel } from "@/ui";
@@ -14,6 +15,11 @@ export function PatientTelehealthPage() {
 
   return (
     <>
+      <div style={{ marginBottom: 14 }}>
+        <Link to="/patient" className="btn sm" style={{ textDecoration: "none", display: "inline-flex", alignItems: "center", gap: 6 }}>
+          <ArrowLeft size={16} aria-hidden /> Quay lại Tổng quan
+        </Link>
+      </div>
       <PageHead eyebrow="Khám từ xa" title="Phòng chờ trực tuyến" text="Kiểm tra thiết bị và vào phòng chờ trước giờ hẹn." />
       {loading ? <div className="empty">Đang tải…</div> : !selected ? (
         <Panel><Empty title="Bạn chưa có lịch khám từ xa đang hiệu lực" text="Chọn hình thức “Khám từ xa” khi đặt lịch." /></Panel>

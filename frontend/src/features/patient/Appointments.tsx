@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
-import { Plus, RefreshCw, Video } from "lucide-react";
+import { ArrowLeft, Plus, RefreshCw, Video } from "lucide-react";
 import { cancelAppointment, rescheduleAppointment } from "@/api/appointments";
 import { listSlots } from "@/api/schedule";
 import { ApiError, errorMessage, mutationKey } from "@/core/client";
@@ -34,6 +34,11 @@ export function PatientAppointmentsPage() {
 
   return (
     <>
+      <div style={{ marginBottom: 14 }}>
+        <Link to="/patient" className="btn sm" style={{ textDecoration: "none", display: "inline-flex", alignItems: "center", gap: 6 }}>
+          <ArrowLeft size={16} aria-hidden /> Quay lại Tổng quan
+        </Link>
+      </div>
       <PageHead eyebrow="Quản lý lịch hẹn" title="Lịch khám của tôi" text="Theo dõi, đổi hoặc hủy lịch khám đã đặt."
         actions={<Link className="btn primary" to="/patient/booking"><Plus size={16} aria-hidden /> Đặt lịch mới</Link>} />
       {truncated && <Notice tone="warn">Chỉ hiển thị một phần lịch (giới hạn tải). Hãy dùng bộ lọc để tìm lịch cần xem.</Notice>}

@@ -70,7 +70,9 @@ export function AppShell() {
   const items = NAV_ITEMS.filter((i) => can(i.permission));
   const sections = [...new Set(items.map((i) => i.section))];
 
-  const activeSideWidth = collapsed ? COLLAPSED_SIDE_W : sideWidth;
+  const isPatientPortal = pathname.startsWith("/patient");
+  const effectiveCollapsed = isPatientPortal ? false : collapsed;
+  const activeSideWidth = effectiveCollapsed ? COLLAPSED_SIDE_W : sideWidth;
 
   return (
     <div
@@ -81,22 +83,24 @@ export function AppShell() {
         Bỏ qua điều hướng
       </a>
       <aside
-        className={"side" + (open ? " open" : "") + (collapsed ? " collapsed" : "")}
+        className={"side" + (open ? " open" : "") + (effectiveCollapsed ? " collapsed" : "")}
         aria-label="Điều hướng chính"
       >
         <div className="side-head">
           <Link to="/" aria-label="ClinicCare — trang chính" style={{ textDecoration: "none", minWidth: 0 }}>
             <Logo />
           </Link>
-          <button
-            type="button"
-            className="side-toggle"
-            onClick={() => setCollapsed((c) => !c)}
-            aria-label={collapsed ? "Mở rộng thanh điều hướng" : "Thu gọn thanh điều hướng"}
-            title={collapsed ? "Mở rộng thanh điều hướng" : "Thu gọn thanh điều hướng"}
-          >
-            {collapsed ? <PanelLeftOpen size={16} aria-hidden /> : <PanelLeftClose size={16} aria-hidden />}
-          </button>
+          {!isPatientPortal && (
+            <button
+              type="button"
+              className="side-toggle"
+              onClick={() => setCollapsed((c) => !c)}
+              aria-label={collapsed ? "Mở rộng thanh điều hướng" : "Thu gọn thanh điều hướng"}
+              title={collapsed ? "Mở rộng thanh điều hướng" : "Thu gọn thanh điều hướng"}
+            >
+              {collapsed ? <PanelLeftOpen size={16} aria-hidden /> : <PanelLeftClose size={16} aria-hidden />}
+            </button>
+          )}
         </div>
         <nav>
           {sections.map((section) => (
