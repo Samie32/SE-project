@@ -11,9 +11,9 @@ Một backend modular monolith Spring Boot (`HikariCP` pool tối đa 30 kết n
 | Góc nhìn | Mô hình hoặc tài liệu | Nội dung |
 |---|---|---|
 | Logical | [Class](../class-diagram/class-diagram.png), [ERD](../database/erd.png) | 24 thực thể miền & quan hệ MySQL `V1..V11` |
-| Process | [Auth/OTP](../sequence-diagrams/auth-otp-contact.png), [Booking](../sequence-diagrams/book-appointment.png), [Delay/NO_SHOW](../sequence-diagrams/delay-and-noshow.png), [Telehealth](../sequence-diagrams/telehealth.png) | Giao dịch `SELECT ... FOR UPDATE`, chống trùng lặp Idempotency, worker SMTP & P2P WebRTC |
+| Process | [Auth/OTP](../sequence-diagrams/auth-otp-contact.png), [Catalog](../sequence-diagrams/staff-and-catalog.png), [Slots NFR-01](../sequence-diagrams/schedule-and-slots.png), [Booking](../sequence-diagrams/book-appointment.png), [Audit Fail-Closed](../sequence-diagrams/audit-fail-closed.png), [Delay/NO_SHOW](../sequence-diagrams/delay-and-noshow.png), [Telehealth](../sequence-diagrams/telehealth.png) | Giao dịch `SELECT ... FOR UPDATE`, tối ưu index `V10/V11`, audit `MANDATORY`/`REQUIRES_NEW`, worker SMTP & P2P WebRTC |
 | Development | Bảng 9 phân hệ `M01–M09` | Ranh giới module, DTO, khóa & phân quyền |
-| Physical | [Docker local](deployment.png), [Azure VM Demo](deployment-azure.png) | Nginx rate-limit OTP `10r/m`, Caddy TLS/HSTS/CSP, Keycloak+Google, Brevo SMTP, `coturn` 3478 & CI auto-rollback |
+| Physical | [Docker local](deployment.png), [Azure VM Demo](deployment-azure.png), [CI/CD Auto-Rollback](../activity-diagrams/cicd-azure-rollback.png) | Nginx rate-limit OTP `10r/m`, Caddy TLS/HSTS/CSP, Keycloak+Google, Brevo SMTP, `coturn` 3478 & CI auto-rollback |
 | +1 Scenarios | [Use cases](../../analysis/use-cases.md), [Use Case UML](../use-case/use-case-diagram.png) | 27 Use Case (Cockburn + UML 2.5) dẫn dắt thiết kế và kiểm thử |
 
 ## Trách nhiệm và phụ thuộc (`M01–M09`)

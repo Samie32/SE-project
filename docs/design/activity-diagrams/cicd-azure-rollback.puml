@@ -1,0 +1,75 @@
+@startuml cicd-azure-rollback
+skinparam ActivityBorderColor #555
+skinparam ActivityBackgroundColor #FAFAFA
+skinparam ActivityDiamondBorderColor #555
+skinparam ActivityDiamondBackgroundColor #FAFAFA
+skinparam swimlaneBorderColor #AAAAAA
+skinparam shadowing false
+skinparam defaultFontName Arial
+skinparam defaultFontSize 10
+skinparam dpi 150
+title NFR-16 — Quy trình CI/CD Azure VM, Tự động Rollback & Post-Deploy Smoke
+
+|GitHub Actions CI|
+start
+:Push lên nhánh main;
+fork
+  :Job backend\n(86 test MySQL Testcontainers\n+ cổng jacoco:check >= 60%);
+fork again
+  :Job frontend\n(79 Vitest + build bundle);
+fork again
+  :Job api-contract\n(OpenAPI 3.1 + Python tests);
+end fork
+if (Cả 3 job kiểm thử đạt?) then (không)
+  :Dừng pipeline; không chạm tới Azure VM;
+  stop
+endif
+:Job deploy (needs: [frontend, backend, api-contract]);
+:Azure OIDC Login -> đồng bộ secret\nBREVO_SMTP_CONFIG & GOOGLE_OAUTH_CONFIG;
+:Gửi DEPLOY_SHA sang Azure VM qua\naz vm run-command invoke;
+
+|Azure VM (deploy-azure-demo.sh)|
+:Giữ khóa độc quyền flock -n 9 (/var/lock/cliniccare-deploy.lock);
+:git fetch origin main;
+if (FETCH_HEAD != DEPLOY_SHA?) then (bị commit mới hơn thay thế)
+  :In CLINICCARE_DEPLOY_SUPERSEDED -> exit 0;
+  stop
+endif
+:Kiểm tra git status sạch; đọc prev_sha từ\n/var/lib/cliniccare/deployed-sha;
+:Xác định mode triển khai\n(docs-only / frontend-only / full);
+:git merge --ff-only DEPLOY_SHA;
+if (mode == docs-only?) then (có)
+  :Cập nhật deployed-sha -> CLINICCARE_DEPLOY_OK;
+  stop
+endif
+:touch /var/lib/cliniccare/deploy-pending;
+
+|Docker Compose & Healthcheck|
+:Chạy deploy_services()\n(frontend-only hoặc compose up -d --build toàn bộ stack);
+:Chạy configure_keycloak_registration()\n(kiểm tra in CLINICCARE_REGISTRATION_CONFIGURED);
+:Chạy wait_until_healthy()\n(tối đa 30 lần x 5s: /actuator/health, Nginx /health,\nHTTPS /api/me/profile == 401 nếu frontend-only);
+if (Deploy / Keycloak config / Healthcheck đạt?) then (thất bại)
+  |Azure VM (deploy-azure-demo.sh)|
+  :Kích hoạt rollback_deployment() (NFR-16);
+  :git reset --hard prev_sha;
+  |Docker Compose & Healthcheck|
+  :Chạy lại deploy_services() + configure_keycloak\n+ wait_until_healthy() trên prev_sha;
+  |Azure VM (deploy-azure-demo.sh)|
+  :Xóa deploy-pending;\nIn CLINICCARE_DEPLOY_ROLLED_BACK -> exit 1 (báo đỏ CI nhưng demo vẫn sống);
+  stop
+endif
+:Cập nhật cliniccare-boot-deploy.service (nếu đổi)\nvà ghi DEPLOY_SHA vào /var/lib/cliniccare/deployed-sha;
+:In CLINICCARE_DEPLOY_OK;
+
+|Post-Deploy Smoke (verify-live-demo.py)|
+:Chạy ngay sau job deploy (needs: [deploy]);
+:Kiểm chứng 6 chốt thực tế trên Internet demo:\n1. HTTPS & Security Headers (HSTS, CSP, XFO, nosniff)\n2. OIDC Discovery & JWKS + Trang đăng nhập Keycloak\n3. /api/me/profile chặn 401 khi không có token\n4. Password grant bị từ chối (unauthorized_client)\n5. Redirect URI lạ bị từ chối\n6. /api/webrtc/ice 401 no-store + STUN :3478 UDP & TCP (0x0101);
+if (6/6 kiểm tra đạt?) then (có)
+  :Xuất bảng kết quả vào GITHUB_STEP_SUMMARY;
+else (không)
+  :Fail pipeline ngay để cảnh báo sự cố live demo;
+  stop
+endif
+
+stop
+@enduml

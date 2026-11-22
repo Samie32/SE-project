@@ -1,0 +1,59 @@
+@startuml audit-fail-closed
+title M07 — Ghi Audit Fail-Closed, DENIED Độc Lập & Tra cứu Bất Biến (FR-17/18 · NFR-05 · RG-01/03)
+
+skinparam sequenceMessageAlign center
+skinparam responseMessageBelowArrow true
+skinparam ParticipantPadding 10
+skinparam BoxPadding 8
+skinparam shadowing false
+skinparam defaultFontName Arial
+skinparam defaultFontSize 10
+skinparam dpi 150
+
+actor       "Client / Kiểm toán viên"     as U
+participant "RequestCorrelation Filter"   as FLT
+participant "Service / AuditController"   as SVC
+participant "Audit (M07)"                 as AUD
+database    "MySQL (audit_event)"         as DB
+
+== 1. Ghi Audit Fail-Closed cho mọi đột biến & đọc PHI (Propagation.MANDATORY) ==
+U   -> FLT : HTTP Request (Bearer JWT, tùy chọn X-Request-Id)
+FLT -> FLT : Gán UUID correlation_id vào RequestAttribute & Response Header X-Request-Id
+FLT -> SVC : Bắt đầu @Transactional (giao dịch nghiệp vụ)
+SVC -> DB  : Thực thi nghiệp vụ (INSERT/UPDATE domain row hoặc SELECT PHI)
+SVC -> AUD : Audit.record(actorId, action, resourceId)\n[@Transactional(propagation = MANDATORY)]
+AUD -> DB  : INSERT INTO audit_event\n(actor_id, actor_type=USER|SYSTEM, action, resource_id, result='SUCCESS', correlation_id)
+
+alt INSERT audit_event thành công
+  SVC -> DB : COMMIT (dữ liệu nghiệp vụ + audit bền vững nguyên tử)
+  SVC --> U : 200 / 201 + Header X-Request-Id
+else Lỗi DB / vi phạm ràng buộc khi ghi audit
+  DB  --> AUD : DataAccessException
+  SVC -> DB   : ROLLBACK toàn bộ giao dịch nghiệp vụ (Fail-closed: không lưu dữ liệu không audit)
+  SVC --> U   : 503 Service Unavailable (ProblemDetail + X-Request-Id)
+end
+
+== 2. Ghi Audit Từ Chối Độc Lập — Đã sửa BE-01 (RG-01 · Propagation.REQUIRES_NEW) ==
+U   -> FLT : Gửi yêu cầu trái quyền (VD: người ngoài gọi join phòng khám từ xa)
+FLT -> SVC : Bắt đầu @Transactional ngoài
+SVC -> SVC : Phát hiện thiếu quyền sở hữu / điều trị
+SVC -> AUD : Audit.denied(actorId, "TELEHEALTH_JOINED", resourceId)\n[@Transactional(propagation = REQUIRES_NEW)]
+AUD -> DB  : Mở giao dịch con riêng -> INSERT audit_event (result='DENIED', correlation_id) -> COMMIT con
+SVC -> DB  : Ném Problem(404/403) -> ROLLBACK giao dịch ngoài (không thay đổi dữ liệu miền)
+SVC --> U  : 404 / 403 + X-Request-Id (bản ghi DENIED vẫn được bảo toàn để truy vết)
+
+== 3. Tra cứu Nhật ký Kiểm toán & Bảo vệ Bất biến CSDL (FR-18) ==
+U   -> SVC : GET /api/audit-events?from=&to=&actorId=&resourceId=&limit=20&offset=0
+SVC -> SVC : actor.require("AUDITOR"); kiểm tra 1<=limit<=100, offset>=0, from<to (sai -> 400)
+SVC -> DB  : SELECT * FROM audit_event WHERE ... ORDER BY created_at DESC, id LIMIT ? OFFSET ?
+SVC -> AUD : Audit.record(actorId, "AUDIT_SEARCH", actorId) (cùng giao dịch @Transactional)
+SVC -> DB  : COMMIT
+SVC --> U  : 200 Danh sách sự kiện (không chứa mật khẩu, token hay nội dung PHI)
+
+note over DB
+  Bất biến mức MySQL (V1__scheduling.sql):
+  Trigger BEFORE UPDATE (audit_no_update) & BEFORE DELETE (audit_no_delete)
+  chặn mọi thao tác sửa/xóa audit_event với SQLSTATE '45000' ("Audit is append-only").
+end note
+
+@enduml

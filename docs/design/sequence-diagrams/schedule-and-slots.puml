@@ -1,0 +1,67 @@
+@startuml schedule-and-slots
+title M03 — Giờ mở cửa, Ngày nghỉ lễ, Lịch nghỉ & Tìm Slot tối ưu NFR-01 (FR-05..07 · UC-05..07)
+
+skinparam sequenceMessageAlign center
+skinparam responseMessageBelowArrow true
+skinparam ParticipantPadding 10
+skinparam BoxPadding 8
+skinparam shadowing false
+skinparam defaultFontName Arial
+skinparam defaultFontSize 10
+skinparam dpi 150
+
+actor       "Bác sĩ / Bệnh nhân / Lễ tân"  as U
+participant "ScheduleController"           as API
+participant "ScheduleService & ClinicHours" as SVC
+database    "MySQL 8.4 (V1..V11)"          as DB
+participant "Audit (M07)"                  as AUD
+
+== 1. Tạo ca làm việc (/availability) & Đăng ký nghỉ (/time-off) — RG-06 / RG-07 ==
+U   -> API : POST /api/doctors/{id}/availability hoặc /time-off {startAt, endAt, ...}
+API -> SVC : access.doctor(actor, doctorId); interval(start, end)
+SVC -> SVC : Kiểm tra start < end & làm tròn đúng phút (sai -> 422 Minute precision required)
+
+SVC -> DB  : BEGIN; ClinicHours.requireOpen(start, end)
+SVC -> DB  : 1. SELECT * FROM clinic_holiday WHERE start_date<=date AND end_date>=date FOR UPDATE
+alt Có ngày nghỉ lễ khớp ngày
+  SVC -> SVC : Ưu tiên holiday.includes(start, end) (closed=true hoặc ngoài giờ lễ -> 422 Outside clinic hours)
+else Ngày thường
+  SVC -> DB  : 2. SELECT * FROM clinic_hours WHERE day_of_week=? FOR UPDATE (ngoài giờ -> 422)
+end
+
+SVC -> DB  : ScheduleService.lockDoctor(id): SELECT id, active FROM doctor WHERE id=? FOR UPDATE\n(active=false -> 409 Doctor inactive)
+
+alt Luồng tạo ca làm việc (POST /availability)
+  SVC -> SVC : Kiểm tra start > now và (end - start) % slotMinutes == 0 (sai -> 422)
+  SVC -> DB  : Kiểm tra chồng ca availability (start_at < end AND end_at > start) FOR SHARE
+  opt Trùng ca làm việc hiện có (RG-06)
+    SVC -> DB : ROLLBACK -> 409 Overlapping availability
+  end
+  SVC -> DB  : INSERT availability + vòng lặp sinh N slot con; Audit AVAILABILITY_CREATED; COMMIT
+else Luồng đăng ký lịch nghỉ (POST /time-off)
+  SVC -> DB  : SELECT id FROM appointment WHERE doctor_id=? AND start_at<end AND end_at>start\nAND status IN ('CONFIRMED','CHECKED_IN','IN_PROGRESS') LIMIT 1 FOR SHARE
+  opt Có lịch hẹn hiệu lực trong khoảng nghỉ (RG-07)
+    SVC -> DB : ROLLBACK -> 409 Time off conflicts with appointments (tuyệt đối không tự hủy lịch)
+  end
+  SVC -> DB  : INSERT time_off + Audit TIME_OFF_CREATED; COMMIT
+end
+
+== 2. Tra cứu Slot khả dụng tối ưu NFR-01 (GET /api/slots -> p95 = 7,81 ms) ==
+U   -> API : GET /api/slots?date=YYYY-MM-DD&doctorId=&specialtyId=&mode=
+API -> SVC : actor.requireSchedulingCatalogRead() (cho phép PATIENT/DOCTOR/RECEPTIONIST/ADMIN; chặn AUDITOR thuần -> 403, RG-03)
+
+alt Ngày truy vấn đã qua (dayEnd <= now)
+  SVC --> U : 200 [] (trả rỗng tức thì, 0 truy vấn DB)
+else Ngày hợp lệ
+  SVC -> DB : Truy vấn 1 (V10 ix_slot_start_at):\nSELECT slot JOIN doctor WHERE d.active=TRUE AND s.start_at >= max(dayStart, now) AND < dayEnd\n(+ lọc doctor_id / mode / EXISTS doctor_specialty) -> trả mảng candidates
+  alt candidates rỗng
+    SVC --> U : 200 []
+  else Có ứng viên trong cửa sổ [minStart, maxEnd]
+    SVC -> DB : Truy vấn 2 (V11 ix_time_off_window):\nSELECT doctor_id, start_at, end_at FROM time_off WHERE start_at < maxEnd AND end_at > minStart
+    SVC -> DB : Truy vấn 3 (V11 ix_appointment_active_window):\nSELECT doctor_id, start_at, end_at FROM appointment\nWHERE status IN ('CONFIRMED','CHECKED_IN','IN_PROGRESS') AND start_at < maxEnd AND end_at > minStart
+    SVC -> SVC : Lọc giao nhau O(N) trong bộ nhớ qua Map<doctorId, busyIntervals>, cắt tối đa 500 slot
+    SVC --> U  : 200 Danh sách slot khả dụng (không ghi audit READ thừa -> p95 giảm từ 4,52 s xuống 7,81 ms)
+  end
+end
+
+@enduml

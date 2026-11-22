@@ -7,14 +7,14 @@ Hướng dẫn nhanh để cập nhật sơ đồ và trạng thái đồng bộ
 | Thư mục | Nội dung | Số lượng |
 |---|---|---|
 | `use-case/` | Sơ đồ use-case tổng quan (27 UC) + 4 nhóm | 5 puml + 5 png |
-| `sequence-diagrams/` | Tuần tự cho từng UC & luồng bảo mật chính | 13 puml + 13 png |
-| `activity-diagrams/` | Hoạt động có swimlane | 4 puml + 4 png |
+| `sequence-diagrams/` | Tuần tự cho từng UC & cơ chế lõi (`M01–M09`) | 16 puml + 16 png |
+| `activity-diagrams/` | Hoạt động có swimlane & CI/CD Auto-Rollback | 5 puml + 5 png |
 | `state-diagrams/` | Trạng thái thực thể | 4 puml + 4 png |
 | `class-diagram/` | Mô hình miền PIM (đồng bộ 24 thực thể `V1..V11`) | 1 puml + 1 png |
 | `database/` | ERD tổng (24 bảng) + 3 góc nhìn | 4 puml + 4 png |
 | `architecture/` | Kiến trúc 4+1 + Triển khai local + Triển khai Azure VM | 3 puml + 3 png |
 
-**Tổng: 34 file `.puml` → 34 file `.png`**
+**Tổng: 38 file `.puml` → 38 file `.png`**
 
 ## Render lại sơ đồ sau khi sửa
 
@@ -52,8 +52,8 @@ Trang đặc tả tĩnh nằm ở repo `clinic-spec` (`index.html`, `requirement
 
 ## Checklist đồng bộ cuối kỳ
 
-- [ ] Tất cả **34 `.puml`** render thành **34 `.png`**, không có PNG mồ côi hoặc `.puml` chưa render.
-- [ ] `docs/design/README.md` — liệt kê đủ 34 sơ đồ và bảng chuẩn áp dụng.
+- [ ] Tất cả **38 `.puml`** render thành **38 `.png`**, không có PNG mồ côi hoặc `.puml` chưa render.
+- [ ] `docs/design/README.md` — liệt kê đủ 38 sơ đồ và bảng chuẩn áp dụng.
 - [ ] `docs/design/database/data-dictionary.md` & `erd*.puml` — khớp 100% 24 bảng từ `V1..V11` (không sót bảng cũ giả định).
 - [ ] `clinic-spec/assets/design/` — khớp mã băm SHA-256 từng file `.png` với `SE-project-main/docs/design/`.
 - [ ] `clinic-spec/sections/diagrams.js`, `requirements.js`, `usecases.js`, `overview.js`, `testing.js` — không có chú thích trạng thái cũ hoặc ảnh gãy.

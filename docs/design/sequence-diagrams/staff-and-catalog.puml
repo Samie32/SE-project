@@ -1,0 +1,72 @@
+@startuml staff-and-catalog
+title M02 — Cấp tài khoản nhân sự & Quản lý / Ngừng nhận lịch bác sĩ (FR-03/04 · UC-03/04)
+
+skinparam sequenceMessageAlign center
+skinparam responseMessageBelowArrow true
+skinparam ParticipantPadding 10
+skinparam BoxPadding 8
+skinparam shadowing false
+skinparam defaultFontName Arial
+skinparam defaultFontSize 10
+skinparam dpi 150
+
+actor       "Quản trị viên"                  as AD
+participant "Auth / Catalog Controller"      as API
+participant "StaffProvisioning / Catalog"    as SVC
+participant "Keycloak Admin API"             as KC
+database    "MySQL (InnoDB)"                 as DB
+participant "Audit (M07)"                    as AUD
+
+== 1. Cấp nhân sự mới đồng bộ Keycloak + MySQL (POST /api/staff/provision) ==
+AD  -> API : POST /api/staff/provision\n{username, displayName, email, temporaryPassword, roles, specialtyIds}
+API -> SVC : StaffProvisioning.create(actor, body)
+SVC -> SVC : actor.require("ADMINISTRATOR")\nKiểm tra STAFF_ROLES & doctor == !specialtyIds.isEmpty() (sai -> 422)
+SVC -> KC  : POST /realms/clinic/protocol/openid-connect/token\n(client_credentials: clinic-staff-provisioner)
+KC  --> SVC : Admin access_token
+SVC -> KC  : POST /admin/realms/clinic/users\n{enabled: false, temporaryPassword, email} (trùng -> 409)
+KC  --> SVC : UUID subject mới
+
+SVC -> DB  : BEGIN (TransactionTemplate)
+SVC -> DB  : Access.createStaff(issuer, subject, username, name, staff=TRUE)\n+ Audit STAFF_CREATED
+opt roles chứa DOCTOR
+  SVC -> DB : CatalogService.doctor(userId, specialtyIds)\nINSERT doctor(active=FALSE); kiểm tra specialty active=TRUE -> doctor_specialty
+end
+SVC -> DB  : Access.roles(userId, roles) -> cập nhật user_role + Audit ROLES_CHANGED
+SVC -> KC  : PUT /admin/realms/clinic/users/{subject} {enabled: true}
+
+alt DB + Keycloak kích hoạt thành công
+  SVC -> DB  : COMMIT
+  SVC --> AD : 201 Created {id}
+else Lỗi trong giao dịch DB hoặc lỗi kích hoạt Keycloak
+  SVC -> DB  : ROLLBACK toàn bộ DB
+  opt Kiểm tra user_account(issuer, subject) chưa tồn tại (COUNT=0)
+    SVC -> KC : DELETE /admin/realms/clinic/users/{subject} (bù trừ hoàn tác)
+  end
+  SVC --> AD : 409 / 422 / 503 (lỗi xóa bù trừ -> 503 Staff identity needs reconciliation)
+end
+
+== 2. Kích hoạt / Ngừng nhận lịch bác sĩ (PUT /api/doctors/{id} — RG-08 / RG-09) ==
+AD  -> API : PUT /api/doctors/{id} {active, displayName, specialtyIds}
+API -> SVC : CatalogService.updateDoctor(actor, id, active, name, specialtyIds)
+SVC -> DB  : BEGIN; khóa theo thứ tự: user_account FOR UPDATE -> doctor FOR UPDATE
+
+alt active == true (Bật lại nhận lịch — RG-09)
+  SVC -> DB : SELECT user_account JOIN user_role WHERE staff=TRUE AND active=TRUE\nAND role='DOCTOR' FOR SHARE
+  opt Tài khoản đã mất role DOCTOR hoặc bị khóa song song
+    SVC -> DB  : ROLLBACK
+    SVC --> AD : 409 Doctor account must be active and have the doctor role
+  end
+else active == false (Ngừng nhận lịch — RG-08)
+  SVC -> DB : SELECT id FROM appointment WHERE doctor_id=? AND end_at>now\nAND status IN ('CONFIRMED','CHECKED_IN','IN_PROGRESS') LIMIT 1 FOR SHARE
+  opt Còn ít nhất 1 lịch hẹn tương lai hiệu lực
+    SVC -> DB  : ROLLBACK
+    SVC --> AD : 409 Doctor has active appointments (giữ nguyên trạng thái)
+  end
+end
+
+SVC -> DB  : UPDATE doctor SET active=?; UPDATE user_account SET display_name=?\nDELETE + INSERT doctor_specialty (chỉ chấp nhận specialty active=TRUE)
+SVC -> AUD : Audit.record(actorId, "DOCTOR_UPDATED", doctorId) (cùng giao dịch)
+SVC -> DB  : COMMIT
+SVC --> AD : 200 Doctor đã cập nhật (lịch sử khám cũ luôn được bảo toàn)
+
+@enduml
