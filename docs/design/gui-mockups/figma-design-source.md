@@ -8,22 +8,46 @@ Ngày đối chiếu: **22/11/2026** (đồng bộ nhánh `main` và trang đặ
 
 ---
 
-## 1. Kiến trúc trang thiết kế tập trung & Prototype động
+## 1. Kiến trúc trang thiết kế tập trung, Quy tắc "Màn hình thật 100%" & Prototype động
 
-Toàn bộ hệ thống thiết kế (`Foundations`, `54 Variables`, `7 Text Styles`, `1 Effect Style`, `Components`), bảng **Ma trận truy vết `SCR-01..SCR-23` × 5 Vai trò × Route × FR/UC**, **23 màn hình chính (`SCR-01..SCR-23`)** (kèm 2 bước phụ đặt lịch `SCR-04A`, `SCR-04B`) và **6 hộp thoại tương tác (`DLG-01..DLG-06`)** được gom về **một trang Figma duy nhất** (`00 · NGUỒN THIẾT KẾ & PROTOTYPE · SCR-01..SCR-23 (22.11.2026)`) để:
+Toàn bộ hệ thống thiết kế (`Foundations`, `54 Variables`, `7 Text Styles`, `1 Effect Style`, `Components`), bảng **Ma trận truy vết `SCR-01..SCR-23` × 5 Vai trò × Route × FR/UC**, **23 màn hình chính (`SCR-01..SCR-23`)** (kèm 2 bước phụ đặt lịch `SCR-04A`, `SCR-04B`) và **6 hộp thoại tương tác (`DLG-01..DLG-06`)** được gom về **một trang Figma duy nhất** (`00 · NGUỒN THIẾT KẾ & PROTOTYPE · SCR-01..SCR-23 (22.11.2026)`) theo đúng các nguyên tắc đối chiếu trực tiếp từ giao diện chạy thật (`https://cliniccare-demo.duckdns.org`) và mã nguồn `frontend/src/**`:
 
-1. **Chạy Prototype tương tác xuyên suốt tất cả 5 vai trò trên cùng một trang** (vượt qua giới hạn của Figma chỉ cho nối dây `NAVIGATE` / `OVERLAY` giữa các frame trong cùng một Page).
-2. **Đầy đủ 6 điểm bắt đầu luồng (`Flow Starting Points`):**
+1. **Thiết kế chuẩn màn hình thật 100% — Không chèn mã màn hình vào trong giao diện (`Zero In-UI Codes`):**
+   - Bên trong toàn bộ 31 khung giao diện (`SCR-01..SCR-23`, `SCR-04A`, `SCR-04B`, `DLG-01..DLG-06`), **tuyệt đối không hiển thị mã `SCR-xx` / `DLG-xx`, nhãn chú thích điều hướng `(→ SCR-xx)` hay nút giả lập `Đổi vai trò (SCR-01)`** trên Topbar, Sidebar, tiêu đề trang hay nhãn nút bấm.
+   - Toàn bộ mã màn hình (`SCR-xx`, `DLG-xx`), route React, vai trò, mã `FR/UC/BR` và ghi chú luồng prototype được đặt **ở bên ngoài khung giao diện** (trên thanh `Note Header` nằm tách biệt phía trên mỗi frame và trong bảng `Ma trận truy vết` ở đầu trang).
+2. **Đồng bộ chính xác từng thành phần DOM khi bấm thử trên Frontend thật:**
+   - **Khung `AppShell.tsx` (`SCR-02..SCR-23`):**
+     - **Sidebar (`248px`, nền `#10233F`):** Đầu Sidebar có logo `ClinicCare` + nút thu gọn `PanelLeftClose` (`30×30`); danh mục điều hướng chia đúng section theo `nav.ts` (`CỔNG BỆNH NHÂN`, `CỔNG BÁC SĨ`, `VẬN HÀNH`, `QUẢN TRỊ HỆ THỐNG`, `HỆ THỐNG`); chân Sidebar (`.profile`) có avatar viết tắt (`34×34`), họ tên người dùng (bấm mở `/account`) và nút icon `Đăng xuất` (`LogOut`, bấm mở hộp thoại `DLG-06`).
+     - **Topbar (`54px`, nền `#FFFFFF`):** Bên trái chỉ hiển thị tiêu đề `<h1>` do `PageHead` portal vào `#top-page-title`; bên phải (`.topright`) chỉ gồm đồng hồ thời gian thực `.clock` (`HH:mm:ss DD/MM/YYYY`, chấm xanh `#18A77F`) và 1 `Pill` vai trò (`Bệnh nhân`, `Bác sĩ`, `Lễ tân`, `Quản trị viên`, `Kiểm toán viên` kèm icon `ShieldCheck`).
+     - **Vùng `.head` trong `.content`:** Chỉ hiển thị khi `PageHead` có `eyebrow`, `text` (`sub`) hoặc `actions` (như `SCR-03`, `SCR-04`, `SCR-05`, `SCR-06`, `SCR-07`, `SCR-11`, `SCR-23`); các trang chỉ truyền `title` vào `PageHead` thì `title` nằm trên Topbar và nội dung bắt đầu ngay từ khối `.metrics` hoặc `.panel`.
+   - **Màn hình đăng nhập Keycloak (`SCR-01` — `infra/keycloak/themes/cliniccare/login/login.ftl`):** Thiết kế 2 cột đúng giao diện thật gồm cột trái `.visual` nền gradient `#0D2748 → #174371` (`CHĂM SÓC SỨC KHỎE CHỦ ĐỘNG`, `Sức khỏe của bạn, luôn trong tầm tay.`) và cột phải `.form-panel` (`CHÀO MỪNG TRỞ LẠI`, `Đăng nhập tài khoản`, ô `Tài khoản hoặc email`, ô `Mật khẩu`, `☑ Ghi nhớ đăng nhập`, `Quên mật khẩu?`, nút `Đăng nhập →`, phân cách `hoặc`, nút `Tiếp tục với Google`, liên kết `Tạo tài khoản`).
+3. **Chạy Prototype tương tác xuyên suốt tất cả 5 vai trò trên cùng một trang** với **6 điểm bắt đầu luồng (`Flow Starting Points`):**
    - `Flow 01 · Đăng nhập & Chọn vai trò (SCR-01)`
    - `Flow 02 · Cổng Bệnh nhân (SCR-03 → SCR-07)`
    - `Flow 03 · Cổng Bác sĩ (SCR-08 → SCR-13)`
    - `Flow 04 · Cổng Lễ tân & Vận hành (SCR-14 → SCR-17)`
    - `Flow 05 · Cổng Quản trị hệ thống (SCR-18 → SCR-22)`
    - `Flow 06 · Cổng Kiểm toán viên (SCR-23)`
-3. **Tương tác động đến từng nút bấm & menu Sidebar (`ON_CLICK`):**
-   - Bấm từng mục menu trên **Sidebar** chuyển trực tiếp sang màn hình `SCR-xx` tương ứng.
-   - Bấm thông tin tài khoản ở góc dưới Sidebar mở `SCR-02 (/account)`; bấm nút đăng xuất mở overlay `DLG-06`.
-   - Bấm các nút nghiệp vụ mở đúng luồng hoặc hộp thoại overlay (`DLG-01` OTP 6 số, `DLG-02` Đổi/Hủy lịch, `DLG-03` Báo chậm `FR-25`, `DLG-04` Vắng mặt `NO_SHOW` `FR-26`, `DLG-05` Khóa tài khoản `FR-27`, `DLG-06` Đăng xuất).
+4. **Tương tác động đến từng nút bấm, tab, popup & menu Sidebar (`ON_CLICK`) đúng 100% khi bấm thử trên FE:**
+   - Bấm từng mục menu trên **Sidebar** chuyển trực tiếp sang màn hình tương ứng.
+   - Bấm thông tin tài khoản ở góc dưới Sidebar mở `/account` (`SCR-02`, tự động hiển thị thêm 3 dòng `Mã bác sĩ`, `Chuyên khoa`, `Nhận lịch khám` khi đăng nhập vai trò `DOCTOR`); bấm nút icon đăng xuất mở overlay `DLG-06`.
+   - Bấm các nút nghiệp vụ mở đúng luồng trạng thái hoặc hộp thoại/modal tương tác thực tế trên FE:
+     - `DLG-01` (`SCR-02`): Khối `Cập nhật thông tin liên hệ` & xác thực OTP 6 chữ số khi đổi email.
+     - `SCR-04` (`SCR-04A → SCR-04 → SCR-04B`): Chuyển qua 3 bước đặt lịch và trạng thái `Panel.success` (`Đặt lịch thành công` kèm nút `Về tổng quan` / `Xem lịch của tôi`).
+     - `DLG-02` (`SCR-05`): Modal `Đổi lịch khám` (chọn `Ngày khám mới` & `.slots`) và `Hủy lịch khám?` (`Lý do hủy *`).
+     - `SCR-09` & `SCR-20`: Chuyển đổi lịch `Tuần` ↔ `Tháng`; bấm ô ngày mở modal `Chi tiết [Thứ ..., DD tháng MM, YYYY]` (kèm thanh `DayTimeline` `08:00–17:00` và form `Đăng ký ca làm việc` với preset `Ca sáng 08:00–12:00` / `Ca chiều 13:00–17:00`); bấm thẻ ca mở modal `Chi tiết ca làm việc` (kèm form `Thêm thời gian nghỉ trong ca` và hộp thoại `Xóa ca làm việc?`).
+     - `SCR-12`: Trạng thái `Chọn ca khám` (khi mở `/doctor/consultation` từ Sidebar chưa chọn mã lịch), 3 tab `Bệnh án` / `Đơn thuốc` / `Lịch sử (n)`, form `Chỉnh sửa bổ sung` (`Lý do chỉnh sửa *`) khi bệnh án đã `FINAL`, và hộp thoại `Hoàn tất ca khám?`.
+     - `SCR-13`: Hộp thoại `Kết thúc phiên khám từ xa?` khi bác sĩ bấm nút đỏ `Kết thúc phiên`.
+     - `DLG-03` (`SCR-15`): Modal `Báo chậm giờ hẹn` (`Giờ bắt đầu dự kiến (không bắt buộc)`).
+     - `DLG-04` (`SCR-10`, `SCR-15`): Modal `Ghi nhận vắng mặt?` (`Lý do vắng mặt` + checkbox `Gửi email mời bệnh nhân đặt lịch lại`).
+     - `SCR-16`: Hộp thoại `Bỏ qua lượt này?` (`Lý do *`, nút `Đưa về cuối hàng`) khi bấm `Bỏ qua lượt` trên phiếu `Đã gọi`.
+     - `SCR-17`: Modal `Chi tiết thông báo` (`Mã job`, `Sự kiện`, `Lịch hẹn`, `Trạng thái gửi`, `Số lần thử`, `Đến hạn`, `Lỗi gần nhất`, `Giờ khám`, `Bác sĩ`, `Hình thức`, `Trạng thái lịch`) khi bấm `Chi tiết`.
+     - `SCR-18`: Modal `Thêm chuyên khoa` (khi bấm nút `+`) và `Cập nhật chuyên khoa` (kèm công tắc `.clinic-switch` `Đang hoạt động` / `Ngừng hoạt động` khi bấm `Sửa`).
+     - `SCR-19`: Modal `Thêm nhân sự` (`Username *`, `Email *`, `Họ tên *`, `Mật khẩu tạm thời *`, `Vai trò nhân sự`, `Chuyên khoa`) khi bấm `+` và `Cập nhật nhân sự` (`Họ tên *`, `Trạng thái tài khoản`, `Vai trò nhân sự`, công tắc `.clinic-switch` `Đang nhận lịch mới`, `Chuyên khoa`) khi bấm `Sửa`.
+     - `SCR-21`: Trạng thái `Chưa lưu` + nút `Bỏ thay đổi` khi chỉnh giờ mở/đóng cửa; biểu mẫu mở rộng `Thiết lập ngày lễ` (`Từ ngày`, `Đến ngày`, `Tên dịp lễ`, chế độ `Nghỉ cả ngày` / `Giờ đặc biệt` kèm giờ mở/đóng).
+     - `DLG-05` (`SCR-22`): Modal `Khóa tài khoản` / `Mở khóa tài khoản` (chọn `Lý do`: `Rà soát bảo mật` / `Rà soát theo quy định` / `Yêu cầu của bệnh nhân`).
+     - `SCR-23`: Modal `Chi tiết sự kiện kiểm toán` (`Thời gian`, `Hành động`, `Kết quả`, `Tác nhân`, `Đối tượng`, `Correlation ID`) khi bấm `Chi tiết`.
+     - `DLG-06` (`SCR-02..SCR-23`): Modal `Xác nhận đăng xuất` (kèm cảnh báo `Notice warn` khi đang ở `/patient/telehealth` hoặc `/doctor/telehealth`).
 
 ---
 
