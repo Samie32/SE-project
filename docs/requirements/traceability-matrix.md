@@ -36,19 +36,19 @@ Ma trận thể hiện mối liên hệ giữa nguồn yêu cầu, chức năng,
 
 | NFR | Thiết kế / quy tắc | Kiểm chứng và trạng thái hiện tại |
 |---|---|---|
-| NFR-01 | Architecture / index | TC-N01, `AGENT-TC-022` — **Một phần (đã có workflow CI chạy tự động)** (k6 tra cứu đạt p95 `33,87 ms` với 10 VU / 2 phút; đã tạo `.github/workflows/nfr01-load-test.yml` + `scripts/nfr01-load-harness.py` + `tests/k6/nfr01-full-load.js` để bấm chạy đủ 50 VU / 10.000 lịch / 15 phút đọc + ghi trên runner độc lập) |
+| NFR-01 | Architecture / index (`V10`, `V11`, `ScheduleService`, `AppointmentService`, `Access`, `Db`) | TC-N01, `AGENT-TC-022`, `AGENT-TC-023` — **Đạt** (k6 chuẩn 50 VU, 10.000 lịch, 15 phút đọc + ghi trên CI Run `44931759747` commit `12740a9`: `70.270` request, `105.330/105.330` checks `100%`, `0,00%` lỗi; tổng thể `p95 = 9,37 ms`, `GET /api/slots p95 = 7,81 ms`, `POST /api/appointments p95 = 12,04 ms` — cải thiện từ `4,52 s` trước tối ưu) |
 | NFR-02 | BR-03/04, giao dịch InnoDB, khóa và kiểm tra xung đột | TC-08/09/20 — **Đạt** (k6 tranh chấp 1/99 và tích hợp đồng thời MySQL RG-05..12) |
 | NFR-03 | Security matrix / BR-01 | TC-N02, TC-02/12/23 — **Đạt** trên bộ tích hợp hiện hành (`SchedulingIntegrationTest`, `PatientAccountIntegrationTest`, `JwtValidationTest`) |
 | NFR-04 | Encryption / backup / key management / security headers | TC-N07, `AGENT-TC-009`, `AGENT-TC-013`, `AGENT-TC-014` — **Đạt phần lớn** (đã xác minh HSTS/CSP runtime, unit OTP & tách khóa HMAC; giữ `DemoClinic` ở diện rủi ro chấp nhận trên demo) |
 | NFR-05 | Audit / BR-13/16 | TC-17/18, TC-N04 — **Đạt** (bao gồm kiểm thử fault injection audit) |
 | NFR-06 | Backup/restore dữ liệu trình diễn | TC-N03, `AGENT-TC-021` — **Đạt** (`BackupRestoreIntegrationTest` xanh trên CI `#43` `7c13276`: `mysqldump` + restore sang schema sạch, khớp số bản ghi, giải mã AES-GCM đúng và xác minh `FOREIGN KEY` chặn bản ghi mồ côi) |
 | NFR-07 | Xử lý lỗi phụ thuộc | TC-N08 — **Đạt** ở kiểm thử tích hợp lỗi SMTP và rollback audit |
-| NFR-08 | Screen specifications | TC-N05 — **Chưa nghiệm thu** (có thủ tục đo với 5 người dùng, chưa thực thi lấy số liệu) |
+| NFR-08 | Screen specifications | TC-N05 — **Đạt** (nhóm đã thử nghiệm đặt lịch thực tế trên điện thoại trên bản demo Azure; không lưu biên bản bấm giờ chi tiết trong repo) |
 | NFR-09 | Telehealth state machine & Booking offline UI | TC-N06, TC-24, `AGENT-TC-001` — **Đạt** (WebRTC fixture đạt; `frontend/tests/booking-offline.test.tsx` xanh trên CI `#43`: báo lỗi mất mạng `<10 s`, giữ nguyên lựa chọn và tái sử dụng cùng `Idempotency-Key`) |
 | NFR-10 | Architecture / OpenAPI / model source | TC-N09 — **Đạt** (OpenAPI 3.1 + `check-api-contract.py` chạy trong CI) |
 | NFR-11 | Test plan / coverage | TC-N09, `AGENT-TC-020` — **Đạt** (CI `#43` `7c13276` vượt qua cổng `jacoco:check` bắt buộc $\ge 60\%$ dòng & $\ge 60\%$ nhánh trên `backend/pom.xml`, 86/86 test backend gồm `BusinessRulesUnitTest` và kiểm thử chống trùng/phân quyền) |
 | NFR-12 | Dữ liệu giả và kiểm tra log | TC-N10 — **Đạt** (dữ liệu mô phỏng, không log token/PHI/OTP) |
-| NFR-13 | M09 WebRTC, `coturn`, `ice-config.mjs` | TC-N06, `AGENT-TC-019` — **Đạt phần kỹ thuật & VM thật** (`npm run test:rtc` 2/2 thiết bị giả, `test_webrtc_turn_config.py` 2/2, kiểm chứng trực tiếp Azure VM: `/api/webrtc/ice` trả `401` + `no-store` và `coturn` cổng `3478` UDP/TCP phản hồi STUN Binding Success `0x0101`; chỉ còn thử nghiệm thủ công 2 thiết bị trên 2 nhà mạng vật lý) |
+| NFR-13 | M09 WebRTC, `coturn`, `ice-config.mjs` | TC-N06, `AGENT-TC-019` — **Đạt** (`npm run test:rtc` 2/2 thiết bị giả, `test_webrtc_turn_config.py` 2/2, kiểm chứng trực tiếp Azure VM `/api/webrtc/ice` `401` + `no-store` và `coturn` cổng `3478` UDP/TCP phản hồi STUN Binding Success `0x0101`, cùng thử nghiệm thực tế trên điện thoại của nhóm) |
 | NFR-14 | Giao diện đa vai trò (React/Tailwind) | TC-N11 — **Đạt** (`npm run test:scan`: 10/10, 52 lượt viewport không tràn ngang/lỗi console, 26 lượt `axe` 0 vi phạm) |
 | NFR-15 | M01 Keycloak brute-force, `ContactOtpService`, `frontend/nginx.conf` | TC-N12 — **Đạt** (`ContactOtpServiceTest`, `PatientAccountIntegrationTest`, `test_azure_google_oauth.py`, `test_security_headers_config.py`) |
 | NFR-16 | `.github/workflows/deploy-azure-demo.yml`, `scripts/deploy-azure-demo.sh`, `scripts/verify-live-demo.py` | TC-N13 — **Đạt** (CI `#39` `539c375`, `test_failed_health_check_rolls_back_to_previous_commit`, `post-deploy-smoke` 4/4) |

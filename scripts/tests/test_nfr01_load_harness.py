@@ -52,3 +52,19 @@ class Nfr01LoadHarnessTests(unittest.TestCase):
         }
         md = MOD.render_report(summary, vus=50, hold="15m", seeded_appointments=10000)
         self.assertIn("**FAIL**", md)
+
+    def test_render_report_supports_flat_k6_summary_export_format(self):
+        summary = {
+            "metrics": {
+                "http_reqs": {"count": 52000, "rate": 52.0},
+                "http_req_duration": {"med": 14.2, "p(95)": 68.5, "p(99)": 120.0},
+                "http_req_duration{endpoint:slots}": {"p(95)": 55.1},
+                "http_req_duration{endpoint:book}": {"p(95)": 88.4},
+                "checks": {"passes": 1000, "fails": 0, "value": 1.0},
+            }
+        }
+        md = MOD.render_report(summary, vus=50, hold="15m", seeded_appointments=10000)
+        self.assertIn("**PASS**", md)
+        self.assertIn("68.50 ms", md)
+        self.assertIn("52000", md)
+        self.assertIn("100.00%", md)

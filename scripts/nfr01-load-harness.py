@@ -226,7 +226,10 @@ def render_report(summary: dict, *, vus: int, hold: str, seeded_appointments: in
     metrics = summary.get("metrics", {})
 
     def val(metric: str, key: str) -> float | None:
-        return metrics.get(metric, {}).get("values", {}).get(key)
+        m = metrics.get(metric, {})
+        if isinstance(m.get("values"), dict) and key in m["values"]:
+            return m["values"].get(key)
+        return m.get(key)
 
     total_reqs = int(val("http_reqs", "count") or 0)
     p50 = val("http_req_duration", "med")
@@ -235,6 +238,11 @@ def render_report(summary: dict, *, vus: int, hold: str, seeded_appointments: in
     slots_p95 = val("http_req_duration{endpoint:slots}", "p(95)")
     book_p95 = val("http_req_duration{endpoint:book}", "p(95)")
     checks_rate = val("checks", "rate")
+    if checks_rate is None:
+        passes = val("checks", "passes")
+        fails = val("checks", "fails")
+        if isinstance(passes, (int, float)) and isinstance(fails, (int, float)) and (passes + fails) > 0:
+            checks_rate = passes / (passes + fails)
 
     def fmt_ms(v: float | None) -> str:
         return f"{v:.2f} ms" if isinstance(v, (int, float)) else "N/A"

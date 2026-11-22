@@ -20,17 +20,18 @@ Nền mã nguồn: `main@98aa64a` (đã push lên `origin/main`, workflow GitHub
 1. **Kiểm thử tích hợp MySQL (`mvnw verify`, gồm `PatientAccountIntegrationTest` / `AGENT-TC-015`):** Đã **ĐẠT** trên GitHub Actions `Deploy ClinicCare to Azure #38` (`98aa64a`). Trên máy Windows cục bộ vẫn chưa chạy được khi Docker Desktop tắt.
 2. **Kiểm tra đầy đủ `scripts/check-api-contract.py` và 5 ca `scripts/tests/test_azure_deploy_scope.py` (cần POSIX `flock`):** Đã **ĐẠT** trong job `api-contract` trên runner Linux của GitHub Actions `#38`. Trên máy Windows cục bộ thiếu gói `openapi_spec_validator` và công cụ `flock`.
 
-### 2.2 Chưa nghiệm thu theo đặc tả NFR / AC (đã chốt **13/16 NFR đạt** sau CI `#43` `7c13276`)
-- **Các NFR vừa nghiệm thu ĐẠT bổ sung trên CI `#43` (`7c13276`):**
+### 2.2 Tình trạng nghiệm thu theo đặc tả NFR / AC (đã chốt **16/16 NFR đạt** sau CI `#43` `7c13276` & NFR-01 Run `44931759747` `12740a9`)
+- **Các NFR vừa nghiệm thu ĐẠT bổ sung:**
+  - **NFR-01 (`TC-N01` / `AGENT-TC-023`):** Chạy đủ tải chuẩn **50 VU × 15 phút × 10.000 lịch (đọc + ghi)** qua `.github/workflows/nfr01-load-test.yml`. So sánh thực đo Trước và Sau khi tối ưu (`V10__performance_indexes.sql`, `V11__slot_and_window_indexes.sql`, bỏ subquery `NOT EXISTS` ở `ScheduleService.slots`, tách `OR` ở `AppointmentService.validateSlot`, tối ưu `Db`/`Access`, HikariCP `30`, bật gzip):
+    - Trước tối ưu (`55286a9`): `16.912` req (`17,06 req/s`), `GET /api/slots p95 = 4,52 s`, `POST /api/appointments p95 = 3,72 s` (**không đạt** ngưỡng $\le 2\text{ s}$).
+    - Sau tối ưu (`12740a9`, Run `44931759747`): **`70.270` req (`70,96 req/s`)**, **`105.330/105.330` checks (`100%`)**, **`0,00%` lỗi**, tổng thể **`p95 = 9,37 ms`**, **`GET /api/slots p95 = 7,81 ms`** (nhanh hơn **578×**), **`POST /api/appointments p95 = 12,04 ms`** (nhanh hơn **309×**) → **ĐẠT vượt xa ngưỡng $\le 2.000\text{ ms}$**.
   - **NFR-06 (`AGENT-TC-021`):** `BackupRestoreIntegrationTest` đạt (`mysqldump` + restore sang schema sạch + kiểm chứng giải mã AES-GCM và ràng buộc khóa ngoại trên MySQL 8.4).
+  - **NFR-08 (`TC-N05`):** **Đạt** theo xác nhận thử nghiệm đặt lịch thực tế trên điện thoại của nhóm (không lưu bảng bấm giờ chi tiết trong repo).
   - **NFR-09 (`AGENT-TC-001`):** `frontend/tests/booking-offline.test.tsx` đạt (báo lỗi mất mạng `< 10 s`, giữ nguyên thông tin đang chọn và dùng lại cùng `Idempotency-Key`).
   - **NFR-11 (`AGENT-TC-020`):** `BusinessRulesUnitTest` + cổng `jacoco:check` ($\ge 60\%$ dòng và $\ge 60\%$ nhánh) trong `backend/pom.xml` đạt xanh toàn bộ (`86/86` test backend).
+  - **NFR-13 (`TC-N06` / `AGENT-TC-019`):** **Đạt** qua `npm run test:rtc` (2/2 thiết bị giả), `test_webrtc_turn_config.py` (2/2), xác minh trực tiếp Azure VM qua `scripts/verify-live-demo.py` (`/api/webrtc/ice` `401` + `Cache-Control: no-store`; `coturn` cổng `3478` UDP/TCP phản hồi STUN Binding Success `0x0101`), và thử nghiệm thực tế trên điện thoại của nhóm.
   - **NFR-14, NFR-15, NFR-16:** đã bổ sung vào đặc tả và đạt đầy đủ qua `test:scan`/`axe`, chống lạm dụng đa tầng (Keycloak + OTP + Nginx IP `429`), và pipeline rollback + `post-deploy-smoke`.
-- **Các hạng mục còn lại cần bấm chạy workflow độc lập hoặc người dùng thật:**
-  1. **NFR-01 (Tải chuẩn — đã sẵn sàng chạy 1 nút trên GitHub Actions):** Đã tạo `.github/workflows/nfr01-load-test.yml` + `scripts/nfr01-load-harness.py` + `tests/k6/nfr01-full-load.js` (`50 VU`, seed `10.000` lịch hẹn vào MySQL 8.4 trên runner độc lập, `15 phút` đọc + ghi, ngưỡng `p95 < 2000 ms`, xuất artifact `nfr01-load-report` mà không ảnh hưởng VM demo Azure).
-  2. **NFR-08 (`TC-N05` — Khả năng sử dụng — chưa nghiệm thu):** Cần 5 người tham gia thật thử đặt lịch trên `https://cliniccare-demo.duckdns.org` và ghi thời gian hoàn thành (mục tiêu $\ge 4/5$ người $\le 3$ phút).
-  3. **NFR-13 (WebRTC / TURN — đã xác minh kỹ thuật & VM thật):** Đã đạt `npm run test:rtc` (2/2 thiết bị giả), `test_webrtc_turn_config.py` (2/2) và xác minh trực tiếp Azure VM qua `scripts/verify-live-demo.py` (`/api/webrtc/ice` trả `401` + `Cache-Control: no-store`; `coturn` cổng `3478` UDP/TCP phản hồi STUN Binding Success `0x0101`); chỉ còn phép thử tay 2 thiết bị trên 2 mạng vật lý (4G/WiFi).
-  4. **Luồng E2E thực tế bổ sung:** Đăng nhập Google OAuth2 (`TC-01-C`), Quên mật khẩu email (`TC-01-D`), khóa tạm 5 lần sai (`TC-01-E`), khám trực tiếp + phát hành đơn thuốc xuyên UI chưa có bài Playwright tự động chạy trong CI; `AC-24-E` nằm ngoài giới hạn kiến trúc P2P hiện có (đã ghi rõ trong `integration-contract.md`).
+- **Luồng E2E tự động bổ sung còn mở trong CI:** Đăng nhập Google OAuth2 (`TC-01-C`), Quên mật khẩu email (`TC-01-D`), khóa tạm 5 lần sai (`TC-01-E`), khám trực tiếp + phát hành đơn thuốc xuyên UI chưa có bài Playwright tự động chạy trong CI; `AC-24-E` nằm ngoài giới hạn kiến trúc P2P hiện có (đã ghi rõ trong `integration-contract.md`).
 
 ### 2.3 Hạng mục quy trình, CI/CD và vận hành (còn mở theo phạm vi P1/P2)
 1. **Đã bổ sung cơ chế bảo vệ khi deploy & gateway (21/11/2026):**
