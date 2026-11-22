@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
-import { FileHeart } from "lucide-react";
+import { Link } from "react-router-dom";
+import { ArrowLeft, FileHeart } from "lucide-react";
 import { listPatientPrescriptions, listPatientRecords } from "@/api/operations";
 import { config } from "@/core/config";
 import { useDirectory } from "@/core/directory";
@@ -29,6 +30,11 @@ export function PatientRecordsPage() {
 
   return (
     <>
+      <div style={{ marginBottom: 14 }}>
+        <Link to="/patient" className="btn sm" style={{ textDecoration: "none", display: "inline-flex", alignItems: "center", gap: 6 }}>
+          <ArrowLeft size={16} aria-hidden /> Quay lại Tổng quan
+        </Link>
+      </div>
       <PageHead eyebrow="Hồ sơ sức khỏe" title="Hồ sơ & đơn thuốc" text="Chỉ hiển thị bệnh án đã hoàn tất và đơn thuốc đã phát hành." />
       <PendingBackend feature="clinical" />
       {!enabled ? (

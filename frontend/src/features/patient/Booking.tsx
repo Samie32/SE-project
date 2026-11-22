@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { ArrowLeft, ArrowRight, Check, CheckCircle2, Info, Stethoscope, Video } from "lucide-react";
 import { listSlots } from "@/api/schedule";
 import { bookAppointment } from "@/api/appointments";
@@ -93,6 +93,11 @@ export function BookingPage() {
   const labels = ["Chuyên khoa & bác sĩ", "Thời gian khám", "Xác nhận"];
   return (
     <>
+      <div style={{ marginBottom: 14 }}>
+        <Link to="/patient" className="btn sm" style={{ textDecoration: "none", display: "inline-flex", alignItems: "center", gap: 6 }}>
+          <ArrowLeft size={16} aria-hidden /> Quay lại Tổng quan
+        </Link>
+      </div>
       <PageHead eyebrow="Dịch vụ khám" title="Đặt lịch khám" text="Chọn chuyên khoa, bác sĩ và khung giờ còn trống." />
       {error && <Notice tone="error">{error}</Notice>}
       <div className="booking">
@@ -148,13 +153,38 @@ export function BookingPage() {
                 </div>
                 <h3>Khung giờ còn trống</h3>
                 <AsyncBlock loading={slots.loading} error={slots.error} onRetry={slots.reload} empty={(slots.data?.length ?? 0) === 0} emptyTitle="Không có khung giờ trống" emptyText="Hãy thử chọn ngày hoặc hình thức khám khác.">
-                  <div className="slots" role="group" aria-label="Khung giờ">
-                    {slots.data?.map((s) => (
-                      <button key={s.id} className={"slot" + (s.id === slotId ? " on" : "")} aria-pressed={s.id === slotId} onClick={() => setSlotId(s.id)}>
-                        {formatTime(s.startAt)}
-                      </button>
-                    ))}
-                  </div>
+                  {(() => {
+                    const morning = slots.data?.filter((s) => formatTime(s.startAt) < "12:00") ?? [];
+                    const afternoon = slots.data?.filter((s) => formatTime(s.startAt) >= "12:00") ?? [];
+                    return (
+                      <div className="stack" style={{ gap: 16 }}>
+                        {morning.length > 0 && (
+                          <div>
+                            <div className="sub" style={{ fontWeight: 700, marginBottom: 8, fontSize: 16 }}>Buổi sáng</div>
+                            <div className="slots" role="group" aria-label="Khung giờ buổi sáng">
+                              {morning.map((s) => (
+                                <button key={s.id} className={"slot" + (s.id === slotId ? " on" : "")} aria-pressed={s.id === slotId} onClick={() => setSlotId(s.id)}>
+                                  {formatTime(s.startAt)}
+                                </button>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                        {afternoon.length > 0 && (
+                          <div>
+                            <div className="sub" style={{ fontWeight: 700, marginBottom: 8, fontSize: 16 }}>Buổi chiều</div>
+                            <div className="slots" role="group" aria-label="Khung giờ buổi chiều">
+                              {afternoon.map((s) => (
+                                <button key={s.id} className={"slot" + (s.id === slotId ? " on" : "")} aria-pressed={s.id === slotId} onClick={() => setSlotId(s.id)}>
+                                  {formatTime(s.startAt)}
+                                </button>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })()}
                 </AsyncBlock>
               </>
             )}
