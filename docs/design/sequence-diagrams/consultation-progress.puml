@@ -26,9 +26,9 @@ alt [hoàn thành]
   SVC -> DB : đặt encounter và lịch COMPLETED; phiếu DONE nếu có
 end
 
-alt [VANG_MAT]
+alt [NO_SHOW]
   SVC -> DB : yêu cầu CONFIRMED và hiện tại >= bắt đầu + 15min;\nlễ tân cho IN_PERSON, bác sĩ được phân công cho REMOTE
-  SVC -> DB : đặt lịch NO_SHOW; hủy phiên chưa dùng;\nenqueue đóng phòng nhà cung cấp nếu cần
+  SVC -> DB : đặt lịch NO_SHOW + no_show_reason; hủy phiên CREATED/WAITING;\nthu hồi telehealth_token; tùy chọn enqueue NO_SHOW_REBOOKING
 end
 
 alt [xác thực và tất cả ghi thành công]

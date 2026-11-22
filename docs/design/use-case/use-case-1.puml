@@ -11,39 +11,45 @@ skinparam shadowing false
 skinparam defaultFontName Arial
 skinparam defaultFontSize 11
 skinparam dpi 150
-title Danh tính & danh mục — Use case chi tiết
+title Danh tính, Bảo vệ tài khoản & Danh mục (M01–M03) — UML 2.5
 
 left to right direction
 
 actor "Người dùng" as User
 actor "Quản trị viên" as Admin
 actor "Bác sĩ" as Doctor
-actor "Nhà cung cấp danh tính" as IdP
+actor "Keycloak / Google\n(OIDC PKCE)" as IdP
+actor "Dịch vụ Email\n(SMTP / Brevo)" as EmailSvc
 
-rectangle "Hệ thống phòng khám" {
+rectangle "Hệ thống phòng khám ClinicCare" {
 
-  package "M01 — Danh tính" {
-    usecase "UC-01\nĐăng nhập" as UC01
+  package "M01 & M07 — Danh tính & Tài khoản" {
+    usecase "UC-01\nĐăng nhập PKCE / Google,\nQuên MK & OTP liên hệ" as UC01
     usecase "UC-02\nQuản lý vai trò /\nKiểm soát truy cập" as UC02
+    usecase "UC-27\nTra cứu chính xác & Khóa/Mở\ntài khoản bệnh nhân" as UC27
   }
 
   package "M02 — Danh mục" {
     usecase "UC-03\nQuản lý bác sĩ\nvà chuyên khoa" as UC03
-    usecase "UC-04\nVô hiệu hóa bác sĩ" as UC04
+    usecase "UC-04\nNgừng nhận lịch /\nVô hiệu hóa bác sĩ" as UC04
   }
 
-  package "M03 — Lịch làm việc" {
+  package "M03 — Lịch làm việc & Phòng khám" {
     usecase "UC-05\nQuản lý lịch làm việc" as UC05
-    usecase "UC-06\nQuản lý lịch nghỉ" as UC06
+    usecase "UC-06\nLịch nghỉ cá nhân,\nGiờ phòng khám & Ngày lễ" as UC06
   }
 }
 
 User --> UC01
 IdP --> UC01
+EmailSvc --> UC01
 UC01 ..> UC02 : <<include>>
 
+Admin --> UC02
+Admin --> UC27
 Admin --> UC03
 Admin --> UC04
+Admin --> UC06
 
 Doctor --> UC05
 Doctor --> UC06

@@ -14,34 +14,33 @@ title Vòng đời Phiên từ xa — FR-22/23/24
 
 [*] --> CREATED : chuẩn bị [REMOTE CONFIRMED, chủ sở hữu, cửa sổ tham gia]
 
-CREATED -[dashed]-> CREATED : nhà cung cấp không khả dụng / retry idempotent
+CREATED -[dashed]-> CREATED : thử lại idempotent [trong cửa sổ tham gia]
 
-CREATED --> WAITING : tiếp nhận bệnh nhân [consent, phòng sẵn sàng, cửa sổ tham gia]
+CREATED --> WAITING : tiếp nhận bệnh nhân [consent=true, cửa sổ tham gia]
 
 CREATED --> CANCELLED : lịch NO_SHOW / vô hiệu tiếp nhận
 
 WAITING --> ACTIVE : bắt đầu [bác sĩ được phân công, bệnh nhân đã tiếp nhận,\nbắt đầu ≤ hiện tại < bắt đầu + 15min]\n/ lịch IN_PROGRESS; tạo encounter
 
-WAITING --> CANCELLED : lịch NO_SHOW / enqueue đóng phòng
+WAITING --> CANCELLED : lịch NO_SHOW / thu hồi telehealth_token
 
-ACTIVE --> RECONNECTING : ngắt kết nối phương tiện đã xác thực
+ACTIVE --> RECONNECTING : ngắt kết nối / ICE restart (POST /connection)
 
-RECONNECTING --> ACTIVE : nối lại [được phép, vẫn mở]
+RECONNECTING --> ACTIVE : nối lại [X-Room-Token hợp lệ, phiên vẫn mở]
 
-ACTIVE --> ENDED : bác sĩ kết thúc / từ chối token mới; enqueue đóng phòng
+ACTIVE --> ENDED : bác sĩ kết thúc / thu hồi token & xóa signal
 
-RECONNECTING --> ENDED : bác sĩ kết thúc / từ chối token mới; enqueue đóng phòng
+RECONNECTING --> ENDED : bác sĩ kết thúc / thu hồi token & xóa signal
 
 ENDED --> [*]
 CANCELLED --> [*]
 
 note as N1
-  Cua so tham gia: bat dau - 10min <= hien tai < bat dau + 15min.
-  Nguoi tham gia ACTIVE/RECONNECTING co the noi lai sau cua so nay.
-  Token het han sau 5 phut; phat hanh lai yeu cau phan quyen hien tai.
-  CANCELLED bieu thi phien chua dung bi dong do lich NO_SHOW.
-  Huy lich chi duoc phep truoc bat dau - 2h, truoc khi tao phien.
-  Trang thai cuoi tu choi callback cu; ket thuc phuong tien khong chot ho so.
+  Cửa sổ tham gia: bắt đầu - 10 phút <= hiện tại < bắt đầu + 15 phút.
+  Người tham gia ACTIVE/RECONNECTING có thể nối lại (ICE restart) sau cửa sổ này.
+  X-Room-Token hết hạn sau 300s (lưu SHA-256 trong telehealth_token).
+  Tín hiệu WebRTC (OFFER/ANSWER/ICE) mã hóa AES-256-GCM qua signaling nội bộ + coturn 3478.
+  CANCELLED biểu thị phiên chưa dùng bị đóng do lịch NO_SHOW; phiên ENDED không thể mở lại.
 end note
 
 @enduml

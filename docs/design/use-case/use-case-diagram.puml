@@ -13,7 +13,7 @@ skinparam shadowing false
 skinparam defaultFontName Arial
 skinparam defaultFontSize 11
 skinparam dpi 150
-title Tổng quan Use Case — mục tiêu người dùng
+title Tổng quan Use Case — 27 ca sử dụng (UML 2.5)
 
 left to right direction
 
@@ -23,61 +23,69 @@ actor "Bác sĩ" as Doctor
 actor "Lễ tân" as Receptionist
 actor "Quản trị viên" as Admin
 actor "Kiểm toán viên" as Auditor
-actor "Nhà cung cấp\ndanh tính" as IdP
-actor "Nhà cung cấp\nvideo" as VideoProvider
+actor "Keycloak / Google\n(OIDC PKCE)" as IdP
+actor "Dịch vụ Email\n(SMTP / Brevo)" as EmailSvc
+actor "WebRTC / coturn\n(STUN / TURN 3478)" as VideoNet
 
-rectangle "Hệ thống phòng khám" {
+rectangle "Hệ thống phòng khám ClinicCare" {
 
-  package "Danh tính & danh mục" {
-    usecase "UC-01 Đăng nhập" as UC01
+  package "M01 & M02 & M03 — Danh tính, Danh mục & Lịch làm" {
+    usecase "UC-01 Đăng nhập, Google,\nQuên MK & OTP liên hệ" as UC01
     usecase "UC-02 Quản lý vai trò /\nKiểm soát truy cập" as UC02
+    usecase "UC-27 Tra cứu & Khóa/Mở\ntài khoản bệnh nhân" as UC27
     usecase "UC-03 Quản lý bác sĩ\nvà chuyên khoa" as UC03
-    usecase "UC-04 Vô hiệu hóa bác sĩ" as UC04
+    usecase "UC-04 Ngừng nhận lịch /\nVô hiệu hóa bác sĩ" as UC04
     usecase "UC-05 Quản lý lịch làm việc" as UC05
-    usecase "UC-06 Quản lý lịch nghỉ" as UC06
+    usecase "UC-06 Lịch nghỉ, Giờ phòng\nkhám & Ngày nghỉ lễ" as UC06
   }
 
-  package "Lịch hẹn & hàng đợi" {
+  package "M03, M04 & M08 — Lịch hẹn & Hàng đợi" {
     usecase "UC-07 Tìm slot khả dụng" as UC07
     usecase "UC-08 Đặt lịch hẹn" as UC08
     usecase "UC-09 Đổi lịch hẹn" as UC09
     usecase "UC-10 Hủy lịch hẹn" as UC10
-    usecase "UC-11 Tiến trình lịch hẹn" as UC11
+    usecase "UC-11 Tiến trình lịch hẹn\n(Khám / Hoàn tất)" as UC11
+    usecase "UC-25 Báo chậm giờ khám\n(DELAY_NOTICE)" as UC25
+    usecase "UC-26 Ghi nhận vắng hẹn\n(NO_SHOW & mời đặt lại)" as UC26
     usecase "UC-19 Check-in bệnh nhân" as UC19
     usecase "UC-20 Gọi bệnh nhân\ntiếp theo" as UC20
     usecase "UC-21 Trả phiếu về\ncuối hàng đợi" as UC21
   }
 
-  package "Chăm sóc lâm sàng & y tế từ xa" {
+  package "M05 & M09 — Lâm sàng & Khám từ xa WebRTC" {
     usecase "UC-12 Xem lịch sử được phép" as UC12
     usecase "UC-13 Ghi / Chốt /\nBổ sung hồ sơ" as UC13
-    usecase "UC-14 Kê đơn thuốc" as UC14
-    usecase "UC-22 Chuẩn bị phiên\nkhám từ xa" as UC22
-    usecase "UC-23 Tham gia / Bắt đầu\nphiên từ xa" as UC23
-    usecase "UC-24 Nối lại / Kết thúc\nphiên từ xa" as UC24
+    usecase "UC-14 Kê & phát hành\nđơn thuốc" as UC14
+    usecase "UC-22 Chuẩn bị & vào\nphòng chờ từ xa" as UC22
+    usecase "UC-23 Tham gia / Bắt đầu\nphiên từ xa WebRTC" as UC23
+    usecase "UC-24 Nối lại (ICE restart) /\nKết thúc phiên từ xa" as UC24
   }
 
-  package "Thông báo & kiểm toán" {
-    usecase "UC-15 Nhận nhắc lịch hẹn" as UC15
-    usecase "UC-16 Giám sát lỗi\ngửi thông báo" as UC16
-    usecase "UC-17 Ghi sự kiện kiểm toán" as UC17
+  package "M06 & M07 — Thông báo & Kiểm toán" {
+    usecase "UC-15 Nhận email xác nhận,\nnhắc lịch & báo chậm" as UC15
+    usecase "UC-16 Giám sát lỗi gửi\nthông báo (Outbox)" as UC16
+    usecase "UC-17 Ghi sự kiện kiểm toán\n(fail-closed nội bộ)" as UC17
     usecase "UC-18 Tra cứu lịch sử\nkiểm toán" as UC18
   }
 }
 
 note as N1
-  Audit là hành vi nội bộ, không phải hành động của Kiểm toán viên.
-  UC-02 phân quyền tài nguyên là điều kiện tiên quyết cho mọi mục tiêu được bảo vệ.
-  Xem đơn thuốc thuộc quyền truy cập lịch sử UC-12.
+  UC-17 là hành vi audit fail-closed nội bộ trong giao dịch, khác với UC-18 của Kiểm toán viên.
+  UC-02 phân quyền RBAC + sở hữu tài nguyên là điều kiện bắt buộc cho mọi API bảo vệ.
+  UC-27 tra cứu bệnh nhân dùng blind index HMAC-SHA256 (chỉ UUID / email / SĐT; cấm tìm theo tên).
 end note
 
 User --> UC01
 IdP --> UC01
+EmailSvc --> UC01
 UC01 ..> UC02 : <<include>>
 
+Admin --> UC02
 Admin --> UC03
 Admin --> UC04
+Admin --> UC06
 Admin --> UC16
+Admin --> UC27
 
 Doctor --> UC05
 Doctor --> UC06
@@ -90,6 +98,7 @@ Doctor --> UC21
 Doctor --> UC22
 Doctor --> UC23
 Doctor --> UC24
+Doctor --> UC26
 
 Patient --> UC07
 Patient --> UC08
@@ -97,20 +106,32 @@ Patient --> UC09
 Patient --> UC10
 Patient --> UC11
 Patient --> UC12
+Patient --> UC22
 Patient --> UC23
 Patient --> UC24
+Patient --> UC15
 
 Receptionist --> UC07
+Receptionist --> UC15
 Receptionist --> UC19
+Receptionist --> UC20
 Receptionist --> UC21
+Receptionist --> UC25
+Receptionist --> UC26
 
 Auditor --> UC18
-VideoProvider --> UC22
+EmailSvc --> UC15
+EmailSvc --> UC16
+VideoNet --> UC23
+VideoNet --> UC24
 
 UC08 ..> UC15 : <<include>>
 UC09 ..> UC15 : <<include>>
+UC25 ..> UC15 : <<include>>
+UC26 ..> UC17 : <<include>>
+UC27 ..> UC17 : <<include>>
+UC12 ..> UC17 : <<include>>
 UC13 ..> UC17 : <<include>>
 UC14 ..> UC17 : <<include>>
-UC12 ..> UC17 : <<include>>
 
 @enduml

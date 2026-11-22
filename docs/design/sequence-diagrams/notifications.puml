@@ -1,51 +1,54 @@
 @startuml notifications
-title UC-15/16 — Gửi thông báo bất đồng bộ
+title UC-15/16 — Gửi thông báo bất đồng bộ (Transactional Outbox: notification_job)
 
 skinparam sequenceMessageAlign center
 skinparam responseMessageBelowArrow true
 skinparam ParticipantPadding 10
 skinparam BoxPadding 8
+skinparam shadowing false
+skinparam defaultFontName Arial
+skinparam defaultFontSize 11
 skinparam dpi 150
 
-participant "Worker thông báo"        as W
-database    "MySQL"                   as DB
-participant "Nhà cung cấp Email"  as ESP
+participant "NotificationWorker"      as W
+participant "NotificationStore"       as ST
+database    "MySQL (notification_job)" as DB
+participant "SMTP (Mailpit / Brevo)"  as ESP
 
-W -> DB : lấy sự kiện outbox đã commit; tạo job đã loại trùng lặp
-W -> DB : lấy job đến hạn với lease; tải lịch hẹn hiện tại
+W -> ST : poll() (mỗi 2s, tối đa 20 job/lượt)
+ST -> DB : SELECT ... WHERE (status='PENDING' AND due_at<=now)\nOR (status='PROCESSING' AND lease_until<now)\nORDER BY due_at LIMIT 1 FOR UPDATE SKIP LOCKED
+ST -> DB : UPDATE status='PROCESSING', lease_until=now+60s, lease_token=UUID
+W -> DB  : Tải trạng thái/version mới nhất của appointment + email_encrypted bệnh nhân
 
-alt [version cũ / nhắc lịch không ở CONFIRMED]
-  W -> DB : đặt SKIPPED
-end
+alt Phiên bản cũ HOẶC điều kiện loại thông báo không còn hợp lệ
+  Note right of W: REMINDER không CONFIRMED / DELAY_NOTICE hết hiệu lực / NO_SHOW_REBOOKING không NO_SHOW
+  W -> ST : complete(job, "SKIPPED", reason)
+  ST -> DB : UPDATE status='SKIPPED' + audit NOTIFICATION_SKIPPED
+else Thiếu email người nhận
+  W -> ST : complete(job, "FAILED", "EMAIL_MISSING")
+else Đủ điều kiện gửi (CONFIRMATION | REMINDER | DELAY_NOTICE | NO_SHOW_REBOOKING)
+  W -> W   : Giải mã AES-256-GCM email; render nội dung tối thiểu (không PHI)
+  W -> ESP : Gửi email qua JavaMailSender (SMTP ngoài giao dịch DB)
 
-alt [xác nhận hoặc nhắc lịch đủ điều kiện]
-  W -> ESP : gửi template tối giản với dedupe key
-
-  alt [được chấp nhận]
-    ESP --> W : message ID của nhà cung cấp
-    W -> DB : đánh dấu SENT
-
-    opt [nhận được receipt xác nhận giao]
-      ESP --> W : receipt
-      W -> DB : loại trùng receipt; đánh dấu DELIVERED
-    end
-  end
-
-  alt [timeout / lỗi tạm thời]
-    W -> DB : attempts + 1; lên lịch retry tiếp theo sau +1/+5/+15 phút
-
-    alt [hết lần retry]
-      W -> DB : đánh dấu FAILED
+  alt SMTP chấp nhận
+    ESP --> W : 250 OK
+    W -> ST  : complete(job, "SENT", null)
+    ST -> DB : UPDATE status='SENT', lease_until=NULL + audit NOTIFICATION_SENT
+  else MailException / timeout SMTP
+    ESP --> W : MailException
+    W -> ST  : failed(job) -> backoff +60s / +300s / +900s (attempts=1..3)
+    alt Còn lượt retry (attempts <= 3)
+      ST -> DB : SET status='PENDING', due_at=now+delay + audit NOTIFICATION_RETRY
+    else Hết 3 lần retry (attempts > 3)
+      ST -> DB : SET status='FAILED', last_error='SMTP_UNAVAILABLE' + audit NOTIFICATION_FAILED
     end
   end
 end
 
 note over W
-  Nhắc lịch đến hạn tại bắt đầu - 30 phút; booking muộn chỉ nhận xác nhận.
-  Kiểm tra lại trạng thái/version trước mỗi lần gửi và retry.
-  Lỗi nhà cung cấp không bao giờ rollback lịch hẹn đã commit.
-  Lease hết hạn phục hồi job bị crash; vẫn có thể giao trùng lặp
-  khi nhà cung cấp không hỗ trợ deduplication.
+  UNIQUE(appointment_id, appointment_version, event_type) chống tạo trùng job.
+  Nhắc lịch đến hạn tại T - 30 phút. Lỗi SMTP không bao giờ rollback giao dịch lịch hẹn.
+  Nếu crash sau SMTP 250 OK trước khi ghi SENT, hết lease 60s worker khác có thể thu hồi.
 end note
 
 @enduml

@@ -11,30 +11,31 @@ skinparam shadowing false
 skinparam defaultFontName Arial
 skinparam defaultFontSize 11
 skinparam dpi 150
-title Chăm sóc lâm sàng & y tế từ xa — Use case chi tiết
+title Chăm sóc lâm sàng & Khám từ xa WebRTC (M05–M09) — UML 2.5
 
 left to right direction
 
 actor "Bệnh nhân" as Patient
 actor "Bác sĩ" as Doctor
-actor "Nhà cung cấp video" as VideoProvider
+actor "WebRTC / coturn\n(STUN / TURN 3478)" as VideoNet
 
-rectangle "Hệ thống phòng khám" {
+rectangle "Hệ thống phòng khám ClinicCare" {
 
   package "M05 — Chăm sóc lâm sàng" {
     usecase "UC-12\nXem lịch sử được phép" as UC12
     usecase "UC-13\nGhi / Chốt / Bổ sung hồ sơ" as UC13
-    usecase "UC-14\nKê đơn thuốc" as UC14
+    usecase "UC-14\nKê & phát hành đơn thuốc" as UC14
   }
 
-  package "M09 — Y tế từ xa" {
-    usecase "UC-22\nChuẩn bị phiên khám từ xa" as UC22
+  package "M09 — Y tế từ xa (P2P Signaling)" {
+    usecase "UC-22\nChuẩn bị & vào phòng chờ" as UC22
     usecase "UC-23\nTham gia / Bắt đầu phiên từ xa" as UC23
-    usecase "UC-24\nNối lại / Kết thúc phiên từ xa" as UC24
+    usecase "UC-24\nNối lại (ICE restart) /\nKết thúc phiên từ xa" as UC24
   }
 }
 
 Patient --> UC12
+Patient --> UC22
 Patient --> UC23
 Patient --> UC24
 
@@ -45,7 +46,8 @@ Doctor --> UC22
 Doctor --> UC23
 Doctor --> UC24
 
-VideoProvider --> UC22
+VideoNet --> UC23
+VideoNet --> UC24
 
 UC14 ..> UC13 : <<include>>
 @enduml

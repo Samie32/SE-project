@@ -8,67 +8,58 @@ skinparam shadowing false
 skinparam defaultFontName Arial
 skinparam defaultFontSize 11
 skinparam dpi 150
-title BP-04 — Khám bệnh từ xa
+title BP-04 — Khám bệnh từ xa WebRTC (P2P + coturn STUN/TURN)
 
 |Bệnh nhân|
 start
 :Mở phòng chờ; kiểm tra camera / microphone;
-:Xác nhận tham gia;
+:Xác nhận đồng ý tham gia (consent = true);
 
 |Hệ thống|
-if (Chủ sở hữu, REMOTE CONFIRMED, trong cửa sổ tham gia?) then (có)
-  :Chuẩn bị phiên duy nhất và phòng nhà cung cấp;
-  if (Nhà cung cấp sẵn sàng?) then (có)
-    :Phát hành token tiếp nhận 5 phút; phiên WAITING;
-  else (không)
-    :Báo lỗi có thể retry; giữ phiên CREATED;
-    stop
-  endif
+if (Chủ sở hữu, REMOTE CONFIRMED, cửa sổ [T-10p, T+15p)?) then (có)
+  :Chuẩn bị phiên duy nhất (CREATED -> WAITING);
+  :Phát hành X-Room-Token ngẫu nhiên (TTL 300s, lưu SHA-256)\nvà cấu hình ICE (coturn STUN/TURN 3478);
 else (không)
-  :Từ chối tiếp nhận;
+  :Từ chối tiếp nhận (409 / 422 / 404 + audit);
   stop
 endif
 
 |Bác sĩ|
-if (Bắt đầu trước bắt đầu + 15 phút?) then (có)
-else (không)
-  :Yêu cầu bắt đầu tại hoặc sau thời gian đã lên lịch;
+if (Bắt đầu trong [T, T+15p)?) then (có)
+else (quá T+15p mà bệnh nhân chưa vào)
+  |Hệ thống|
+  :Bác sĩ đánh dấu NO_SHOW (lưu no_show_reason,\nhủy phiên CANCELLED, thu hồi token);
+  stop
 endif
 
 |Hệ thống|
-if (Bệnh nhân chưa tham gia sau bắt đầu + 15 phút?) then (có)
-  :Đánh dấu lịch CONFIRMED là NO_SHOW từ bắt đầu + 15 phút;
-  :Hủy phiên chưa dùng; thu hồi tiếp nhận;
-  stop
-endif
-:Xác thực bác sĩ được phân công và tiếp nhận của bệnh nhân;
-:Kích hoạt phiên, bắt đầu lịch,\ntạo encounter và audit nguyên tử;
+:Xác thực bác sĩ được phân công và bệnh nhân WAITING;
+:Đặt phiên ACTIVE, lịch IN_PROGRESS,\ntạo Encounter + audit nguyên tử;
+:Trao đổi OFFER/ANSWER/ICE mã hóa AES-256-GCM qua /signals\nvà kết nối media P2P (qua coturn nếu sau NAT);
 
 |Bác sĩ|
-:Khám; lưu nháp hồ sơ;
+:Khám; lưu nháp hồ sơ bệnh án;
 if (Phương tiện bị gián đoạn?) then (có)
-  :Nối lại hoặc dùng âm thanh;
-  if (Có thể tiếp tục?) then (có)
-  else (không)
+  :Cập nhật trạng thái RECONNECTING -> ICE restart\nhoặc chuyển chế độ chỉ âm thanh;
+  if (Có thể tiếp tục?) then (không)
     :Ghi lý do gián đoạn và hướng dẫn theo dõi;
   endif
 endif
 :Phát hành đơn thuốc nếu phù hợp;
-:Kết thúc phiên từ xa;
+:Kết thúc phiên từ xa (POST /end);
 
 |Hệ thống|
-:Đặt ENDED và audit; từ chối token mới;\nretry đóng phòng nhà cung cấp đến khi xác nhận;
+:Đặt ENDED, thu hồi tức thì telehealth_token\nvà xóa telehealth_signal cùng giao dịch + audit;
 
 |Bác sĩ|
 if (Hồ sơ sẵn sàng?) then (có)
-  :Chốt hồ sơ; yêu cầu hoàn tất encounter;
-else (không)
+  :Chốt hồ sơ (FINAL); yêu cầu hoàn tất Encounter;
   |Hệ thống|
-  :Giữ encounter mở để ghi chú;
+  :Kiểm tra hồ sơ FINAL và phiên ENDED;\nhoàn tất Encounter và lịch COMPLETED nguyên tử;
+else (chưa chốt)
+  |Hệ thống|
+  :Giữ Encounter mở để bác sĩ hoàn thiện và chốt sau;
 endif
-
-|Hệ thống|
-:Kiểm tra FINAL và phiên ENDED;\nhoàn tất encounter và lịch nguyên tử;
 
 stop
 @enduml

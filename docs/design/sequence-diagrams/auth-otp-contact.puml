@@ -1,0 +1,72 @@
+@startuml auth-otp-contact
+title UC-01 / FR-01 — Xác thực OIDC PKCE/Google & Đổi email xác thực OTP
+
+skinparam sequenceMessageAlign center
+skinparam responseMessageBelowArrow true
+skinparam ParticipantPadding 10
+skinparam BoxPadding 8
+skinparam shadowing false
+skinparam defaultFontName Arial
+skinparam defaultFontSize 11
+skinparam dpi 150
+
+actor       "Người dùng"               as U
+participant "Frontend / Nginx"         as FE
+participant "Keycloak 26.4 / Google"   as IDP
+participant "AuthController / Access"  as API
+participant "ContactOtpService"        as OTP
+database    "MySQL (V1..V9)"           as DB
+participant "SMTP (Mailpit / Brevo)"   as SMTP
+
+== 1. Đăng nhập OIDC PKCE / Google OAuth2 & đồng bộ danh tính ==
+U   -> FE  : Chọn Đăng nhập / "Tiếp tục với Google" / Quên mật khẩu
+FE  -> IDP : Authorization Code + PKCE S256
+alt Quên mật khẩu
+  IDP -> SMTP : Gửi liên kết đặt lại mật khẩu 1 lần (hiển thị thông báo trung tính)
+  SMTP --> U  : Email khôi phục (đặt lại thành công mở khóa tạm tức thì)
+else Xác thực thành công (hoặc sai 5 lần -> khóa 60–900s)
+  IDP --> FE  : JWT Access Token (aud=clinic-api)
+end
+
+FE  -> API : GET /api/me (Bearer JWT)
+API -> API : Kiểm tra issuer, chữ ký RSA, hạn token & claims
+API -> DB  : SELECT id, active, username, email_hash, phone_hash\nFROM user_account WHERE issuer=? AND subject=?
+alt Tài khoản đã bị Quản trị khóa (active=false)
+  API --> FE : 403 Account disabled (chặn ngay cả khi JWT còn hạn)
+else Lần đăng nhập đầu tiên / Google lần đầu
+  API -> DB : BEGIN; INSERT user_account (UUIDv3(issuer|subject),\nAES-256-GCM email/SĐT, HMAC-SHA256 hashes);\nINSERT user_role='PATIENT' & patient; audit ACCOUNT_REGISTERED; COMMIT
+  API --> FE : 200 Actor {id, roles}
+end
+
+== 2. Đổi email liên hệ có xác thực OTP 6 chữ số (Tài khoản của tôi) ==
+U   -> FE  : Nhập email mới -> nhấn "Gửi mã OTP"
+FE  -> FE  : Nginx limit_req zone=otp_ip 10r/m burst=5 (vượt -> 429)
+FE  -> API : POST /api/me/contact/otp {email}
+API -> OTP : sendOtp(actorId, normalizedEmail)
+OTP -> DB  : Kiểm tra cooldown 30s (actor + email_hash)\nvà <= 5 lượt/3600s trong contact_otp_send_log
+alt Vượt ngưỡng tần suất
+  OTP --> FE : 429 Too Many Requests
+else Hợp lệ
+  OTP -> OTP  : Sinh OTP 6 chữ số; băm SHA-256/HMAC (actor|email|code)
+  OTP -> SMTP : Gửi mã OTP 6 chữ số (TTL 300s)
+  alt SMTP lỗi
+    SMTP --> OTP : MailException -> 503 (không lưu OTP giả)
+  else Gửi thành công
+    OTP -> DB : UPSERT contact_otp + INSERT contact_otp_send_log + audit CONTACT_OTP_SENT
+    OTP --> FE : 200 {expiresInSeconds: 300}
+  end
+end
+
+U   -> FE  : Nhập OTP 6 chữ số (và SĐT chuẩn hóa) -> Lưu
+FE  -> API : PUT /api/me/contact {email, phone, otp}
+API -> OTP : verifyAndConsume(actorId, normalizedEmail, otp)
+OTP -> DB  : Kiểm tra email_hash, expires_at >= now, attempts < 5
+alt Sai OTP / hết hạn / sai email đích
+  OTP -> DB : Tăng attempts (xóa nếu >= 5); trả 400 / 409
+else OTP khớp
+  OTP -> DB : DELETE contact_otp WHERE actor_id=?
+  API -> DB : UPDATE user_account SET email_encrypted/hash, phone_encrypted/hash;\nINSERT audit_event CONTACT_UPDATED; COMMIT
+  API --> FE : 200 Cập nhật thành công (đổi chỉ SĐT không cần OTP)
+end
+
+@enduml

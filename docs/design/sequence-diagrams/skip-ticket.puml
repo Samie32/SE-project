@@ -7,12 +7,12 @@ skinparam ParticipantPadding 10
 skinparam BoxPadding 8
 skinparam dpi 150
 
-actor       "Lễ tân"             as R
+actor       "Lễ tân / Bác sĩ"   as R
 participant "Dịch vụ hàng đợi"  as SVC
 database    "MySQL"              as DB
 
-R -> SVC : bỏQua(ticketId, lý_do)
-SVC -> SVC : xác thực; phân quyền lễ tân; yêu cầu lý do
+R -> SVC : bỏQua(ticketId, lý_do, version)
+SVC -> SVC : xác thực; queueAccess (lễ tân hoặc bác sĩ được phân công); yêu cầu lý do
 SVC -> DB : BEGIN; khóa Bác sĩ, rồi phiếu
 
 alt [phiếu CALLED]

@@ -4,267 +4,286 @@ skinparam entity {
   BorderColor #555
   ArrowColor #333
   FontName Arial
-  FontSize 10
+  FontSize 9
 }
 skinparam noteBackgroundColor #FFFDE7
 skinparam noteBorderColor #F9A825
 skinparam shadowing false
-skinparam dpi 150
-title Mo hinh du lieu logic - MySQL / InnoDB
+skinparam dpi 130
+left to right direction
+title ERD Tổng quan — 24 bảng MySQL 8.4 / InnoDB (Flyway V1..V11)
 
-entity "UserAccount" as UA {
+entity "user_account" as UA {
   * id : CHAR(36) <<PK>>
   --
-  issuer : VARCHAR(255)
-  subject : VARCHAR(255)
-  status : VARCHAR(32)
+  issuer : VARCHAR(255) <<UK>>
+  subject : VARCHAR(255) <<UK>>
+  username : VARCHAR(255) [V4]
+  display_name : VARCHAR(255)
+  active : BOOLEAN
+  staff : BOOLEAN [V5]
+  email_encrypted : BLOB
+  email_hash : CHAR(64) [V8,IX]
+  phone_encrypted : BLOB [V8]
+  phone_hash : CHAR(64) [V8,IX]
 }
 
-entity "UserRole" as UR {
+entity "user_role" as UR {
   * user_id : CHAR(36) <<PK,FK>>
   * role : VARCHAR(32) <<PK>>
 }
 
-entity "AuditEvent" as AE {
-  * id : CHAR(36) <<PK>>
-  --
-  actor_id : CHAR(36) <<FK,nullable>>
-  actor_type : VARCHAR(32)
-  actor_label : VARCHAR(255)
-  resource_type : VARCHAR(255)
-  resource_id : VARCHAR(255)
-  action : VARCHAR(255)
-  result : VARCHAR(32)
-  timestamp : DATETIME(6)
-  correlation_id : VARCHAR(255)
-}
-
-entity "IdempotencyRecord" as IR {
+entity "contact_otp [V9]" as CO {
   * actor_id : CHAR(36) <<PK,FK>>
-  * operation : VARCHAR(64) <<PK>>
-  * request_key : VARCHAR(128) <<PK>>
   --
-  request_hash : VARCHAR(255)
-  result_resource_id : CHAR(36)
+  email_hash : CHAR(64)
+  otp_hash : CHAR(64)
   expires_at : DATETIME(6)
+  sent_at : DATETIME(6)
+  attempts : INT
 }
 
-entity "OutboxEvent" as OE {
+entity "contact_otp_send_log [V9]" as COS {
   * id : CHAR(36) <<PK>>
   --
-  aggregate_version : INT
-  aggregate_id : CHAR(36)
-  event_type : VARCHAR(64)
-  status : VARCHAR(32)
-  created_at : DATETIME(6)
-  lease_until : DATETIME(6)
+  email_hash : CHAR(64) <<IX>>
+  sent_at : DATETIME(6) <<IX>>
 }
 
-entity "Doctor" as D {
-  active : BOOLEAN
-  --
+entity "patient" as P {
   * id : CHAR(36) <<PK>>
+  --
   user_id : CHAR(36) <<FK,UK>>
-  display_name : VARCHAR(255)
 }
 
-entity "Specialty" as SP {
-  active : BOOLEAN
-  --
+entity "doctor" as D {
   * id : CHAR(36) <<PK>>
-  name : VARCHAR(255) <<UK>>
+  --
+  user_id : CHAR(36) <<FK,UK>>
+  active : BOOLEAN
 }
 
-entity "DoctorSpecialty" as DS {
+entity "specialty" as SP {
+  * id : CHAR(36) <<PK>>
+  --
+  name : VARCHAR(255) <<UK>>
+  active : BOOLEAN
+}
+
+entity "doctor_specialty" as DS {
   * doctor_id : CHAR(36) <<PK,FK>>
   * specialty_id : CHAR(36) <<PK,FK>>
 }
 
-entity "TimeOff" as TO {
-  * id : CHAR(36) <<PK>>
-  --
-  doctor_id : CHAR(36) <<FK>>
-  start_at : DATETIME(6)
-  end_at : DATETIME(6)
-}
-
-entity "Availability" as AV {
-  slot_minutes : INT
-  --
-  * id : CHAR(36) <<PK>>
-  doctor_id : CHAR(36) <<FK>>
-  start_at : DATETIME(6)
-  end_at : DATETIME(6)
-  mode : VARCHAR(32)
-}
-
-entity "Slot" as SL {
-  * id : CHAR(36) <<PK>>
-  --
-  availability_id : CHAR(36) <<FK>>
-  doctor_id : CHAR(36) <<FK>>
-  start_at : DATETIME(6)
-  end_at : DATETIME(6)
-  mode : VARCHAR(32)
-}
-
-entity "ClinicHours" as CH {
+entity "clinic_hours [V3]" as CH {
   * day_of_week : TINYINT <<PK>>
   --
   opens_at : CHAR(5)
   closes_at : CHAR(5)
 }
 
-entity "ClinicHoliday" as HL {
+entity "clinic_holiday [V6]" as HL {
   * id : CHAR(36) <<PK>>
   --
-  start_date : DATE
-  end_date : DATE
+  start_date : DATE <<IX>>
+  end_date : DATE <<IX>>
   name : VARCHAR(255)
   closed : BOOLEAN
   opens_at : CHAR(5)
   closes_at : CHAR(5)
 }
 
-entity "Patient" as P {
-  contact_encrypted : BLOB
-  --
+entity "availability" as AV {
   * id : CHAR(36) <<PK>>
-  user_id : CHAR(36) <<FK,UK>>
-  display_name : VARCHAR(255)
+  --
+  doctor_id : CHAR(36) <<FK>>
+  start_at : DATETIME(6)
+  end_at : DATETIME(6)
+  slot_minutes : INT
+  mode : VARCHAR(16)
 }
 
-entity "Appointment" as AP {
-  version : INT
-  cancellation_reason : TEXT
-  --
+entity "time_off" as TO {
   * id : CHAR(36) <<PK>>
+  --
+  doctor_id : CHAR(36) <<FK>>
+  start_at : DATETIME(6) [V11]
+  end_at : DATETIME(6) [V11]
+}
+
+entity "slot" as SL {
+  * id : CHAR(36) <<PK>>
+  --
+  availability_id : CHAR(36) <<FK>>
+  doctor_id : CHAR(36) <<FK,UK>>
+  start_at : DATETIME(6) <<UK,V10>>
+  end_at : DATETIME(6) <<UK>>
+  mode : VARCHAR(16)
+}
+
+entity "appointment" as AP {
+  * id : CHAR(36) <<PK>>
+  --
   patient_id : CHAR(36) <<FK>>
   doctor_id : CHAR(36) <<FK>>
   slot_id : CHAR(36) <<FK>>
-  start_at : DATETIME(6)
-  end_at : DATETIME(6)
-  status : VARCHAR(32)
-  mode : VARCHAR(32)
-}
-
-entity "NotificationJob" as NJ {
-  appointment_version : INT
-  attempts : INT
-  --
-  * id : CHAR(36) <<PK>>
-  appointment_id : CHAR(36) <<FK>>
-  due_at : DATETIME(6)
-  dedupe_key : VARCHAR(255) <<UK>>
-  status : VARCHAR(32)
-  channel : VARCHAR(32)
-  lease_until : DATETIME(6)
-  provider_message_id : VARCHAR(255)
-}
-
-entity "QueueTicket" as QT {
-  service_date : DATE
-  position : INT
-  --
-  * id : CHAR(36) <<PK>>
-  appointment_id : CHAR(36) <<FK,UK>>
-  doctor_id : CHAR(36) <<FK>>
-  status : VARCHAR(32)
-}
-
-entity "Encounter" as EN {
+  start_at : DATETIME(6) [V11]
+  end_at : DATETIME(6) [V11]
+  mode : VARCHAR(16)
+  status : VARCHAR(24) [V11]
   version : INT
-  --
+  cancellation_reason : VARCHAR(1000)
+  no_show_reason : VARCHAR(24) [V7]
+}
+
+entity "queue_ticket" as QT {
   * id : CHAR(36) <<PK>>
+  --
   appointment_id : CHAR(36) <<FK,UK>>
-  status : VARCHAR(32)
+  doctor_id : CHAR(36) <<FK,UK>>
+  queue_date : DATE <<UK>>
+  position : BIGINT <<UK>>
+  status : VARCHAR(16)
+  version : INT
+  skip_reason : VARCHAR(1000)
+  created_at : DATETIME(6)
 }
 
-entity "TelehealthSession" as TS {
-  version : INT
-  --
+entity "encounter" as EN {
   * id : CHAR(36) <<PK>>
+  --
   appointment_id : CHAR(36) <<FK,UK>>
-  provider_room_id : VARCHAR(255) <<UK,nullable>>
-  status : VARCHAR(32)
-  ended_at : DATETIME(6)
+  status : VARCHAR(16)
+  started_at : DATETIME(6)
+  completed_at : DATETIME(6)
 }
 
-entity "ProviderEvent" as PE {
-  * provider : VARCHAR(64) <<PK>>
-  * event_id : VARCHAR(255) <<PK>>
-  --
-  session_id : CHAR(36) <<FK>>
-  received_at : DATETIME(6)
-}
-
-entity "MedicalRecord" as MR {
-  version : INT
-  content_encrypted : BLOB
-  amendment_reason : TEXT
-  --
+entity "medical_record" as MR {
   * id : CHAR(36) <<PK>>
+  --
+  encounter_id : CHAR(36) <<FK,UK>>
+  version : INT <<UK>>
+  status : VARCHAR(16)
+  content_encrypted : MEDIUMBLOB
+  supersedes_id : CHAR(36) <<FK,UK>>
+  amendment_reason : VARCHAR(1000)
+  created_at : DATETIME(6)
+}
+
+entity "prescription" as PR {
+  * id : CHAR(36) <<PK>>
+  --
   encounter_id : CHAR(36) <<FK>>
-  author_id : CHAR(36) <<FK>>
-  status : VARCHAR(32)
-  supersedes_id : CHAR(36) <<FK,UK,nullable>>
-}
-
-entity "Prescription" as PR {
   version : INT
-  --
-  * id : CHAR(36) <<PK>>
-  encounter_id : CHAR(36) <<FK>>
-  author_id : CHAR(36) <<FK>>
-  status : VARCHAR(32)
+  status : VARCHAR(16)
+  items_encrypted : MEDIUMBLOB
+  created_at : DATETIME(6)
   issued_at : DATETIME(6)
 }
 
-entity "PrescriptionItem" as PI {
+entity "telehealth_session" as TS {
   * id : CHAR(36) <<PK>>
   --
-  prescription_id : CHAR(36) <<FK>>
-  medicine_name : VARCHAR(255)
-  dose_text : VARCHAR(255)
-  route : VARCHAR(255)
-  frequency : VARCHAR(255)
-  duration_text : VARCHAR(255)
+  appointment_id : CHAR(36) <<FK,UK>>
+  status : VARCHAR(16)
+  version : INT
+  patient_consented_at : DATETIME(6)
+  ended_at : DATETIME(6)
+}
+
+entity "telehealth_token" as TT {
+  * token_hash : CHAR(64) <<PK>>
+  --
+  session_id : CHAR(36) <<FK>>
+  user_id : CHAR(36) <<FK>>
+  expires_at : DATETIME(6)
+}
+
+entity "telehealth_signal" as TSG {
+  * id : BIGINT <<PK,AI>>
+  --
+  session_id : CHAR(36) <<FK>>
+  sender_id : CHAR(36) <<FK>>
+  kind : VARCHAR(16)
+  payload_encrypted : MEDIUMBLOB
+  created_at : DATETIME(6)
+}
+
+entity "notification_job" as NJ {
+  * id : CHAR(36) <<PK>>
+  --
+  appointment_id : CHAR(36) <<FK,UK>>
+  appointment_version : INT <<UK>>
+  event_type : VARCHAR(32) <<UK>>
+  status : VARCHAR(16)
+  attempts : INT
+  due_at : DATETIME(6)
+  lease_until : DATETIME(6)
+  lease_token : CHAR(36)
+  last_error : VARCHAR(64)
+  estimated_start_at : DATETIME(6) [V7]
+}
+
+entity "audit_event" as AE {
+  * id : CHAR(36) <<PK>>
+  --
+  actor_id : CHAR(36) <<FK,nullable>>
+  actor_type : VARCHAR(16)
+  actor_label : VARCHAR(64)
+  action : VARCHAR(64)
+  resource_id : VARCHAR(128)
+  result : VARCHAR(16)
+  correlation_id : CHAR(36)
+  created_at : DATETIME(6)
+}
+
+entity "idempotency_record" as IR {
+  * actor_id : CHAR(36) <<PK,FK>>
+  * operation : VARCHAR(64) <<PK>>
+  * request_key : VARCHAR(128) <<PK>>
+  --
+  request_hash : CHAR(64)
+  response_json : JSON
+  expires_at : DATETIME(6)
 }
 
 UA ||--o{ UR
-UA ||--o| D
+UA ||--o| CO
 UA ||--o| P
+UA ||--o| D
 UA ||--o{ AE : actor_id
+UA ||--o{ IR
+UA ||--o{ TT
+UA ||--o{ TSG : sender
 
+D ||--o{ DS
+SP ||--o{ DS
 D ||--o{ AV
 D ||--o{ TO
-D }o--o{ SP : DoctorSpecialty
-
+D ||--o{ SL
+D ||--o{ AP
+D ||--o{ QT
 AV ||--o{ SL
-SL }o--o{ AP : author
+SL ||--o{ AP
+P ||--o{ AP
 
-AP }o--|| D : author
 AP ||--o| QT
 AP ||--o| EN
 AP ||--o| TS
-AP ||--o{ NJ
+AP ||--o{ NJ : transactional outbox
 
 EN ||--o{ MR
+MR |o--o| MR : supersedes_id
 EN ||--o{ PR
 
-MR |o--o| MR : supersedes
+TS ||--o{ TT
+TS ||--o{ TSG
 
-TS ||--o{ PE
-
-PR ||--o{ PI
-
-note bottom of AP
-  Composite UNIQUE: UserAccount(issuer,subject);
-  MedicalRecord(encounter_id,version);
-  QueueTicket(doctor_id,service_date,position).
-  Moc gio: UTC DATETIME(6); hang doi dung Asia/Ho_Chi_Minh.
-  Audit USER dung actor_id; SYSTEM dung actor_label va actor_id null.
-  Rang buoc null khac xem data-dictionary.md.
+note as N1
+  Tổng 24 bảng InnoDB theo đúng migration V1..V11 (Flyway).
+  Trigger bất biến/append-only: audit_event (cấm UPDATE/DELETE), medical_record FINAL & prescription ISSUED (cấm UPDATE/DELETE).
+  Chỉ mục hiệu năng V10/V11: ix_slot_start_at, ix_appointment_active_window, ix_time_off_window (giảm NFR-01 p95 từ 4,52s xuống 7,81ms).
+  Mọi DATETIME(6) lưu UTC; hàng đợi queue_date dùng DATE theo Asia/Ho_Chi_Minh.
 end note
 
 @enduml

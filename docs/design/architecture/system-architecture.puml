@@ -3,7 +3,7 @@ skinparam rectangle {
   BackgroundColor White
   BorderColor #555
   FontName Arial
-  FontSize 11
+  FontSize 10
 }
 skinparam component {
   BackgroundColor White
@@ -25,60 +25,57 @@ skinparam database {
 }
 skinparam shadowing false
 skinparam dpi 150
-title Kien truc he thong - He thong dat lich & kham tu xa phong kham ngoai tru
+title Kiến trúc hệ thống ClinicCare — Layered Modular Monolith (Kruchten 4+1 Views)
 
-actor "Benh nhan" as Patient
-actor "Nhan vien\nphong kham" as Staff
+actor "Bệnh nhân" as Patient
+actor "Nhân viên\nphòng khám" as Staff
 
-component "React + TypeScript\nTrinh duyet" as Browser
+component "React 18 + TypeScript 5\nWeb / Mobile Browser" as Browser
+component "Nginx 1.28\nSPA + Rate-limit OTP (10r/m)" as Nginx
 
-rectangle "Spring Boot - Monolith mo-dun" as Backend {
-  component "M06 Dich vu\ngui thong bao" as M06
-  component "M09 Dong phong\ntham chieu" as M09worker
-
-  component "M05 Ho so / Don thuoc\nM08 Check-in / Hang doi\nM09 Y te tu xa" as M05
-  component "M07 Kiem toan" as M07
-
-  component "Controllers / DTOs" as Controllers
-
-  component "M02 Bac si / Chuyen khoa\nM03 Lich lam viec\nM04 Lich hen" as M02
-  component "M01 Xac thuc / Phan quyen" as M01
+rectangle "Spring Boot 3.5 — Modular Monolith (Java 21)" as Backend {
+  component "Controllers / REST API\n(OpenAPI 3.1 + RFC 9457)" as Controllers
+  component "M01 Auth & Access\nContactOtp + Provisioning" as M01
+  component "M02 Catalog (Bác sĩ/CK)\nM03 Schedule & ClinicHours" as M023
+  component "M04 AppointmentService\n(Idempotency + Lock Order)" as M04
+  component "M05 ClinicalService\n(Hồ sơ + Đơn thuốc)" as M05
+  component "M08 Workflow (Hàng đợi/NO_SHOW)\nM09 Telehealth (Signaling P2P)" as M089
+  component "M06 NotificationWorker\nM07 Audit & Crypto (GCM/HMAC)" as M067
 }
 
-cloud "Nha cung cap\nEmail" as EmailSMS
-cloud "Nha cung cap\nvideo / audio" as VideoAudio
-cloud "Nha cung cap\ndanh tinh\nOAuth2 / OIDC" as IdP
-
-database "MySQL\nDu lieu mien + outbox + kiem toan" as MySQL
+cloud "Keycloak 26.4 +\nGoogle OAuth2\n(OIDC PKCE)" as IdP
+cloud "SMTP Provider\n(Mailpit / Brevo TLS)" as EmailSvc
+cloud "coturn 4.7\n(STUN/TURN :3478)" as TurnSvc
+database "MySQL 8.4 (InnoDB)\n24 bảng · Flyway V1..V11" as MySQL
 
 Patient --> Browser
 Staff --> Browser
+Browser --> Nginx : HTTPS / REST API
+Browser <--> IdP : OIDC PKCE / Google
+Browser <--> TurnSvc : WebRTC P2P / TURN Relay
 
-Browser --> Controllers : HTTPS / JSON
-Patient --> IdP : dang nhap
-
-M06 --> EmailSMS : gui / thu lai
-M09worker --> VideoAudio : dong phong / thu lai
-M05 --> MySQL : giao dich + kiem toan + outbox
-M07 --> MySQL : them (append)
-M02 --> MySQL : tai khoan / vai tro
-M01 --> IdP : issuer / khoa / xac thuc token
-
-Controllers --> M05
-Controllers --> M07
-Controllers --> M02
+Nginx --> Controllers : /api/** (limit OTP 10r/m)
 Controllers --> M01
-Controllers ..> M06 : yeu cau nhiem vu
-Controllers ..> M09worker : yeu cau dong phong
+Controllers --> M023
+Controllers --> M04
+Controllers --> M05
+Controllers --> M089
+Controllers --> M067
 
-M05 ..> VideoAudio : phong / thu nhan
-M06 ..> MySQL : giao dich + outbox
+M01 --> IdP : JWT JWKS & Admin API
+M01 --> EmailSvc : Gửi OTP đổi email
+M067 --> EmailSvc : Nhắc lịch / Chậm giờ / NO_SHOW
 
-note right of MySQL
-  Muc tieu thiet ke: mot backend
-  co the trien khai doc lap.
-  Truy cap PHI yeu cau phan quyen tai nguyen.
-  Dich vu ngoai dung provider adapter.
+M01 --> MySQL : HikariCP (pool 30)
+M023 --> MySQL
+M04 --> MySQL : SELECT ... FOR UPDATE\n(Doctor -> Patient)
+M05 --> MySQL
+M089 --> MySQL
+M067 --> MySQL : Audit append-only\n& notification_job lease
+
+note as N1
+  Mọi truy cập PHI qua RBAC + sở hữu và ghi AuditEvent fail-closed cùng giao dịch.
+  /api/webrtc/ice cấp cấu hình STUN/TURN ephemeral cho kết nối WebRTC tới coturn :3478.
 end note
 
 @enduml

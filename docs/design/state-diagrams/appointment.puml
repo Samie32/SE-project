@@ -20,7 +20,7 @@ CONFIRMED --> CANCELLED : hủy [chủ sở hữu, hiện tại ≤ bắt đầu
 
 CONFIRMED --> CHECKED_IN : checkIn [IN_PERSON, lễ tân,\nbắt đầu - 15min ≤ hiện tại < bắt đầu + 15min]\n/ tạo phiếu WAITING duy nhất
 
-CONFIRMED --> NO_SHOW : đánh dấu vắng [hiện tại ≥ bắt đầu + 15min]\n/ lễ tân (trực tiếp) hoặc bác sĩ (từ xa)
+CONFIRMED --> NO_SHOW : đánh dấu vắng [hiện tại ≥ bắt đầu + 15min]\n/ lễ tân (trực tiếp) hoặc bác sĩ (từ xa); lưu no_show_reason; tùy chọn gửi NO_SHOW_REBOOKING
 
 CONFIRMED --> IN_PROGRESS : bắtĐầuTừXa [bác sĩ được phân công,\nbệnh nhân WAITING,\nbắt đầu ≤ hiện tại < bắt đầu + 15min]\n/ phiên ACTIVE; tạo encounter
 

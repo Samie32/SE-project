@@ -11,7 +11,7 @@ skinparam shadowing false
 skinparam defaultFontName Arial
 skinparam defaultFontSize 11
 skinparam dpi 150
-title Lịch hẹn & hàng đợi — Use case chi tiết
+title Lịch hẹn, Vắng hẹn & Hàng đợi (M03–M04–M06–M08) — UML 2.5
 
 left to right direction
 
@@ -19,20 +19,22 @@ actor "Bệnh nhân" as Patient
 actor "Bác sĩ" as Doctor
 actor "Lễ tân" as Receptionist
 
-rectangle "Hệ thống phòng khám" {
+rectangle "Hệ thống phòng khám ClinicCare" {
 
-  package "M03 — Lịch làm việc" {
+  package "M03 — Khung giờ khám" {
     usecase "UC-07\nTìm slot khả dụng" as UC07
   }
 
-  package "M04 — Lịch hẹn" {
+  package "M04 & M06 — Lịch hẹn & Vắng hẹn" {
     usecase "UC-08\nĐặt lịch hẹn" as UC08
     usecase "UC-09\nĐổi lịch hẹn" as UC09
     usecase "UC-10\nHủy lịch hẹn" as UC10
     usecase "UC-11\nTiến trình lịch hẹn" as UC11
+    usecase "UC-25\nBáo chậm giờ khám\n(DELAY_NOTICE)" as UC25
+    usecase "UC-26\nGhi nhận vắng hẹn\n(NO_SHOW & mời đặt lại)" as UC26
   }
 
-  package "M08 — Hàng đợi" {
+  package "M08 — Hàng đợi trực tiếp" {
     usecase "UC-19\nCheck-in bệnh nhân" as UC19
     usecase "UC-20\nGọi bệnh nhân tiếp theo" as UC20
     usecase "UC-21\nTrả phiếu về cuối hàng đợi" as UC21
@@ -47,11 +49,15 @@ Patient --> UC11
 
 Receptionist --> UC07
 Receptionist --> UC19
+Receptionist --> UC20
 Receptionist --> UC21
+Receptionist --> UC25
+Receptionist --> UC26
 
 Doctor --> UC11
 Doctor --> UC20
 Doctor --> UC21
+Doctor --> UC26
 
 UC08 ..> UC07 : <<include>>
 UC09 ..> UC07 : <<include>>

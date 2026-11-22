@@ -6,89 +6,112 @@ skinparam entity {
   FontName Arial
   FontSize 10
 }
+skinparam noteBackgroundColor #FFFDE7
+skinparam noteBorderColor #F9A825
 skinparam shadowing false
 skinparam dpi 150
-title erd-infrastructure - MySQL / InnoDB
+title ERD Nhóm Hạ tầng, Danh tính, OTP & Thông báo (M01–M06–M07) — MySQL 8.4
 
-entity "UserAccount" as UA {
+entity "user_account" as UA {
   * id : CHAR(36) <<PK>>
   --
-  issuer : VARCHAR(255)
-  subject : VARCHAR(255)
-  status : VARCHAR(32)
+  issuer : VARCHAR(255) <<UK>>
+  subject : VARCHAR(255) <<UK>>
+  username : VARCHAR(255) [V4]
+  display_name : VARCHAR(255)
+  active : BOOLEAN
+  staff : BOOLEAN [V5]
+  email_encrypted : BLOB
+  email_hash : CHAR(64) [V8,IX]
+  phone_encrypted : BLOB [V8]
+  phone_hash : CHAR(64) [V8,IX]
 }
 
-entity "UserRole" as UR {
+entity "user_role" as UR {
   * user_id : CHAR(36) <<PK,FK>>
   * role : VARCHAR(32) <<PK>>
 }
 
-entity "AuditEvent" as AE {
+entity "contact_otp [V9]" as CO {
+  * actor_id : CHAR(36) <<PK,FK>>
+  --
+  email_hash : CHAR(64) <<IX>>
+  otp_hash : CHAR(64)
+  expires_at : DATETIME(6) <<IX>>
+  sent_at : DATETIME(6) <<IX>>
+  attempts : INT
+}
+
+entity "contact_otp_send_log [V9]" as COS {
+  * id : CHAR(36) <<PK>>
+  --
+  email_hash : CHAR(64) <<IX>>
+  sent_at : DATETIME(6) <<IX>>
+}
+
+entity "audit_event" as AE {
   * id : CHAR(36) <<PK>>
   --
   actor_id : CHAR(36) <<FK,nullable>>
-  actor_type : VARCHAR(32)
-  actor_label : VARCHAR(255)
-  resource_type : VARCHAR(255)
-  resource_id : VARCHAR(255)
-  action : VARCHAR(255)
-  result : VARCHAR(32)
-  timestamp : DATETIME(6)
-  correlation_id : VARCHAR(255)
+  actor_type : VARCHAR(16)
+  actor_label : VARCHAR(64)
+  action : VARCHAR(64)
+  resource_id : VARCHAR(128) <<IX>>
+  result : VARCHAR(16)
+  correlation_id : CHAR(36)
+  created_at : DATETIME(6) <<IX>>
 }
 
-entity "IdempotencyRecord" as IR {
+entity "idempotency_record" as IR {
   * actor_id : CHAR(36) <<PK,FK>>
   * operation : VARCHAR(64) <<PK>>
   * request_key : VARCHAR(128) <<PK>>
   --
-  request_hash : VARCHAR(255)
-  result_resource_id : CHAR(36)
+  request_hash : CHAR(64)
+  response_json : JSON
   expires_at : DATETIME(6)
 }
 
-entity "OutboxEvent" as OE {
+entity "appointment" as AP {
   * id : CHAR(36) <<PK>>
   --
-  aggregate_version : INT
-  aggregate_id : CHAR(36)
-  event_type : VARCHAR(64)
-  status : VARCHAR(32)
-  created_at : DATETIME(6)
-  lease_until : DATETIME(6)
-}
-
-entity "Appointment" as AP {
-  version : INT
-  cancellation_reason : TEXT
-  --
-  * id : CHAR(36) <<PK>>
   patient_id : CHAR(36) <<FK>>
   doctor_id : CHAR(36) <<FK>>
   slot_id : CHAR(36) <<FK>>
   start_at : DATETIME(6)
   end_at : DATETIME(6)
-  status : VARCHAR(32)
-  mode : VARCHAR(32)
+  mode : VARCHAR(16)
+  status : VARCHAR(24)
+  version : INT
+  no_show_reason : VARCHAR(24) [V7]
 }
 
-entity "NotificationJob" as NJ {
-  appointment_version : INT
-  attempts : INT
-  --
+entity "notification_job" as NJ {
   * id : CHAR(36) <<PK>>
-  appointment_id : CHAR(36) <<FK>>
-  due_at : DATETIME(6)
-  dedupe_key : VARCHAR(255) <<UK>>
-  status : VARCHAR(32)
-  channel : VARCHAR(32)
-  lease_until : DATETIME(6)
-  provider_message_id : VARCHAR(255)
+  --
+  appointment_id : CHAR(36) <<FK,UK>>
+  appointment_version : INT <<UK>>
+  event_type : VARCHAR(32) <<UK>>
+  status : VARCHAR(16) <<IX>>
+  attempts : INT
+  due_at : DATETIME(6) <<IX>>
+  lease_until : DATETIME(6) <<IX>>
+  lease_token : CHAR(36)
+  last_error : VARCHAR(64)
+  estimated_start_at : DATETIME(6) [V7]
 }
 
 UA ||--o{ UR
+UA ||--o| CO
+UA .. COS : email_hash
 UA ||--o{ AE : actor_id
 UA ||--o{ IR : actor_id
-AP ||--o{ NJ
+AP ||--o{ NJ : transactional outbox
+
+note as N1
+  notification_job đóng vai trò transactional outbox (UNIQUE trên appointment_id, appointment_version, event_type).
+  audit_event bảo vệ bằng trigger BEFORE UPDATE/DELETE; hệ thống dùng actor_type='SYSTEM' + actor_label.
+  contact_otp_send_log chặn spam OTP qua email đích (cooldown 30s, tối đa 5 lượt / 3600s).
+end note
 
 @enduml

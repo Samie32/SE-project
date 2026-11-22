@@ -1,0 +1,64 @@
+@startuml account-security-otp
+skinparam ActivityBorderColor #555
+skinparam ActivityBackgroundColor #FAFAFA
+skinparam ActivityDiamondBorderColor #555
+skinparam ActivityDiamondBackgroundColor #FAFAFA
+skinparam swimlaneBorderColor #AAAAAA
+skinparam shadowing false
+skinparam defaultFontName Arial
+skinparam defaultFontSize 11
+skinparam dpi 150
+title BP-01 — Đăng nhập PKCE/Google, Quên mật khẩu & Đổi email xác thực OTP (FR-01)
+
+|Người dùng|
+start
+if (Thao tác tài khoản?) then (Đăng nhập / Google)
+  :Chọn đăng nhập mật khẩu hoặc "Tiếp tục với Google";
+  |Keycloak / Backend|
+  :Keycloak xác thực OIDC Authorization Code + PKCE S256;
+  if (Sai mật khẩu >= 5 lần / 15p?) then (có)
+    :Tạm khóa 60–900 giây;
+    if (Chọn Quên mật khẩu?) then (có)
+      :Hiển thị thông báo trung tính;\ngửi liên kết đặt lại qua SMTP;
+      |Người dùng|
+      :Mở liên kết đặt lại mật khẩu;
+      |Keycloak / Backend|
+      :Đặt mật khẩu mới (>=8 ký tự)\nvà mở khóa tạm tức thì;
+    else (chờ hết khóa)
+      stop
+    endif
+  endif
+  :Backend kiểm tra issuer/audience/chữ ký JWT;
+  if (Tài khoản active = false?) then (bị khóa)
+    :Trả 403 Account disabled;
+    stop
+  endif
+  if (Lần đầu đăng nhập?) then (có)
+    :Tạo UUIDv3(issuer|subject), gán PATIENT;\nmã hóa AES-256-GCM + tạo email_hash/phone_hash HMAC;
+  endif
+  :Chuyển tới trang chủ đúng vai trò;
+else (Đổi email nhận thông báo)
+  |Người dùng|
+  :Nhập email mới tại "Tài khoản của tôi"\nvà nhấn "Gửi mã OTP";
+  |Frontend / Nginx|
+  :POST /api/me/contact/otp\n(Nginx limit_req 10r/m burst=5 theo IP);
+  |Keycloak / Backend|
+  if (Vượt giới hạn IP / cooldown 30s / 5 lượt/giờ?) then (vượt)
+    :Trả 429 Too Many Requests;
+    stop
+  endif
+  |MySQL / SMTP|
+  :Sinh OTP 6 số, lưu HMAC hash (TTL 300s) vào contact_otp\nvà ghi contact_otp_send_log; gửi email qua SMTP;
+  |Người dùng|
+  :Nhập OTP 6 chữ số & SĐT (tùy chọn);
+  |Keycloak / Backend|
+  :PUT /api/me/contact;
+  |MySQL / SMTP|
+  if (OTP hợp lệ, chưa hết hạn, < 5 lần sai?) then (hợp lệ)
+    :Xóa contact_otp; mã hóa email/SĐT AES-256-GCM;\ncập nhật email_hash/phone_hash HMAC; ghi audit;
+  else (sai / quá hạn)
+    :Tăng attempts hoặc xóa OTP; trả 400 / 409;
+  endif
+endif
+stop
+@enduml

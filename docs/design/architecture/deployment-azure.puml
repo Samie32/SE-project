@@ -1,0 +1,92 @@
+@startuml deployment-azure
+skinparam node {
+  BackgroundColor White
+  BorderColor #555
+  FontName Arial
+  FontSize 10
+}
+skinparam component {
+  BackgroundColor #F5F5F5
+  BorderColor #777
+}
+skinparam database {
+  BackgroundColor White
+  BorderColor #555
+}
+skinparam cloud {
+  BackgroundColor #F0F9FF
+  BorderColor #2563EB
+}
+skinparam noteBackgroundColor #FFFDE7
+skinparam noteBorderColor #F9A825
+skinparam shadowing false
+skinparam dpi 150
+title Sơ đồ Triển khai Azure VM Internet Demo (compose.internet.yaml — 20.187.80.11)
+
+node "Thiết bị người dùng\n(Desktop / Mobile)" as Client {
+  component "Trình duyệt React SPA\n& WebRTC P2P Client" as Browser
+}
+
+cloud "GitHub Actions CI/CD" as GHA {
+  component "5 Jobs: backend · frontend · api-contract\ndeploy-azure-demo · post-deploy-smoke" as CI
+}
+
+cloud "Dịch vụ ngoài" as Ext {
+  component "Google OAuth2 IdP" as Google
+  component "Brevo SMTP Relay\n(TLS :587)" as Brevo
+}
+
+node "Azure Linux VM (20.187.80.11 · DuckDNS)" as VM {
+  node "gateway (caddy:2-alpine)" as Caddy {
+    component "TLS Let's Encrypt · HSTS · CSP · XFO\ncliniccare-demo.duckdns.org (:443)\ncliniccare-auth.duckdns.org (:443)" as TLSEdge
+  }
+
+  node "frontend (Nginx 1.28)" as FE {
+    component "Static SPA + CSP\nRate-limit /api/me/contact/otp (10r/m -> 429)" as NginxProd
+  }
+
+  node "ice-config (Node 22)" as ICE {
+    component "/api/webrtc/ice (:8090)\nSinh TURN credentials ephemeral" as IceSvc
+  }
+
+  node "backend (Spring Boot 3.5 · Java 21)" as BE {
+    component "REST API + Workers\nHikariCP (30) · AES-256-GCM · HMAC-SHA256" as App
+  }
+
+  node "keycloak (26.4.0)" as KC {
+    component "OIDC + PKCE + Google Broker\nKhóa tạm 5 lần sai + Quên MK SMTP" as IdP
+  }
+
+  node "turn (coturn 4.7.0 · network_mode host)" as TURN {
+    component "STUN / TURN UDP+TCP :3478\nRelay UDP 49160–49200" as Coturn
+  }
+
+  database "mysql:8.4 (InnoDB)" as DB {
+    component "24 bảng V1..V11\nEncrypted backup + restore test" as MySQL
+  }
+
+  component "scripts/deploy-azure-demo.sh\n(Auto git reset --hard rollback khi health fail)" as DeployScript
+}
+
+Browser --> TLSEdge : HTTPS :443
+Browser <--> Coturn : STUN / TURN :3478 & 49160-49200
+CI --> DeployScript : SSH Deploy -> Healthcheck -> Rollback nếu lỗi
+CI --> TLSEdge : post-deploy-smoke (6/6 checks HTTP + STUN :3478)
+
+TLSEdge --> NginxProd : cliniccare-demo / & /api/**
+TLSEdge --> IceSvc : /api/webrtc/ice
+TLSEdge --> KC : cliniccare-auth /realms/clinic/**
+
+NginxProd --> App : /api/** (limit OTP 10r/m)
+App --> MySQL : JDBC UTC (SELECT ... FOR UPDATE)
+App --> KC : JWKS + Staff Provisioning API
+App --> Brevo : SMTP :587 (OTP & NotificationWorker)
+KC --> Google : Google OAuth2 Login
+KC --> Brevo : Email Quên mật khẩu
+
+note as N1
+  Luồng bảo vệ đa tầng OTP (NFR-15): Nginx IP rate-limit (10r/m -> 429) -> ContactOtpService (cooldown 30s, <=5/h) -> MySQL contact_otp.
+  Bản triển khai tự động phát hiện health fail trên Azure VM và rollback về prev_sha (NFR-16).
+end note
+
+@enduml

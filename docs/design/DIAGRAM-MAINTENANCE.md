@@ -1,127 +1,60 @@
 # Bảo trì sơ đồ thiết kế
 
-Hướng dẫn nhanh để cập nhật sơ đồ và trạng thái khi hoàn thiện dự án.
+Hướng dẫn nhanh để cập nhật sơ đồ và trạng thái đồng bộ giữa `SE-project-main` và trang tài liệu tĩnh `clinic-spec`.
 
 ## Tổng quan tài nguyên
 
 | Thư mục | Nội dung | Số lượng |
-|---------|----------|----------|
-| `use-case/` | Sơ đồ use-case tổng quan + 4 nhóm | 5 puml + 5 png |
-| `sequence-diagrams/` | Tuần tự cho từng UC chính | 10 puml + 10 png |
-| `activity-diagrams/` | Hoạt động có swimlane | 3 puml + 3 png |
+|---|---|---|
+| `use-case/` | Sơ đồ use-case tổng quan (27 UC) + 4 nhóm | 5 puml + 5 png |
+| `sequence-diagrams/` | Tuần tự cho từng UC & luồng bảo mật chính | 13 puml + 13 png |
+| `activity-diagrams/` | Hoạt động có swimlane | 4 puml + 4 png |
 | `state-diagrams/` | Trạng thái thực thể | 4 puml + 4 png |
-| `class-diagram/` | Mô hình miền PIM | 1 puml + 1 png |
-| `database/` | ERD tổng + 3 góc nhìn | 4 puml + 4 png |
-| `architecture/` | Kiến trúc + triển khai | 2 puml + 2 png |
+| `class-diagram/` | Mô hình miền PIM (đồng bộ 24 thực thể `V1..V11`) | 1 puml + 1 png |
+| `database/` | ERD tổng (24 bảng) + 3 góc nhìn | 4 puml + 4 png |
+| `architecture/` | Kiến trúc 4+1 + Triển khai local + Triển khai Azure VM | 3 puml + 3 png |
 
-**Tổng: 29 file `.puml` → 29 file `.png`**
+**Tổng: 34 file `.puml` → 34 file `.png`**
 
 ## Render lại sơ đồ sau khi sửa
 
 ### Yêu cầu
 
-- Java 8+ (đã cài)
-- PlantUML jar — tải nếu chưa có:
+- Java 8+ (đã cài) và Graphviz (`dot.exe`)
+- PlantUML jar (lưu ở thư mục scratch ngoài repo):
 
 ```bash
-curl -L -o /tmp/plantuml.jar \
+curl -L -o plantuml-1.2024.8.jar \
   https://github.com/plantuml/plantuml/releases/download/v1.2024.8/plantuml-1.2024.8.jar
 ```
 
-### Render một file
+### Render một file / toàn bộ thư mục
 
-```bash
-java -jar /tmp/plantuml.jar -tpng -Dfile.encoding=UTF-8 \
-  docs/design/sequence-diagrams/book-appointment.puml
+```powershell
+java -Dfile.encoding=UTF-8 -jar <path>\plantuml-1.2024.8.jar -tpng -charset UTF-8 `
+  -graphvizdot "C:\Program Files\Graphviz\bin\dot.exe" `
+  "docs\design\sequence-diagrams\*.puml"
 ```
 
-### Render toàn bộ thư mục
+## Cập nhật trang đặc tả `clinic-spec`
 
-```bash
-java -jar /tmp/plantuml.jar -tpng -Dfile.encoding=UTF-8 \
-  "docs/design/sequence-diagrams/*.puml"
-```
+Trang đặc tả tĩnh nằm ở repo `clinic-spec` (`index.html`, `requirements.html`, `usecases.html`, `diagrams.html`, `testing.html`). Khi sửa sơ đồ trong `SE-project-main/docs/design/`:
 
-### Render tất cả sơ đồ trong dự án
-
-```bash
-for dir in use-case sequence-diagrams activity-diagrams state-diagrams \
-           class-diagram database architecture; do
-  java -jar /tmp/plantuml.jar -tpng -Dfile.encoding=UTF-8 \
-    "docs/design/$dir/*.puml"
-done
-```
-
-## Cập nhật trang đặc tả HTML
-
-Trang HTML tại `Report/spec/index.html` — mở trực tiếp bằng trình duyệt (file://), không cần server.
-
-### Thêm sơ đồ mới
-
-1. Viết file `.puml` trong thư mục tương ứng
-2. Render ra `.png` (lệnh ở trên)
-3. Thêm thẻ `<img>` vào file JS tương ứng trong `Report/spec/sections/`:
-
-| Loại sơ đồ | File JS cần sửa |
-|-------------|-----------------|
-| Use-case, Sequence, Activity, State, Class, ERD, Architecture | `diagrams.js` |
-| Yêu cầu chức năng (FR) kèm thumbnail sơ đồ | `requirements.js` |
-| Đặc tả use-case (UC) | `usecases.js` |
-
-Mẫu thêm ảnh vào `diagrams.js`:
-
-```html
-<div class="img-card" onclick="lb('../../docs/design/<thư-mục>/<tên>.png')">
-  <img src="../../docs/design/<thư-mục>/<tên>.png" alt="<mô tả>"
-       onerror="this.style.height='100px';this.alt='Không tìm thấy ảnh'">
-  <div class="ic-label"><tiêu đề></div>
-</div>
-```
-
-### Cập nhật trạng thái module
-
-Trạng thái module nằm trong `Report/spec/sections/overview.js`. Mỗi module có badge trạng thái — sửa trực tiếp text trong file.
+1. Sửa `.puml` và render lại `.png` (DPI 150) trong `docs/design/<nhóm>/`.
+2. Đồng bộ file `.png` sang `clinic-spec/assets/design/<nhóm>/`.
+3. Cập nhật `clinic-spec/sections/diagrams.js`, thumbnail ở `requirements.js` và bảng trong `docs/design/README.md`.
 
 ## Lưu ý encoding tiếng Việt
 
-- PlantUML title/label dùng tiếng Việt **không dấu** (do bug encoding của PlantUML với `note bottom` block)
-- Nhãn trên mũi tên (transition label) giữ được dấu tiếng Việt bình thường
-- Workaround nếu mất dấu: dùng `note right of` thay vì `note bottom of`
-- Tất cả sơ đồ render ở `skinparam dpi 150` để đảm bảo độ phân giải đồng nhất
+- Luôn truyền `-Dfile.encoding=UTF-8` và `-charset UTF-8` khi gọi PlantUML.
+- Ưu tiên `note as N1` hoặc `note over` thay vì `note bottom of` để tránh lỗi vỡ UTF-8 trên một số phiên bản PlantUML/Graphviz.
+- Giữ thống nhất `skinparam dpi 150`.
 
-## Checklist hoàn thiện dự án
+## Checklist đồng bộ cuối kỳ
 
-Khi hoàn thiện dự án, kiểm tra theo danh sách sau:
-
-- [ ] Tất cả `.puml` render lại thành `.png` sau lần sửa cuối
-- [ ] `docs/design/README.md` — bảng danh mục sơ đồ khớp với file thực tế
-- [ ] `Report/spec/sections/diagrams.js` — mọi PNG đều có `<img>` tham chiếu
-- [ ] `Report/spec/sections/requirements.js` — FR-01→FR-24 đầy đủ thumbnail sơ đồ liên quan
-- [ ] `Report/spec/sections/usecases.js` — UC-01→UC-24 khớp tên với sơ đồ use-case
-- [ ] Mở `Report/spec/index.html` bằng trình duyệt — không có ảnh "Không tìm thấy"
-- [ ] Không có file `.env`, secret, token, dữ liệu bệnh nhân thật trong repo
-- [ ] Dữ liệu demo/kiểm thử dùng dữ liệu giả; mật khẩu/token đã che khi chụp màn hình
-
-## Lệnh kiểm tra nhanh
-
-```bash
-# Liệt kê PNG không có .puml tương ứng (file legacy)
-for f in docs/design/*/*.png; do
-  puml="${f%.png}.puml"
-  [ ! -f "$puml" ] && echo "Thiếu nguồn: $f"
-done
-
-# Liệt kê .puml không có .png (chưa render)
-for f in docs/design/*/*.puml; do
-  png="${f%.puml}.png"
-  [ ! -f "$png" ] && echo "Chưa render: $f"
-done
-
-# Kiểm tra link gãy trong HTML spec
-grep -oP 'src="[^"]*\.png"' Report/spec/sections/*.js | \
-  sed 's/.*src="//;s/"//' | \
-  while read p; do
-    ref="Report/spec/$p"
-    [ ! -f "$ref" ] && echo "Link gãy: $p"
-  done
-```
+- [ ] Tất cả **34 `.puml`** render thành **34 `.png`**, không có PNG mồ côi hoặc `.puml` chưa render.
+- [ ] `docs/design/README.md` — liệt kê đủ 34 sơ đồ và bảng chuẩn áp dụng.
+- [ ] `docs/design/database/data-dictionary.md` & `erd*.puml` — khớp 100% 24 bảng từ `V1..V11` (không sót bảng cũ giả định).
+- [ ] `clinic-spec/assets/design/` — khớp mã băm SHA-256 từng file `.png` với `SE-project-main/docs/design/`.
+- [ ] `clinic-spec/sections/diagrams.js`, `requirements.js`, `usecases.js`, `overview.js`, `testing.js` — không có chú thích trạng thái cũ hoặc ảnh gãy.
+- [ ] Dữ liệu minh họa/kiểm thử chỉ dùng dữ liệu giả; không đưa secret/token/PHI thật lên repo.

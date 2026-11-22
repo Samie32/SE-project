@@ -1,6 +1,6 @@
 # Đặc tả ca sử dụng
 
-Các ca sử dụng mô tả tương tác giữa người dùng, hệ thống và dịch vụ tích hợp. Ngoại trừ đăng nhập, các thao tác được bảo vệ yêu cầu phiên xác thực hợp lệ và quyền phù hợp. Các trường hợp từ chối truy cập được mô tả trong luồng ngoại lệ.
+Tài liệu áp dụng mẫu **Fully Dressed Use Case của Alistair Cockburn** (*Writing Effective Use Cases*, bản rút gọn gồm: Tác nhân, Mục tiêu, Tiền điều kiện, Kích hoạt, Luồng chính, Luồng thay thế, Ngoại lệ, Hậu điều kiện) kết hợp mô hình hóa **OMG UML 2.5** ([sơ đồ Use Case](../design/use-case/use-case-diagram.png)). Ngoại trừ đăng nhập, các thao tác được bảo vệ yêu cầu phiên xác thực hợp lệ và quyền phù hợp. Các trường hợp từ chối truy cập được mô tả trong luồng ngoại lệ.
 
 ## UC-01 — Đăng nhập
 
@@ -113,26 +113,26 @@ Các ca sử dụng mô tả tương tác giữa người dùng, hệ thống v�
 
 **Hậu điều kiện:** Các khung giờ được tạo đúng khoảng làm việc và thời lượng.
 
-## UC-06 — Lịch nghỉ
+## UC-06 — Lịch nghỉ, Giờ phòng khám & Ngày nghỉ lễ
 
 **Yêu cầu liên quan:** FR-06
 
 | Thuộc tính | Nội dung |
 |---|---|
-| Tác nhân | Bác sĩ |
-| Mục tiêu | Chặn nhận lịch khi nghỉ |
-| Tiền điều kiện | Khoảng nghỉ không có lịch hẹn |
-| Kích hoạt | Lưu khoảng nghỉ |
+| Tác nhân | Bác sĩ · Quản trị |
+| Mục tiêu | Chặn nhận lịch khi bác sĩ nghỉ hoặc ngoài giờ/ngày nghỉ lễ của phòng khám |
+| Tiền điều kiện | Tài khoản đúng vai trò; khoảng nghỉ cá nhân không có lịch hẹn |
+| Kích hoạt | Bác sĩ lưu khoảng nghỉ (`time-off`) hoặc Quản trị cập nhật giờ làm việc / ngày nghỉ lễ (`clinic/hours`, `clinic/holidays`) |
 
 **Luồng chính**
 
-1. Bác sĩ nhập khoảng thời gian nghỉ.
-2. Hệ thống kiểm tra các lịch hẹn chịu ảnh hưởng.
-3. Nếu không có xung đột, hệ thống ghi nhận lịch nghỉ và ngừng cung cấp các khung giờ tương ứng.
+1. Bác sĩ nhập khoảng thời gian nghỉ cá nhân, hoặc Quản trị cấu hình giờ mở cửa tuần / ngày nghỉ lễ (đóng cửa hoặc giờ đặc biệt ưu tiên cao hơn).
+2. Hệ thống kiểm tra các lịch hẹn / lịch làm việc chịu ảnh hưởng.
+3. Nếu không có xung đột, hệ thống lưu cấu hình và ngừng cung cấp các khung giờ tương ứng.
 
-**Ngoại lệ:** đã có lịch hẹn trong khoảng → trả xung đột; không tự động hủy lịch hẹn.
+**Ngoại lệ:** đã có lịch hẹn trong khoảng hoặc trùng khoảng ngày lễ → trả xung đột 409/422; không tự động hủy lịch hẹn.
 
-**Hậu điều kiện:** khung giờ trong khoảng không còn được đặt.
+**Hậu điều kiện:** khung giờ trong khoảng nghỉ cá nhân / ngoài giờ mở cửa / ngày nghỉ lễ không còn được đặt.
 
 ## UC-07 — Tìm lịch trống
 
@@ -443,10 +443,10 @@ Các ca sử dụng mô tả tương tác giữa người dùng, hệ thống v�
 
 | Thuộc tính | Nội dung |
 |---|---|
-| Tác nhân | Lễ tân |
+| Tác nhân | Lễ tân · Bác sĩ phụ trách |
 | Mục tiêu | Xử lý bệnh nhân chưa sẵn sàng |
 | Tiền điều kiện | Phiếu chờ đang CALLED |
-| Kích hoạt | Lễ tân bỏ lượt có lý do |
+| Kích hoạt | Lễ tân hoặc Bác sĩ phụ trách bỏ lượt có lý do |
 
 **Luồng chính**
 
@@ -464,10 +464,10 @@ Các ca sử dụng mô tả tương tác giữa người dùng, hệ thống v�
 
 | Thuộc tính | Nội dung |
 |---|---|
-| Tác nhân | Bệnh nhân |
+| Tác nhân | Bệnh nhân · Bác sĩ |
 | Mục tiêu | Vào đúng phòng khám trực tuyến |
-| Tiền điều kiện | Lịch từ xa CONFIRMED thuộc bệnh nhân trong cửa sổ tham gia |
-| Kích hoạt | Bệnh nhân mở phòng chờ |
+| Tiền điều kiện | Lịch từ xa CONFIRMED thuộc chủ sở hữu/bác sĩ phụ trách trong cửa sổ tham gia `[T-10p, T+15p)` |
+| Kích hoạt | Bệnh nhân hoặc Bác sĩ chuẩn bị/mở phòng chờ |
 
 **Luồng chính**
 
@@ -524,13 +524,75 @@ Các ca sử dụng mô tả tương tác giữa người dùng, hệ thống v�
 
 **Hậu điều kiện:** Phiên được khôi phục nếu còn mở; khi kết thúc, trạng thái là ENDED và quyền tham gia bị thu hồi. Hồ sơ đã lưu được bảo toàn.
 
-## Ca sử dụng mở rộng
+## UC-25 — Báo chậm giờ khám (`DELAY_NOTICE`)
 
-| Ca sử dụng | Tác nhân | Luồng và kết quả |
-|---|---|---|
-| UC-25 — Báo chậm giờ | Lễ tân | Chọn lịch đang chờ và nhập giờ dự kiến nếu có. Hệ thống kiểm tra quyền và trạng thái, rồi đưa email vào hàng đợi. Giờ hẹn giữ nguyên. |
-| UC-26 — Ghi nhận vắng hẹn | Lễ tân hoặc bác sĩ phụ trách theo hình thức khám | Từ mốc BR-08, chọn lý do nếu biết và tùy chọn gửi lời mời đặt lại. Hệ thống ghi nhận vắng hẹn và lưu tác vụ email khi được yêu cầu. |
-| UC-27 — Quản lý quyền truy cập bệnh nhân | Quản trị | Nhập chính xác mã tài khoản (UUID), email hoặc số điện thoại (chỉ mục mù HMAC-SHA256; cấm tìm theo tên). Hệ thống chỉ trả định danh tối thiểu (`id`, `displayName`, `active`) hoặc `409` nếu nhiều tài khoản dùng chung SĐT. Khi khóa/mở khóa, quản trị chọn lý do (`SECURITY_REVIEW`, `POLICY_REVIEW`, `PATIENT_REQUEST`), hệ thống cập nhật và ghi audit. |
+**Yêu cầu liên quan:** FR-25
+
+| Thuộc tính | Nội dung |
+|---|---|
+| Tác nhân | Lễ tân |
+| Mục tiêu | Thông báo sớm cho bệnh nhân khi bác sĩ trễ giờ khám mà vẫn giữ nguyên giờ hẹn chính thức |
+| Tiền điều kiện | Lịch hẹn cùng ngày phòng khám (`Asia/Ho_Chi_Minh`), ở trạng thái `CONFIRMED` trước `start + 15 phút` hoặc `CHECKED_IN` trực tiếp |
+| Kích hoạt | Lễ tân gửi thông báo chậm giờ kèm giờ bắt đầu dự kiến (tùy chọn) |
+
+**Luồng chính**
+
+1. Lễ tân chọn lịch hẹn đang chờ và nhập giờ bắt đầu dự kiến (nếu xác định được).
+2. Hệ thống kiểm tra vai trò `RECEPTIONIST`, `version`, chính sách `AppointmentDelayPolicy` và ràng buộc chưa tồn tại `DELAY_NOTICE` cho `version` hiện tại.
+3. Hệ thống tạo `notification_job` (`DELAY_NOTICE`), giữ nguyên `start_at` và trạng thái lịch hẹn, ghi audit và trả thông tin tác vụ.
+
+**Luồng thay thế:** Không nhập giờ dự kiến → gửi thông báo chậm giờ chung; nếu lịch đổi trạng thái/phiên bản trước khi worker gửi → worker tự bỏ qua (`SKIPPED`).
+
+**Ngoại lệ:** Giờ dự kiến không lớn hơn `max(start, now)`, khác ngày phòng khám (`422`), đã gửi cho `version` hiện tại hoặc ngoài điều kiện (`409`).
+
+**Hậu điều kiện:** Tối đa 1 tác vụ `DELAY_NOTICE` được xếp hàng/phiên bản; giờ hẹn gốc bất biến.
+
+## UC-26 — Ghi nhận vắng hẹn (`NO_SHOW`)
+
+**Yêu cầu liên quan:** FR-26
+
+| Thuộc tính | Nội dung |
+|---|---|
+| Tác nhân | Lễ tân (trực tiếp) · Bác sĩ phụ trách (từ xa) |
+| Mục tiêu | Đánh dấu bệnh nhân vắng mặt sau mốc trễ 15 phút và tùy chọn gửi lời mời đặt lại lịch |
+| Tiền điều kiện | Lịch hẹn ở trạng thái `CONFIRMED`, đã tới mốc `start + 15 phút` (`900 s`), bệnh nhân chưa check-in |
+| Kích hoạt | Người phụ trách gửi lệnh chuyển trạng thái `NO_SHOW` kèm mã lý do (tùy chọn) và cờ gửi email mời đặt lại |
+
+**Luồng chính**
+
+1. Lễ tân (nếu `IN_PERSON`) hoặc Bác sĩ phụ trách (nếu `REMOTE`) xác nhận bệnh nhân không đến khám quá hạn.
+2. Hệ thống kiểm tra quyền theo hình thức khám, `version`, trạng thái `CONFIRMED` và mốc `now >= start + 900 s`.
+3. Hệ thống chuyển lịch sang `NO_SHOW`, lưu `no_show_reason` (nếu có), hủy phiên từ xa `CREATED/WAITING` sang `CANCELLED` và xóa `telehealth_token`, tùy chọn tạo `NO_SHOW_REBOOKING` job, ghi audit.
+
+**Luồng thay thế:** Không chọn gửi email mời đặt lại → chỉ ghi nhận `NO_SHOW` và đóng phiên chưa dùng; không phát sinh email.
+
+**Ngoại lệ:** Lịch đã `CHECKED_IN`/`IN_PROGRESS` hoặc chưa tới `start + 15 phút` (`409`); sai vai trò theo mode (`403`).
+
+**Hậu điều kiện:** Lịch đạt trạng thái cuối `NO_SHOW`; lý do vắng hẹn được ẩn khi chính bệnh nhân xem chi tiết; quyền tài khoản bệnh nhân giữ nguyên.
+
+## UC-27 — Tra cứu chính xác & Khóa/Mở khóa tài khoản bệnh nhân
+
+**Yêu cầu liên quan:** FR-27
+
+| Thuộc tính | Nội dung |
+|---|---|
+| Tác nhân | Quản trị viên |
+| Mục tiêu | Bảo vệ hoặc khôi phục quyền truy cập tài khoản bệnh nhân không lộ PII hàng loạt |
+| Tiền điều kiện | Tài khoản đăng nhập có vai trò `ADMINISTRATOR` |
+| Kích hoạt | Quản trị viên nhập chính xác UUID, email hoặc SĐT để tra cứu và chọn Khóa/Mở khóa kèm lý do |
+
+**Luồng chính**
+
+1. Quản trị viên nhập mã tài khoản (UUID), email hoặc SĐT (`+84`/`84` tự chuẩn hóa về `0`, 7–15 chữ số).
+2. Hệ thống từ chối tìm theo tên (`400`); tra cứu theo chỉ mục mù HMAC-SHA256 (`email_hash` / `phone_hash`) hoặc UUID trên tập bệnh nhân (`staff=FALSE`, chỉ vai trò `PATIENT`).
+3. Hệ thống ghi audit `PATIENT_ACCOUNT_LOOKUP` và trả đúng 3 trường tối thiểu `{id, displayName, active}`.
+4. Khi Quản trị viên cập nhật trạng thái kèm lý do (`SECURITY_REVIEW`, `POLICY_REVIEW`, `PATIENT_REQUEST`), hệ thống cập nhật `active`, ghi audit và chặn JWT hiện hành ngay ở request kế tiếp (`403 Account disabled`).
+
+**Luồng thay thế:** Số điện thoại trùng ở >= 2 tài khoản (dùng chung SĐT gia đình) → trả `409` hướng dẫn dùng UUID.
+
+**Ngoại lệ:** Nhập tên tự do (`400`), không tìm thấy hoặc trùng mã nhân sự (`404`), thiếu quyền (`403`).
+
+**Hậu điều kiện:** Trạng thái `active` được cập nhật có audit fail-closed; không lộ email/SĐT giải mã hay bệnh án.
 
 ## Điều kiện chi tiết của các luồng liên quan
 

@@ -13,11 +13,12 @@ skinparam shadowing false
 skinparam defaultFontName Arial
 skinparam defaultFontSize 11
 skinparam dpi 150
-title Thông báo & kiểm toán — Use case chi tiết
+title Thông báo Outbox & Kiểm toán (M06–M07) — UML 2.5
 
 note as N1
-  Hành vi audit nội bộ được gọi bởi các dịch vụ được bảo vệ.
-  Kiểm toán viên chỉ tra cứu sự kiện qua UC-18.
+  UC-17 là hành vi audit nội bộ fail-closed của mọi dịch vụ được bảo vệ (gồm UC-26, UC-27).
+  Kiểm toán viên chỉ tra cứu nhật ký append-only qua UC-18, không lộ nội dung PHI.
+  UC-25 (báo chậm giờ) & UC-26 (mời đặt lại NO_SHOW) xếp hàng gửi email qua M06 (UC-15/16).
 end note
 
 left to right direction
@@ -26,11 +27,12 @@ actor "Bệnh nhân" as Patient
 actor "Lễ tân" as Receptionist
 actor "Quản trị viên" as Admin
 actor "Kiểm toán viên" as Auditor
+actor "Dịch vụ Email\n(SMTP / Brevo)" as EmailSvc
 
-rectangle "Hệ thống phòng khám" {
+rectangle "Hệ thống phòng khám ClinicCare" {
 
-  package "M06 — Thông báo" {
-    usecase "UC-15\nNhận nhắc lịch hẹn" as UC15
+  package "M06 — Thông báo Outbox (notification_job)" {
+    usecase "UC-15\nNhận xác nhận, nhắc lịch,\nbáo chậm & mời đặt lại" as UC15
     usecase "UC-16\nGiám sát lỗi gửi thông báo" as UC16
   }
 
@@ -44,4 +46,6 @@ Patient --> UC15
 Receptionist --> UC15
 Admin --> UC16
 Auditor --> UC18
+EmailSvc --> UC15
+EmailSvc --> UC16
 @enduml

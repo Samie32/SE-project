@@ -6,114 +6,128 @@ skinparam entity {
   FontName Arial
   FontSize 10
 }
+skinparam noteBackgroundColor #FFFDE7
+skinparam noteBorderColor #F9A825
 skinparam shadowing false
 skinparam dpi 150
-title erd-scheduling - MySQL / InnoDB
+title ERD Nhóm Đặt lịch & Danh mục (M02–M03–M04) — MySQL 8.4 V1..V11
 
-entity "UserAccount" as UA {
+entity "user_account" as UA {
   * id : CHAR(36) <<PK>>
   --
-  issuer : VARCHAR(255)
-  subject : VARCHAR(255)
-  status : VARCHAR(32)
-}
-
-entity "Doctor" as D {
-  active : BOOLEAN
-  --
-  * id : CHAR(36) <<PK>>
-  user_id : CHAR(36) <<FK,UK>>
+  issuer : VARCHAR(255) <<UK>>
+  subject : VARCHAR(255) <<UK>>
+  username : VARCHAR(255) [V4]
   display_name : VARCHAR(255)
-}
-
-entity "Specialty" as SP {
   active : BOOLEAN
-  --
-  * id : CHAR(36) <<PK>>
-  name : VARCHAR(255) <<UK>>
+  staff : BOOLEAN [V5]
+  email_encrypted : BLOB
+  email_hash : CHAR(64) [V8,IX]
+  phone_encrypted : BLOB [V8]
+  phone_hash : CHAR(64) [V8,IX]
 }
 
-entity "DoctorSpecialty" as DS {
+entity "patient" as P {
+  * id : CHAR(36) <<PK>>
+  --
+  user_id : CHAR(36) <<FK,UK>>
+}
+
+entity "doctor" as D {
+  * id : CHAR(36) <<PK>>
+  --
+  user_id : CHAR(36) <<FK,UK>>
+  active : BOOLEAN
+}
+
+entity "specialty" as SP {
+  * id : CHAR(36) <<PK>>
+  --
+  name : VARCHAR(255) <<UK>>
+  active : BOOLEAN
+}
+
+entity "doctor_specialty" as DS {
   * doctor_id : CHAR(36) <<PK,FK>>
   * specialty_id : CHAR(36) <<PK,FK>>
 }
 
-entity "TimeOff" as TO {
-  * id : CHAR(36) <<PK>>
-  --
-  doctor_id : CHAR(36) <<FK>>
-  start_at : DATETIME(6)
-  end_at : DATETIME(6)
-}
-
-entity "Availability" as AV {
-  slot_minutes : INT
-  --
-  * id : CHAR(36) <<PK>>
-  doctor_id : CHAR(36) <<FK>>
-  start_at : DATETIME(6)
-  end_at : DATETIME(6)
-  mode : VARCHAR(32)
-}
-
-entity "Slot" as SL {
-  * id : CHAR(36) <<PK>>
-  --
-  availability_id : CHAR(36) <<FK>>
-  doctor_id : CHAR(36) <<FK>>
-  start_at : DATETIME(6)
-  end_at : DATETIME(6)
-  mode : VARCHAR(32)
-}
-
-entity "ClinicHours" as CH {
+entity "clinic_hours [V3]" as CH {
   * day_of_week : TINYINT <<PK>>
   --
   opens_at : CHAR(5)
   closes_at : CHAR(5)
 }
 
-entity "ClinicHoliday" as HL {
+entity "clinic_holiday [V6]" as HL {
   * id : CHAR(36) <<PK>>
   --
-  start_date : DATE
-  end_date : DATE
+  start_date : DATE <<IX>>
+  end_date : DATE <<IX>>
   name : VARCHAR(255)
   closed : BOOLEAN
   opens_at : CHAR(5)
   closes_at : CHAR(5)
 }
 
-entity "Patient" as P {
-  contact_encrypted : BLOB
-  --
+entity "availability" as AV {
   * id : CHAR(36) <<PK>>
-  user_id : CHAR(36) <<FK,UK>>
-  display_name : VARCHAR(255)
+  --
+  doctor_id : CHAR(36) <<FK>>
+  start_at : DATETIME(6)
+  end_at : DATETIME(6)
+  slot_minutes : INT
+  mode : VARCHAR(16)
 }
 
-entity "Appointment" as AP {
-  version : INT
-  cancellation_reason : TEXT
-  --
+entity "time_off" as TO {
   * id : CHAR(36) <<PK>>
+  --
+  doctor_id : CHAR(36) <<FK>>
+  start_at : DATETIME(6) [V11]
+  end_at : DATETIME(6) [V11]
+}
+
+entity "slot" as SL {
+  * id : CHAR(36) <<PK>>
+  --
+  availability_id : CHAR(36) <<FK>>
+  doctor_id : CHAR(36) <<FK,UK>>
+  start_at : DATETIME(6) <<UK,V10>>
+  end_at : DATETIME(6) <<UK>>
+  mode : VARCHAR(16)
+}
+
+entity "appointment" as AP {
+  * id : CHAR(36) <<PK>>
+  --
   patient_id : CHAR(36) <<FK>>
   doctor_id : CHAR(36) <<FK>>
   slot_id : CHAR(36) <<FK>>
-  start_at : DATETIME(6)
-  end_at : DATETIME(6)
-  status : VARCHAR(32)
-  mode : VARCHAR(32)
+  start_at : DATETIME(6) [V11]
+  end_at : DATETIME(6) [V11]
+  mode : VARCHAR(16)
+  status : VARCHAR(24) [V11]
+  version : INT
+  cancellation_reason : VARCHAR(1000)
+  no_show_reason : VARCHAR(24) [V7]
 }
 
 UA ||--o| D
 UA ||--o| P
-D }o--o{ SP : DoctorSpecialty
+D ||--o{ DS
+SP ||--o{ DS
 D ||--o{ AV
 D ||--o{ TO
+D ||--o{ SL
 AV ||--o{ SL
-SL }o--o{ AP
+SL ||--o{ AP
 P ||--o{ AP
 D ||--o{ AP
+
+note as N1
+  clinic_holiday ưu tiên trên clinic_hours khi tạo availability.
+  V10 ix_slot_start_at + V11 ix_appointment_active_window / ix_time_off_window phục vụ GET /api/slots và đặt lịch.
+end note
 
 @enduml

@@ -4,132 +4,222 @@ skinparam class {
   BorderColor #555
   ArrowColor #333
   FontName Arial
-  FontSize 11
+  FontSize 10
 }
 skinparam noteBackgroundColor #FFFDE7
 skinparam noteBorderColor #F9A825
 skinparam shadowing false
 skinparam dpi 150
-title Mo hinh mien (PIM)
+title Mô hình miền (PIM — Domain Model UML 2.5) · Đồng bộ 24 thực thể V1..V11
 
-class UserAccount <<C>> {
+class UserAccount {
   id : UUID
-  status : TrangThaiTaiKhoan
+  issuer : String
+  subject : String
+  username : String
+  displayName : String
+  active : Boolean
+  staff : Boolean
+  emailHash : String
+  phoneHash : String
+  contactLookup()
+  updateAccess(active, reason)
 }
 
-class UserRole <<C>> {
+class UserRole {
   role : VaiTro
 }
 
-class Doctor <<C>> {
+class ContactOtp {
+  emailHash : String
+  otpHash : String
+  expiresAt : Instant
+  attempts : Integer
+  verifyAndConsume()
+}
+
+class ContactOtpSendLog {
+  emailHash : String
+  sentAt : Instant
+}
+
+class Patient {
+  id : UUID
+}
+
+class Doctor {
+  id : UUID
   active : Boolean
 }
 
-class AuditEvent <<C>> {
-  actorType : NGUOIDUNG hoac HETHONG
-  actorLabel : String
+class Specialty {
+  id : UUID
+  name : String
+  active : Boolean
 }
 
-class Patient <<C>> {
+class ClinicHours {
+  dayOfWeek : int
+  opensAt : String
+  closesAt : String
 }
 
-class Availability <<C>> {
+class ClinicHoliday {
+  id : UUID
+  startDate : LocalDate
+  endDate : LocalDate
+  name : String
+  closed : Boolean
+}
+
+class Availability {
+  id : UUID
   startAt : Instant
   endAt : Instant
   slotMinutes : Integer
+  mode : CheDoKham
 }
 
-class TimeOff <<C>> {
+class TimeOff {
+  id : UUID
+  startAt : Instant
+  endAt : Instant
 }
 
-class Specialty <<C>> {
-}
-
-class Slot <<C>> {
+class Slot {
+  id : UUID
   startAt : Instant
   endAt : Instant
   mode : CheDoKham
 }
 
-class Appointment <<C>> {
+class Appointment {
+  id : UUID
   status : TrangThaiLichHen
+  mode : CheDoKham
   version : Integer
+  cancellationReason : String
+  noShowReason : NoShowReason
   reschedule()
   cancel()
-  start()
-  complete()
+  markNoShow()
 }
 
-class QueueTicket <<C>> {
-  position : Integer
+class QueueTicket {
+  id : UUID
+  queueDate : LocalDate
+  position : Long
   status : TrangThaiPhieu
-  call()
+  version : Integer
+  skipReason : String
+  callNext()
   skip()
 }
 
-class TelehealthSession <<C>> {
-  status : TrangThaiPhien
-  join()
-  end()
-}
-
-class Encounter <<C>> {
+class Encounter {
+  id : UUID
   status : TrangThaiLanKham
-  version : Integer
+  startedAt : Instant
+  completedAt : Instant
 }
 
-class MedicalRecord <<C>> {
+class MedicalRecord {
+  id : UUID
   version : Integer
   status : TrangThaiHoSo
+  contentEncrypted : byte[]
   amendmentReason : String
   finalize()
   amend()
 }
 
-class Prescription <<C>> {
+class Prescription {
+  id : UUID
+  version : Integer
   status : TrangThaiDonThuoc
+  itemsEncrypted : byte[]
+  issuedAt : Instant
   issue()
 }
 
-class PrescriptionItem <<C>> {
+class TelehealthSession {
+  id : UUID
+  status : TrangThaiPhien
+  version : Integer
+  patientConsentedAt : Instant
+  endedAt : Instant
+  join()
+  start()
+  reconnect()
+  end()
 }
 
-class NotificationJob <<C>> {
+class TelehealthToken {
+  tokenHash : String
+  expiresAt : Instant
 }
 
-UserAccount "1" --> "0..*" UserRole
-UserAccount "1" --> "0..1" Doctor
-UserAccount "1" --> "0..1" Patient
-UserAccount "0..*" ..> AuditEvent : actor
+class TelehealthSignal {
+  kind : OFFER_ANSWER_ICE
+  payloadEncrypted : byte[]
+}
 
-Doctor "1" --> "0..*" Availability
-Doctor "1" --> "0..*" TimeOff
-Doctor "*" --> "*" Specialty
+class NotificationJob {
+  id : UUID
+  appointmentVersion : Integer
+  eventType : String
+  status : String
+  attempts : Integer
+  dueAt : Instant
+  estimatedStartAt : Instant
+}
 
-Availability "1" --> "0..*" Slot
+class AuditEvent {
+  id : UUID
+  actorType : USER_hoac_SYSTEM
+  actorLabel : String
+  action : String
+  resourceId : String
+  result : String
+  correlationId : UUID
+}
 
-Slot "0..*" --> "0..*" Appointment : lich su; toi da 1 active
+class IdempotencyRecord {
+  operation : String
+  requestKey : String
+  requestHash : String
+  expiresAt : Instant
+}
 
-Appointment "1" --> "0..1" QueueTicket
-Appointment "1" --> "0..1" TelehealthSession
-Appointment "1" --> "0..1" Encounter
+UserAccount "1" *-- "1..*" UserRole
+UserAccount "1" -- "0..1" ContactOtp
+UserAccount "1" -- "0..1" Doctor
+UserAccount "1" -- "0..1" Patient
+UserAccount "1" ..> "0..*" AuditEvent : actor
+UserAccount "1" -- "0..*" IdempotencyRecord
+UserAccount .. ContactOtpSendLog : theo emailHash
 
-Encounter "1" --> "0..*" MedicalRecord : phien ban
+Doctor "*" -- "*" Specialty
+Doctor "1" *-- "0..*" Availability
+Doctor "1" *-- "0..*" TimeOff
+ClinicHours .. Availability : ràng buộc giờ mở ca
+ClinicHoliday .. Availability : ưu tiên ngày lễ
 
-MedicalRecord "0..1" --> "0..1" MedicalRecord : tien nhiem / ke thua
+Availability "1" *-- "0..*" Slot
+Slot "1" -- "0..*" Appointment : lịch sử; tối đa 1 hiệu lực
+Doctor "1" -- "0..*" Appointment
+Patient "1" -- "0..*" Appointment
 
-Encounter "1" --> "0..*" Prescription
+Appointment "1" *-- "0..1" QueueTicket
+Appointment "1" *-- "0..1" Encounter
+Appointment "1" *-- "0..1" TelehealthSession
+Appointment "1" *-- "0..*" NotificationJob : outbox giao dịch
 
-Prescription "0..*" --> "0..*" PrescriptionItem
-Prescription "0..*" ..> NotificationJob
+Encounter "1" *-- "0..*" MedicalRecord : phiên bản
+MedicalRecord "0..1" --> "0..1" MedicalRecord : supersedes (bổ sung)
+Encounter "1" *-- "0..*" Prescription : chứa items_encrypted JSON
 
-Appointment "0..*" ..> AuditEvent : author
-MedicalRecord "0..*" ..> AuditEvent : author
-
-note bottom of Prescription
-  Ban nhap co the co 0 muc thuoc.
-  Da phat hanh yeu cau it nhat 1 muc.
-  Quyen so huu khong quy dinh xoa vat ly.
-end note
+TelehealthSession "1" *-- "0..*" TelehealthToken
+TelehealthSession "1" *-- "0..*" TelehealthSignal
 
 @enduml

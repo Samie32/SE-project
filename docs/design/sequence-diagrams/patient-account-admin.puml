@@ -1,0 +1,60 @@
+@startuml patient-account-admin
+title UC-27 / FR-27 — Tra cứu chính xác (HMAC Blind Index) & Khóa/Mở tài khoản bệnh nhân
+
+skinparam sequenceMessageAlign center
+skinparam responseMessageBelowArrow true
+skinparam ParticipantPadding 10
+skinparam BoxPadding 8
+skinparam shadowing false
+skinparam defaultFontName Arial
+skinparam defaultFontSize 11
+skinparam dpi 150
+
+actor       "Quản trị viên"           as AD
+participant "React Admin UI"          as FE
+participant "AuthController"          as API
+participant "Access & Crypto"         as SVC
+database    "MySQL (user_account)"    as DB
+participant "Audit"                   as AUD
+
+== 1. Tra cứu chính xác tài khoản bệnh nhân (cấm tìm kiếm theo tên) ==
+AD  -> FE  : Nhập UUID, email hoặc SĐT (+84 / 84 / 0...)
+FE  -> API : GET /api/patient-accounts/lookup?q=...
+API -> SVC : actor.require("ADMINISTRATOR")\nChuẩn hóa UUID / email (lowercase) / SĐT (7–15 số, +84 -> 0)
+
+alt Chuỗi là tên tự do hoặc sai định dạng UUID/email/SĐT
+  SVC --> FE : 400 Invalid request (cấm liệt kê/duyệt danh sách theo tên)
+else Định dạng UUID
+  SVC -> DB : SELECT id, display_name, active FROM user_account u\nWHERE u.id=? AND u.id<>actor AND u.staff=FALSE\nAND chỉ có role PATIENT LIMIT 1
+  alt Không tồn tại hoặc là nhân sự
+    DB --> SVC : empty -> 404 Resource not found
+  end
+else Định dạng email hoặc SĐT
+  SVC -> SVC : Tính blind index K_hmac = HMAC-SHA256(normalizedValue)
+  SVC -> DB  : SELECT id, display_name, active FROM user_account u\nWHERE (email_hash=? OR phone_hash=?) AND u.staff=FALSE\nAND chỉ có role PATIENT LIMIT 2
+  alt Không tìm thấy hoặc thuộc nhân sự
+    DB --> SVC : empty -> 404 Resource not found
+  else Khớp >= 2 tài khoản (trùng SĐT gia đình)
+    DB --> SVC : 2 dòng -> 409 Multiple accounts match; yêu cầu nhập UUID
+  end
+end
+
+SVC -> AUD : Ghi audit_event PATIENT_ACCOUNT_LOOKUP (fail-closed)
+SVC --> FE : 200 {id, displayName, active} (3 trường tối thiểu, không lộ email/SĐT/bệnh án)
+
+== 2. Khóa / Mở khóa quyền truy cập tài khoản bệnh nhân ==
+AD  -> FE  : Chọn Khóa hoặc Mở khóa + lý do\n(SECURITY_REVIEW | POLICY_REVIEW | PATIENT_REQUEST)
+FE  -> API : PUT /api/patient-accounts/{id}/access {active, reason}
+API -> SVC : BEGIN; actor.require("ADMINISTRATOR")
+SVC -> DB  : SELECT id, display_name, active FROM user_account\nWHERE id=? AND staff=FALSE AND chỉ role PATIENT FOR UPDATE
+SVC -> DB  : UPDATE user_account SET active=? WHERE id=?
+SVC -> AUD : Ghi audit_event PATIENT_ACCOUNT_LOCKED_<REASON>\nhoặc PATIENT_ACCOUNT_UNLOCKED_<REASON>
+SVC -> DB  : COMMIT
+API --> FE : 200 {id, displayName, active}
+
+note over SVC
+  Mọi request sau đó từ JWT của bệnh nhân bị khóa
+  đọc active=false trong Access.actor() và nhận ngay 403 Account disabled.
+end note
+
+@enduml

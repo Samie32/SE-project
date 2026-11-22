@@ -1,0 +1,61 @@
+@startuml delay-and-noshow
+title UC-25 & UC-26 — Báo chậm giờ khám & Ghi nhận vắng hẹn (NO_SHOW)
+
+skinparam sequenceMessageAlign center
+skinparam responseMessageBelowArrow true
+skinparam ParticipantPadding 10
+skinparam BoxPadding 8
+skinparam shadowing false
+skinparam defaultFontName Arial
+skinparam defaultFontSize 11
+skinparam dpi 150
+
+actor       "Lễ tân / Bác sĩ"         as S
+participant "WorkflowController"      as API
+participant "WorkflowService"         as SVC
+database    "MySQL (InnoDB)"          as DB
+participant "NotificationWorker"      as NW
+participant "SMTP (Mailpit / Brevo)"  as SMTP
+
+== A. UC-25 — Báo chậm giờ khám (DELAY_NOTICE — Lễ tân) ==
+S   -> API : POST /api/appointments/{id}/delay-notice\n{version, estimatedStartAt?}
+API -> SVC : delayNotice(actor, id, version, estimatedStartAt)
+SVC -> DB  : BEGIN; actor.require("RECEPTIONIST"); lockAppointment(id)
+SVC -> SVC : Kiểm tra version, AppointmentDelayPolicy:\n(cùng ngày VN; CONFIRMED trước start+900s hoặc CHECKED_IN)
+alt Chưa đúng điều kiện hoặc trùng DELAY_NOTICE cho version hiện tại
+  SVC -> DB  : ROLLBACK
+  SVC --> API : 409 / 422
+else Hợp lệ (estimatedStartAt == null hoặc > max(start, now) và cùng ngày VN)
+  SVC -> DB  : INSERT notification_job (event_type='DELAY_NOTICE', due_at=now,\nestimated_start_at=?); INSERT audit_event APPOINTMENT_DELAY_NOTICE_QUEUED; COMMIT
+  SVC --> API : 200 chi tiết job (giờ hẹn start_at & status giữ nguyên)
+end
+
+== B. UC-26 — Ghi nhận vắng hẹn NO_SHOW (Lễ tân: IN_PERSON · Bác sĩ: REMOTE) ==
+S   -> API : POST /api/appointments/{id}/progress\n{targetStatus: "NO_SHOW", version, noShowReason?, sendRebookingEmail}
+API -> SVC : progress(actor, id, "NO_SHOW", version, reason, sendRebookingEmail)
+SVC -> DB  : BEGIN; lockAppointment(id); kiểm tra quyền theo mode & version
+SVC -> DB  : Yêu cầu status == CONFIRMED và now >= start_at + 900s
+alt Đã check-in hoặc chưa đủ start + 15 phút hoặc sai quyền
+  SVC -> DB  : ROLLBACK
+  SVC --> API : 409 / 403
+else Hợp lệ
+  SVC -> DB : UPDATE telehealth_session SET status='CANCELLED', ended_at=now\nWHERE appointment_id=? AND status IN ('CREATED','WAITING')
+  SVC -> DB : DELETE telehealth_token WHERE session_id IN (...)
+  SVC -> DB : UPDATE appointment SET status='NO_SHOW', version=version+1, no_show_reason=?
+  opt sendRebookingEmail == true
+    SVC -> DB : INSERT notification_job (event_type='NO_SHOW_REBOOKING', version+1)
+  end
+  SVC -> DB : INSERT audit_event APPOINTMENT_NO_SHOW; COMMIT
+  SVC --> API : 200 Appointment NO_SHOW (bệnh nhân đọc detail không thấy noShowReason)
+end
+
+== C. Gửi email bất đồng bộ & kiểm tra lại điều kiện trước khi gửi ==
+NW  -> DB  : Claim job PENDING/lease hết hạn (FOR UPDATE SKIP LOCKED); tải appointment mới nhất
+alt version khác hoặc lịch đã đổi trạng thái / qua giờ dự kiến
+  NW -> DB : UPDATE notification_job SET status='SKIPPED'
+else Hợp lệ
+  NW -> SMTP : Gửi DELAY_NOTICE (kèm giờ dự kiến) hoặc NO_SHOW_REBOOKING (không lộ lý do)
+  NW -> DB   : UPDATE notification_job SET status='SENT' (lỗi SMTP thử lại +1/+5/+15p)
+end
+
+@enduml

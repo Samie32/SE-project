@@ -1,84 +1,59 @@
 @startuml telehealth
-title UC-22/23/24 — Tiếp nhận và kết thúc từ xa
+title UC-22/23/24 — Phiên khám từ xa WebRTC (Signaling nội bộ + coturn STUN/TURN)
 
 skinparam sequenceMessageAlign center
 skinparam responseMessageBelowArrow true
 skinparam ParticipantPadding 10
 skinparam BoxPadding 8
+skinparam shadowing false
+skinparam defaultFontName Arial
+skinparam defaultFontSize 11
 skinparam dpi 150
 
-actor       "Bệnh nhân"           as P
-actor       "Bác sĩ"              as D
-participant "Dịch vụ từ xa"       as SVC
-database    "MySQL"               as DB
-participant "Nhà cung cấp video"  as VP
+actor       "Bệnh nhân"               as P
+actor       "Bác sĩ"                  as D
+participant "TelehealthService"       as SVC
+database    "MySQL (telehealth_*)"    as DB
+participant "coturn / WebRTC P2P"     as TURN
 
-D -> SVC : chuẩnBịPhiên(appointmentId, Idempotency-Key)
-SVC -> DB : xác thực chủ sở hữu, REMOTE, CONFIRMED và cửa sổ tham gia;\ntạo / lấy phiên CREATED duy nhất + audit theo giao dịch
+P -> SVC : prepareSession(appointmentId, Idempotency-Key)
+SVC -> DB : BEGIN; khóa lịch; kiểm tra chủ sở hữu/bác sĩ, REMOTE,\nCONFIRMED và cửa sổ [start-10p, start+15p)
+DB --> SVC : tạo / lấy telehealth_session (CREATED) duy nhất + audit; COMMIT
+SVC --> P  : Session (chưa có X-Room-Token)
 
-SVC -> VP : tạo phòng idempotent theo session ID (ngoài giao dịch DB)
+P -> SVC : joinSession(sessionId, consent=true) sau khi kiểm tra camera/mic
+SVC -> DB : BEGIN; kiểm tra quyền, consent=true, cửa sổ tham gia;\nCREATED -> WAITING (patient_consented_at=now)
+SVC -> DB : sinh token ngẫu nhiên 32B -> lưu SHA-256 vào telehealth_token (TTL 300s);\naudit TELEHEALTH_JOINED; COMMIT
+SVC --> P  : {sessionId, token (300s), signalingUrl}
 
-alt [lỗi nhà cung cấp]
-  VP --> SVC : 503; CREATED vẫn có thể retry
-  break [yêu cầu chuẩn bị hiện tại thất bại]
-    SVC --> D : Retry chuẩn bị trước khi tham gia.
-  end
+D -> SVC : startSession(sessionId, version, Idempotency-Key)
+SVC -> DB : BEGIN; khóa Doctor -> Patient -> Appointment -> TelehealthSession;\nyêu cầu WAITING, patientConsentedAt != null, start <= now < start+15p
+SVC -> DB : đặt session ACTIVE, appointment IN_PROGRESS; INSERT encounter;\naudit TELEHEALTH_STARTED; COMMIT
+SVC --> D  : Session ACTIVE
+
+D -> SVC : joinSession(sessionId, consent=true)
+SVC -> DB : cấp X-Room-Token (TTL 300s) cho bác sĩ; audit TELEHEALTH_JOINED
+SVC --> D  : {token (300s), signalingUrl}
+
+P <-> SVC : GET /api/webrtc/ice (nạp STUN/TURN từ ice-config / coturn:3478)
+D <-> SVC : POST/GET /api/telehealth-sessions/{id}/signals (Header: X-Room-Token)\nmã hóa AES-256-GCM payload OFFER / ANSWER / ICE vào telehealth_signal
+P <-> TURN : Kết nối P2P Audio/Video (hoặc relay TURN UDP/TCP 3478, TLS/DTLS-SRTP)
+
+opt Ngắt kết nối & nối lại (ICE restart)
+  P -> SVC : POST /connection {version, state: "RECONNECTING"} (X-Room-Token)
+  SVC -> DB : cập nhật RECONNECTING + audit; có thể gia hạn token qua joinSession (kể cả sau +15p)
+  P -> SVC : POST /connection {version, state: "ACTIVE"} sau khi ICE restart xong
 end
 
-alt [phòng sẵn sàng]
-  SVC -> DB : khóa và kiểm tra lại lịch/phiên; lưu tham chiếu phòng + audit
-  DB --> SVC : phiên (không có token)
-  SVC --> D : phiên (không có token)
-end
-
-P -> SVC : thamGiaPhiên(participationConfirmed=true) sau kiểm tra thiết bị
-SVC -> DB : xác thực chủ sở hữu, consent, phòng sẵn sàng, cửa sổ tham gia;\nđặt WAITING và lưu audit tiếp nhận
-
-DB --> SVC : JoinToken (5 phút, gắn user/phiên)
-SVC --> P : JoinToken (5 phút, gắn user/phiên)
-P -> VP : vào phòng chờ
-
-D -> SVC : bắtĐầuPhiên(sessionId, version)
-SVC -> DB : BEGIN; khóa Bác sĩ, rồi Bệnh nhân, rồi lịch hẹn / phiên
-SVC -> DB : kiểm tra phân công, version, bệnh nhân WAITING,\nbắt đầu <= hiện tại < bắt đầu + 15min
-SVC -> DB : đặt ACTIVE, lịch IN_PROGRESS; tạo encounter; audit
-SVC -> DB : COMMIT
-DB --> SVC : phiên
-SVC --> D : phiên
-
-P -> SVC : thamGiaPhiên(sessionId, participationConfirmed=true)
-SVC -> DB : xác thực người tham gia được phân công, ACTIVE; lưu audit tiếp nhận
-DB --> SVC : JoinToken (5 phút)
-SVC --> P : JoinToken (5 phút)
-P -> VP : tham gia
-
-opt [ngắt kết nối và nối lại]
-  VP --> SVC : sự kiện đã ký (event ID)
-  SVC -> DB : loại trùng callback theo giao dịch; kiểm tra trạng thái / version;\nACTIVE -> RECONNECTING; audit
-
-  P -> SVC : thamGiaPhiên để nối lại
-  SVC -> DB : xác thực người tham gia và ACTIVE/RECONNECTING; audit
-  DB --> SVC : token mới; không giới hạn cửa sổ tham gia ban đầu
-  SVC --> P : token mới; không giới hạn cửa sổ tham gia ban đầu
-
-  SVC -> DB : sự kiện nối lại đã xác thực
-  SVC -> DB : RECONNECTING -> ACTIVE nếu vẫn mở; audit
-end
-
-D -> SVC : kếtThúcPhiên(sessionId, version)
-SVC -> DB : BEGIN; phân quyền; yêu cầu ACTIVE/RECONNECTING và version
-SVC -> DB : đặt ENDED; audit + outbox đóng phòng durable; COMMIT
-DB --> SVC : phiên ENDED (hồ sơ lâm sàng vẫn mở)
-SVC --> D : phiên ENDED (hồ sơ lâm sàng vẫn mở)
-SVC -> VP : thu hồi tiếp nhận / đóng phòng (retry job durable)
+D -> SVC : endSession(sessionId, version, Idempotency-Key)
+SVC -> DB : BEGIN; phân quyền bác sĩ; yêu cầu ACTIVE/RECONNECTING và version khớp
+SVC -> DB : đặt ENDED (ended_at=now); DELETE telehealth_token & telehealth_signal;\naudit TELEHEALTH_ENDED; COMMIT
+SVC --> D : Session ENDED (hồ sơ bệnh án vẫn mở để chốt/hoàn tất riêng)
 
 note over SVC
-  Mọi lệnh từ chối phân quyền / trạng thái không hợp lệ trước khi thay đổi dữ liệu.
-  Lỗi DB / audit đều rollback và trả 503.
-  Cấp phát nhà cung cấp sau NO_SHOW được dọn dẹp; không phát hành token.
-  Phiên đã kết thúc / hủy từ chối token và callback cũ.
-  Việc đóng phòng nhà cung cấp vẫn đang chờ cho đến khi được xác nhận;
-  hết hạn giới hạn token đã phát hành, nhưng vẫn cần đóng phòng nhà cung cấp.
+  Mọi lệnh từ chối truy cập trái phép đều ghi audit DENIED (kèm 404/403).
+  Đánh dấu NO_SHOW hủy phiên CREATED/WAITING thành CANCELLED và xóa token tức thì.
+  Rate limit signaling: < 300 thông điệp / 60 giây / người gửi (vượt -> 429).
 end note
 
 @enduml

@@ -1,81 +1,52 @@
-# Mô hình dữ liệu logic
+# Mô hình dữ liệu logic & Từ điển dữ liệu (MySQL 8.4 — V1..V11)
 
-Mô hình dữ liệu được thiết kế cho MySQL, bao gồm các thực thể, thuộc tính và ràng buộc toàn vẹn.
+Mô hình dữ liệu thực tế gồm **24 bảng InnoDB** được quản lý tuần tự qua Flyway `V1` đến `V11`. Sơ đồ xem tại [erd.png](erd.png) và 3 góc nhìn [đặt lịch](erd-scheduling.png), [lâm sàng](erd-clinical.png), [hạ tầng](erd-infrastructure.png).
 
-| Thực thể | Khóa và thuộc tính chính | Ràng buộc và phân hệ quản lý |
+## Danh mục 24 thực thể và ràng buộc
+
+| Bảng (`V1..V11`) | Khóa và thuộc tính chính | Ràng buộc và phân hệ quản lý |
 |---|---|---|
-| UserAccount | id CHAR(36) (UUID), issuer, subject, username, display_name, email_encrypted, email_hash, phone_encrypted, phone_hash, staff, active | UNIQUE(issuer,subject); index trên email_hash, phone_hash (HMAC-SHA256 dẫn xuất riêng); không lưu mật khẩu IdP |
-| ContactOtp | actor_id CHAR(36) PK/FK, email_hash, otp_hash, expires_at, sent_at, attempts | Lưu tạm mã OTP đổi email (TTL 300 s, tối đa 5 lần thử); xóa ngay khi xác thực hoặc khi hết hạn; M01 |
-| ContactOtpSendLog | id CHAR(36) PK, email_hash, sent_at | Nhật ký tần suất gửi OTP theo email đích (cooldown 30 s, tối đa 5 lượt/3600 s); M01 |
-| UserRole | user_id, role | PK ghép; vai trò nội bộ, thay đổi có nhật ký kiểm toán |
-| Patient | id, user_id, display_name, contact_encrypted | user_id unique; chỉ trường tối thiểu |
-| Doctor | id, user_id, display_name, active | user_id unique; không xóa lịch sử |
-| Specialty | id, name, active | name unique không phân biệt hoa/thường sau khi bỏ khoảng trắng đầu/cuối |
-| DoctorSpecialty | doctor_id, specialty_id | PK ghép, liên kết N:N |
-| Availability | id, doctor_id, start_at, end_at, slot_minutes, mode | start < end; slot_minutes >0 |
-| TimeOff | id, doctor_id, start_at, end_at | không được chồng lịch hẹn hiệu lực |
-| Slot | id, availability_id, doctor_id, start_at, end_at, mode | bảo toàn quan hệ doctor/availability; không chồng khung giờ cùng bác sĩ |
-| ClinicHours | day_of_week, opens_at, closes_at | PK(day_of_week 1..7); giờ mở/đóng HH:mm hoặc cùng NULL khi nghỉ; M03 |
-| ClinicHoliday | id, start_date, end_date, name, closed, opens_at, closes_at | start_date <= end_date; không trùng khoảng ngày; ưu tiên trên ClinicHours khi kiểm tra mở ca; M03 |
-| Appointment | id, patient_id, doctor_id, slot_id, start_at, end_at, mode, status, version, cancellation_reason, no_show_reason | FK; kiểm tra trùng khoảng doctor và patient; slot/doctor/mode nhất quán |
-| Encounter | id, appointment_id, status, version | appointment_id unique; một lần khám/lịch |
-| MedicalRecord | id, encounter_id, version, status, content_encrypted, author_id, supersedes_id, amendment_reason | UNIQUE(encounter_id,version), UNIQUE(supersedes_id); đã hoàn tất bất biến; bản bổ sung FINAL tham chiếu bản FINAL gần nhất, có lý do |
-| Prescription | id, encounter_id, author_id, status, issued_at, version | issued có thời điểm và ≥1 item |
-| PrescriptionItem | id, prescription_id, medicine_name, dose_text, route, frequency, duration_text | trường mô tả bắt buộc trước issue; không chứa thuật toán kê thuốc |
-| QueueTicket | id, appointment_id, doctor_id, service_date, position, status | appointment_id unique; UNIQUE(doctor_id,service_date,position); vị trí lấy nguyên tử dưới khóa Doctor |
-| TelehealthSession | id, appointment_id, provider_room_id, status, version, ended_at | appointment_id unique; provider_room_id unique; không lưu media/token dài hạn |
-| NotificationJob | id, appointment_id, appointment_version, channel, due_at, status, attempts, dedupe_key, lease_until, provider_message_id | dedupe_key unique; snapshot tối thiểu, recheck trước gửi |
-| OutboxEvent | id, aggregate_id, event_type, aggregate_version, status, created_at, lease_until | lưu cùng transaction; thông tin xử lý lấy từ aggregate_id/version, không chứa bệnh án |
-| AuditEvent | id, actor_id, actor_type, actor_label, action, resource_type, resource_id, timestamp, result, correlation_id | chỉ INSERT đối với app; resource reference không xóa dây chuyền |
-| IdempotencyRecord | actor_id CHAR(36), operation VARCHAR(64), request_key VARCHAR(128), request_hash, result_resource_id, expires_at | PK(actor_id,operation,request_key); cùng khóa nhưng khác nội dung yêu cầu → conflict |
+| `user_account` (`V1,V4,V5,V8`) | `id` CHAR(36) PK, `issuer`, `subject`, `username`, `display_name`, `active`, `staff`, `email_encrypted`, `email_hash`, `phone_encrypted`, `phone_hash` | `UNIQUE(issuer, subject)`; `INDEX(email_hash)`, `INDEX(phone_hash)` (HMAC-SHA256 dẫn xuất riêng cho tra cứu chính xác); không lưu mật khẩu; `M01` |
+| `user_role` (`V1`) | `user_id` CHAR(36) PK/FK, `role` PK | `CHECK(role IN ('PATIENT','DOCTOR','RECEPTIONIST','ADMINISTRATOR','AUDITOR'))`; `M01` |
+| `contact_otp` (`V9`) | `actor_id` CHAR(36) PK/FK, `email_hash`, `otp_hash`, `expires_at`, `sent_at`, `attempts` | Mã OTP 6 số đổi email (TTL 300s, tối đa 5 lần sai), xóa ngay khi xác thực thành công hoặc hết hạn; `INDEX(expires_at)`, `INDEX(email_hash, sent_at)`; `M01` |
+| `contact_otp_send_log` (`V9`) | `id` CHAR(36) PK, `email_hash`, `sent_at` | Theo dõi cooldown 30s và ngưỡng tối đa 5 lượt/3600s theo email đích; `INDEX(email_hash, sent_at)`; `M01` |
+| `patient` (`V1`) | `id` CHAR(36) PK, `user_id` CHAR(36) FK/UK | Liên kết 1:1 tới `user_account`; giữ dữ liệu tối thiểu phục vụ đặt lịch/khám; `M01`/`M04` |
+| `specialty` (`V1`) | `id` CHAR(36) PK, `name` UK, `active` | Tên chuyên khoa duy nhất (kiểm tra trùng không phân biệt hoa thường ở service); `M02` |
+| `doctor` (`V1`) | `id` CHAR(36) PK, `user_id` CHAR(36) FK/UK, `active` | Liên kết 1:1 tới `user_account`; tắt `active=false` không xóa lịch sử khám; `M02` |
+| `doctor_specialty` (`V1`) | `doctor_id` PK/FK, `specialty_id` PK/FK | Liên kết N:N giữa bác sĩ và chuyên khoa; `M02` |
+| `clinic_hours` (`V3`) | `day_of_week` TINYINT PK (1..7), `opens_at`, `closes_at` | `opens_at < closes_at` hoặc cùng NULL khi phòng khám nghỉ ngày đó; mặc định T2–T7 `08:00–17:00`, CN nghỉ; `M03` |
+| `clinic_holiday` (`V6`) | `id` PK, `start_date`, `end_date`, `name`, `closed`, `opens_at`, `closes_at` | `start_date <= end_date`; ưu tiên cao hơn `clinic_hours`; `INDEX(start_date, end_date)`; `M03` |
+| `availability` (`V1`) | `id` PK, `doctor_id` FK, `start_at`, `end_at`, `slot_minutes`, `mode` | `start_at < end_at`, `slot_minutes > 0`, `mode IN ('IN_PERSON','REMOTE')`; `INDEX(doctor_id, start_at, end_at)`; `M03` |
+| `time_off` (`V1,V11`) | `id` PK, `doctor_id` FK, `start_at`, `end_at` | `start_at < end_at`; không chồng lịch hẹn hiệu lực; `V11 ix_time_off_window(start_at, end_at, doctor_id)`; `M03` |
+| `slot` (`V1,V10`) | `id` PK, `availability_id` FK, `doctor_id` FK, `start_at`, `end_at`, `mode` | `UNIQUE(doctor_id, start_at, end_at)`; `V10 ix_slot_start_at(start_at, id, doctor_id, mode, end_at)`; `M03` |
+| `appointment` (`V1,V7,V11`) | `id` PK, `patient_id`, `doctor_id`, `slot_id`, `start_at`, `end_at`, `mode`, `status`, `version`, `cancellation_reason`, `no_show_reason` | `status IN ('CONFIRMED','CHECKED_IN','IN_PROGRESS','COMPLETED','CANCELLED','NO_SHOW')`; `no_show_reason` chỉ hợp lệ khi `NO_SHOW` (`PATIENT_ABSENT`, `COULD_NOT_CONTACT`, `TECHNICAL_ISSUE`, `OTHER`); `V11 ix_appointment_active_window`; `M04` |
+| `queue_ticket` (`V2`) | `id` PK, `appointment_id` UK/FK, `doctor_id` FK, `queue_date` DATE, `position` BIGINT, `status`, `version`, `skip_reason`, `created_at` | `UNIQUE(doctor_id, queue_date, position)`; `status IN ('WAITING','CALLED','IN_SERVICE','DONE')`; `position` cấp nguyên tử dưới khóa `Doctor`; `M08` |
+| `encounter` (`V2`) | `id` PK, `appointment_id` UK/FK, `status`, `started_at`, `completed_at` | `status IN ('IN_PROGRESS','COMPLETED')`; một lần khám duy nhất cho mỗi lịch hẹn đã bắt đầu; `M05` |
+| `medical_record` (`V2`) | `id` PK, `encounter_id` FK, `version`, `status`, `content_encrypted` MEDIUMBLOB, `supersedes_id` UK/FK, `amendment_reason`, `created_at` | `UNIQUE(encounter_id, version)`; trigger cấm `UPDATE` bản `FINAL` và cấm `DELETE` mọi bản ghi; bản bổ sung tạo bản `FINAL` mới có `supersedes_id` và lý do; `M05` |
+| `prescription` (`V2`) | `id` PK, `encounter_id` FK, `version`, `status`, `items_encrypted` MEDIUMBLOB, `created_at`, `issued_at` | `status IN ('DRAFT','ISSUED')`; danh sách thuốc mã hóa AES-256-GCM trong `items_encrypted`; trigger cấm `UPDATE` bản `ISSUED` và cấm `DELETE`; `M05` |
+| `telehealth_session` (`V2`) | `id` PK, `appointment_id` UK/FK, `status`, `version`, `patient_consented_at`, `ended_at` | `status IN ('CREATED','WAITING','ACTIVE','RECONNECTING','ENDED','CANCELLED')`; `M09` |
+| `telehealth_token` (`V2`) | `token_hash` CHAR(64) PK, `session_id` FK, `user_id` FK, `expires_at` | Lưu SHA-256 của `X-Room-Token` (TTL 300s); xóa tức thì khi `ENDED`/`CANCELLED`; `INDEX(expires_at)`; `M09` |
+| `telehealth_signal` (`V2`) | `id` BIGINT AUTO_INCREMENT PK, `session_id` FK, `sender_id` FK, `kind`, `payload_encrypted` MEDIUMBLOB, `created_at` | `kind IN ('OFFER','ANSWER','ICE')`; mã hóa AES-256-GCM nội dung SDP/ICE; xóa khi kết thúc phiên; `M09` |
+| `notification_job` (`V1,V7`) | `id` PK, `appointment_id` FK, `appointment_version`, `event_type`, `status`, `attempts`, `due_at`, `lease_until`, `lease_token`, `last_error`, `estimated_start_at` | Đóng vai trò transactional outbox; `UNIQUE(appointment_id, appointment_version, event_type)`; nhận job bằng `FOR UPDATE SKIP LOCKED`; `M06` |
+| `audit_event` (`V1,V2`) | `id` PK, `actor_id` FK nullable, `actor_type`, `actor_label`, `action`, `resource_id`, `result`, `correlation_id`, `created_at` | Trigger cấm `UPDATE` và `DELETE` (append-only); hệ thống dùng `actor_type='SYSTEM'` + `actor_label`; `INDEX(resource_id, created_at)`, `INDEX(created_at, id)`, `INDEX(actor_id, created_at)`; `M07` |
+| `idempotency_record` (`V1`) | Composite PK(`actor_id`, `operation`, `request_key`), `request_hash` CHAR(64), `response_json` JSON, `expires_at` | Trùng key + cùng hash trả response đã lưu trong 24h; khác hash trả `409`; `M04` |
 
-## Toàn vẹn và chuẩn hóa
+## Toàn vẹn, quy ước thời gian và khóa đồng thời
 
-Danh mục chuyên khoa tách khỏi bác sĩ, bảng nối xử lý N:N; items tách khỏi prescription, vai trò tách khỏi account. Không lưu danh sách thuốc hoặc chuyên khoa phân cách bằng dấu phẩy. Đây là hướng chuẩn hóa đến 3NF; các snapshot phục vụ audit/thông báo là sao chép có chủ đích và không phải dữ liệu nguồn.
-
-Thời điểm được lưu bằng DATETIME(6) theo quy ước UTC. Tầng ứng dụng chuyển đổi dữ liệu đầu vào sang UTC trước khi ghi và chuyển về Asia/Ho_Chi_Minh khi hiển thị. Ngày phục vụ hàng đợi dùng DATE và được xác định theo giờ phòng khám. Slot biểu diễn khoảng [start,end). DATETIME không lưu kèm múi giờ; quy ước UTC được áp dụng thống nhất tại tầng ứng dụng và kết nối cơ sở dữ liệu.
-Các thao tác đặt và đổi lịch sử dụng giao dịch InnoDB ở mức cô lập READ COMMITTED. Giao dịch khóa các bản ghi Doctor liên quan theo thứ tự ID, sau đó khóa Patient bằng SELECT ... FOR UPDATE; các bản ghi này tồn tại ngay cả khi chưa có lịch hẹn. Sau khi lấy khóa, hệ thống đọc lại lịch làm việc, lịch nghỉ và các lịch CONFIRMED/CHECKED_IN/IN_PROGRESS để kiểm tra điều kiện giao nhau: existing.start < requested.end và existing.end > requested.start. Khi đổi lịch, phép kiểm tra loại trừ chính lịch đang cập nhật. Mọi thao tác thay đổi lịch làm việc, lịch nghỉ hoặc trạng thái nhận lịch đều phải khóa cùng bản ghi Doctor. Các thao tác thay đổi lịch hẹn tuân theo cùng thứ tự khóa; khóa được giữ đến khi giao dịch hoàn tất. Cơ chế này bảo vệ cả trường hợp chưa có lịch để khóa, thay vì chỉ dựa vào UNIQUE trên slot_id. Các lịch đã kết thúc không giữ khung giờ.
-Appointment lưu start_at/end_at như snapshot của Slot. Đặt/đổi lịch đồng bộ snapshot, doctor_id, slot_id và mode trong cùng giao dịch; client không được sửa độc lập. Không thay đổi thời gian Slot đã được tham chiếu bởi lịch hẹn; thay đổi lịch làm việc phải bảo toàn các khung giờ lịch sử.
-
-Không cascade-delete bệnh án khi vô hiệu hóa user/doctor. Composition trong UML mô tả ownership, không thay thế chính sách lưu/xóa dữ liệu y tế.
-Các chỉ mục phục vụ truy vấn: appointment(doctor_id,start_at), appointment(patient_id,start_at), queue(doctor_id,service_date,status,position), notification(status,due_at), audit_event(resource_id,timestamp). Hiệu quả của các chỉ mục được đánh giá thông qua kế hoạch thực thi truy vấn trong giai đoạn triển khai.
-
-## Vòng đời và dữ liệu nhạy cảm
-
-Hồ sơ và contact cần mã hóa khi lưu/backup theo NFR-04; khóa được quản lý ngoài DB. Bản final/issued không được ghi đè; amendment giữ tham chiếu phiên bản cũ. Giữ dữ liệu trong suốt đồ án, không có chức năng xóa vĩnh viễn hoặc xuất hồ sơ. Dữ liệu demo/test hoàn toàn giả.
-
-Mô hình được biểu diễn trong [sơ đồ ERD](erd.png).
+- **Chuẩn hóa & Snapshot có chủ đích:** Danh mục chuyên khoa tách 3NF qua `doctor_specialty`; vai trò tách qua `user_role`; các mục thuốc của đơn được mã hóa chung trong `prescription.items_encrypted` dưới dạng JSON BLOB để tránh lộ PHI dạng văn bản thuần trong bảng con. `appointment.start_at/end_at` chụp từ `slot` tại thời điểm đặt/đổi trong cùng giao dịch.
+- **Quy ước thời gian:** Mọi cột `DATETIME(6)` lưu UTC; JDBC bật `connectionTimeZone=UTC&forceConnectionTimeZoneToSession=true`; tầng ứng dụng quy đổi theo `Asia/Ho_Chi_Minh` khi hiển thị và xác định ngày phục vụ `queue_date` (`DATE`).
+- **Thứ tự khóa chống deadlock & tranh chấp:** Giao dịch đặt/đổi/tiến trình khóa `Doctor` theo ID tăng dần -> `Patient` -> `Appointment` -> tài nguyên con (`Encounter`, `QueueTicket`, `TelehealthSession`) ở mức cô lập `READ COMMITTED`.
+- **Chỉ mục tối ưu hiệu năng (`V10`–`V11`):** `ix_slot_start_at`, `ix_appointment_active_window` và `ix_time_off_window` giúp `GET /api/slots` dùng covering/index scan phẳng (3 truy vấn gọn), đưa `p95` tải 50 VU từ `4,52 s` xuống `7,81 ms`.
 
 ## Ánh xạ kiểu dữ liệu MySQL
 
 | Dữ liệu | Kiểu lưu trữ |
 |---|---|
-| UUID và khóa ngoại tương ứng | CHAR(36), thống nhất cách biểu diễn chữ thường |
-| Thời điểm | DATETIME(6), giá trị UTC |
-| Ngày phục vụ hàng đợi | DATE |
-| Phiên bản, thứ tự, số lần gửi | INT |
-| Trạng thái, mã và chuỗi có giới hạn | VARCHAR với độ dài phù hợp từng trường |
-| Nội dung đã mã hóa | BLOB |
-| Cờ hoạt động | BOOLEAN |
-
-
-## Ràng buộc bổ sung của mô hình
-
-| Hạng mục | Quy định |
-|---|---|
-| ProviderEvent | PK(provider VARCHAR(64), event_id VARCHAR(255)), session_id CHAR(36) FK, received_at DATETIME(6); lưu dấu callback đã xử lý cùng giao dịch cập nhật phiên và audit |
-| AuditEvent | actor_type USER yêu cầu actor_id khác NULL; actor_type SYSTEM yêu cầu actor_id NULL và actor_label xác định dịch vụ. Quan hệ UserAccount–AuditEvent là 0..1 ở phía tác nhân |
-| MedicalRecord | supersedes_id NULL cho bản đầu; bản bổ sung yêu cầu supersedes_id và amendment_reason. Bản được tham chiếu phải thuộc cùng Encounter và là bản FINAL mới nhất |
-| TelehealthSession | provider_room_id có thể NULL khi CREATED và nhà cung cấp chưa cấp phòng; ended_at NULL trước khi ENDED/CANCELLED |
-| Prescription | issued_at NULL khi DRAFT; bắt buộc khi ISSUED. Không sửa nội dung ISSUED |
-| QueueTicket | position > 0; service_date xác định theo múi giờ phòng khám. Check-in, gọi lượt, bỏ lượt và bắt đầu/kết thúc khám cùng sử dụng khóa Doctor |
-| NotificationJob | attempts bắt đầu từ 0; lease_until NULL khi chưa được nhận xử lý; provider_message_id NULL trước khi nhà cung cấp chấp nhận |
-| OutboxEvent | hỗ trợ thông báo và đóng phòng; worker lấy dữ liệu qua aggregate_id/version. Lease hết hạn cho phép nhận lại tác vụ sau khi worker gián đoạn |
-| IdempotencyRecord | khóa xác định theo người dùng, thao tác và request_key; result_resource_id có thể NULL với kết quả hàng đợi rỗng. Lưu kết quả và khóa cùng giao dịch; TTL 24 giờ |
-| Nullability chung | PK/FK sở hữu và các trường nghiệp vụ bắt buộc không nhận NULL; các trường tùy chọn nêu trên, cancellation_reason trước khi hủy và amendment_reason ở bản đầu có thể NULL |
-
-Các giao dịch nhiều tài nguyên khóa Doctor theo ID tăng dần, tiếp đến Patient, Appointment, Encounter và các bản ghi phụ thuộc khi cần. Giao dịch chỉ thao tác một phần tài nguyên giữ nguyên thứ tự tương đối. Xung đột ràng buộc trả 409; lỗi lưu trữ/audit hoàn tác giao dịch và trả 503.
-
-ERD tổng quan được bổ sung các góc nhìn [đặt lịch](erd-scheduling.png), [lâm sàng](erd-clinical.png) và [hạ tầng dữ liệu](erd-infrastructure.png). Các góc nhìn dùng cùng định nghĩa thực thể, không phải các cơ sở dữ liệu độc lập.
-
-Thông báo báo chậm dùng trường tùy chọn `notification_job.estimated_start_at` theo UTC. Khóa duy nhất hiện thực `(appointment_id, appointment_version, event_type)` bảo đảm chỉ một tác vụ cho mỗi loại và phiên bản. `appointment.no_show_reason` là mã tùy chọn, chỉ có giá trị khi lịch ở trạng thái NO_SHOW. Quyền truy cập bệnh nhân dùng cột `user_account.active`.
+| UUID & Khóa ngoại | `CHAR(36)` chữ thường |
+| Mã băm & Blind index | `CHAR(64)` hex SHA-256 / HMAC-SHA256 |
+| Thời điểm UTC / Ngày phòng khám | `DATETIME(6)` / `DATE` |
+| Phiên bản, thứ tự, số lần thử | `INT` / `BIGINT` |
+| Trạng thái, lý do, tên ngắn | `VARCHAR(...)` kèm `CHECK` |
+| Dữ liệu mã hóa AES-256-GCM | `BLOB` / `MEDIUMBLOB` |
+| Phản hồi idempotency | `JSON` |
+| Cờ trạng thái | `BOOLEAN` |

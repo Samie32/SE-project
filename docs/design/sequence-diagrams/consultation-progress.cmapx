@@ -1,6 +1,6 @@
 <map id="consultation-progress_map" name="consultation-progress_map">
 <area shape="rect" id="id1" href="hoàn" title="hoàn" alt="" coords="515,573,562,594"/>
-<area shape="rect" id="id2" href="VANG_MAT" title="VANG_MAT" alt="" coords="515,744,611,765"/>
+<area shape="rect" id="id2" href="NO_SHOW" title="NO_SHOW" alt="" coords="515,744,604,765"/>
 <area shape="rect" id="id3" href="bắt" title="bắt" alt="" coords="515,427,649,449"/>
 <area shape="rect" id="id4" href="xác" title="xác" alt="" coords="133,940,372,962"/>
 <area shape="rect" id="id5" href="trạng" title="trạng" alt="" coords="133,1133,449,1154"/>

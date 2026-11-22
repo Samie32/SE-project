@@ -3,7 +3,7 @@ skinparam node {
   BackgroundColor White
   BorderColor #555
   FontName Arial
-  FontSize 11
+  FontSize 10
 }
 skinparam component {
   BackgroundColor #F5F5F5
@@ -15,53 +15,49 @@ skinparam database {
 }
 skinparam noteBackgroundColor #FFFDE7
 skinparam noteBorderColor #F9A825
-skinparam cloud {
-  BackgroundColor #F5F5F5
-  BorderColor #888
-}
 skinparam shadowing false
 skinparam dpi 150
-title So do trien khai (Physical view)
+title Sơ đồ Triển khai Docker Compose (Phát triển & Kiểm thử cục bộ — compose.yaml)
 
-node "Thiet bi nguoi dung" as UserDevice {
-  component "Trinh duyet / React TS"
+node "Thiết bị người dùng\n(localhost Browser)" as Client {
+  component "React 18 + Vite 8\n(WebRTC Client)" as SPA
 }
 
-node "Cong vao cong khai / HTTPS" as Ingress {
-  component "Frontend tinh"
-  component "Dinh tuyen API"
+node "Docker Network: clinic-telehealth" {
+  node "frontend (Nginx 1.28)" as FE {
+    component "Static SPA + CSP\n127.0.0.1:5173:80" as NginxLocal
+    component "limit_req otp_ip 10r/m\nProxy /api/** -> backend" as ProxyLocal
+  }
+
+  node "backend (Spring Boot 3.5)" as BE {
+    component "REST API + Workers\n127.0.0.1:8080" as SBLocal
+    component "Flyway V1..V11 + DemoData" as FlywayLocal
+  }
+
+  node "keycloak (26.4.0 dev)" as KC {
+    component "OIDC Realm: clinic\n127.0.0.1:8180" as KCLocal
+    component "Theme cliniccare" as ThemeLocal
+  }
+
+  node "mailpit (v1.27.0)" as MP {
+    component "SMTP :1025 · Web UI :8025" as MailpitLocal
+  }
+
+  database "mysql:8.4 (InnoDB)" as DB {
+    component "DB clinic · Volume mysql-data\n127.0.0.1:3307:3306" as MySQLLocal
+  }
 }
 
-node "Moi truong ung dung" as AppEnv {
-  component "Spring Boot API + worker"
-}
+SPA --> NginxLocal : HTTP :5173
+SPA <--> KCLocal : OIDC Auth Code + PKCE :8180
+ProxyLocal --> SBLocal : HTTP :8080
+SBLocal --> MySQLLocal : JDBC UTC
+SBLocal --> KCLocal : JWKS /certs & Admin API
+SBLocal --> MailpitLocal : SMTP :1025 (OTP + Nhắc lịch)
 
-node "Mang du lieu rieng" as PrivateNet {
-  database "MySQL"
-  component "Cau hinh khoa / bi mat ngoai"
-  component "Sao luu ma hoa"
-}
-
-cloud "Nha cung cap\ndanh tinh" as IdP
-cloud "Nha cung cap\nvideo" as VideoProvider
-cloud "Email" as EmailSMS
-
-UserDevice --> Ingress : HTTPS
-Ingress --> AppEnv : TLS
-AppEnv --> PrivateNet : TLS / tai khoan gioi han
-
-AppEnv --> IdP : xac thuc danh tinh
-AppEnv --> VideoProvider : kiem soat phien
-AppEnv --> EmailSMS : gui thong bao
-
-PrivateNet --> PrivateNet : sao luu ma hoa / kiem tra phuc hoi
-
-note right of AppEnv
-  Moi truong phat trien, kiem thu va demo
-  dung cau hinh / du lieu rieng biet.
-  Vong Ky Phong quan ly MySQL, moi truong va trien khai.
-  Thong tin dang nhap nha cung cap duoc tiem vao;
-  khong bao gio commit len repository.
+note as N1
+  Biến môi trường cấu hình trong .env (setup-local.ps1 sinh khóa AES/HMAC & mật khẩu giả).
+  Bản triển khai Internet Azure VM sử dụng compose.internet.yaml + Caddy 2 + coturn + Brevo SMTP xem ở deployment-azure.png.
 end note
 
 @enduml

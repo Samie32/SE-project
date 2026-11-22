@@ -1,6 +1,6 @@
 <map id="medical-record_map" name="medical-record_map">
-<area shape="rect" id="id1" href="được" title="được" alt="" coords="133,312,174,334"/>
-<area shape="rect" id="id2" href="bổ" title="bổ" alt="" coords="640,1085,681,1106"/>
+<area shape="rect" id="id1" href="bổ" title="bổ" alt="" coords="640,1085,681,1106"/>
+<area shape="rect" id="id2" href="được" title="được" alt="" coords="133,312,174,334"/>
 <area shape="rect" id="id3" href="lưu" title="lưu" alt="" coords="640,914,686,936"/>
 <area shape="rect" id="id4" href="bị" title="bị" alt="" coords="148,653,206,675"/>
 <area shape="rect" id="id5" href="audit" title="audit" alt="" coords="148,399,210,421"/>

@@ -1,53 +1,38 @@
 # Kiến trúc hệ thống — High-Level Design
 
-Kiến trúc được mô tả theo mô hình 4+1, sử dụng React + TypeScript, Java Spring Boot và MySQL.
+Kiến trúc được mô tả theo mô hình **Kruchten 4+1 Views**, sử dụng **React 18 + TypeScript 5**, **Java 21 / Spring Boot 3.5 modular monolith** và **MySQL 8.4 (InnoDB)**. Hợp đồng API tuân theo **OpenAPI 3.1.0** và lỗi chuẩn hóa **RFC 9457 (`ProblemDetail`)**.
 
 ## Quyết định chính
 
-Một backend modular monolith Spring Boot, frontend React + TypeScript, MySQL; phân lớp controller → application/domain service → repository. Module sở hữu dữ liệu, module khác gọi dịch vụ thay vì sửa bảng trực tiếp.
-
+Một backend modular monolith Spring Boot (`HikariCP` pool tối đa 30 kết nối), frontend React + TypeScript đóng gói sau `Nginx 1.28`, lưu trữ MySQL 8.4 (`Flyway V1..V11`), phân lớp `Controller -> Service/Policy -> Repository (JdbcTemplate)`. Mỗi phân hệ sở hữu bảng dữ liệu riêng và giao tiếp qua dịch vụ thay vì sửa chéo bảng.
 
 ## Các góc nhìn kiến trúc 4+1
 
 | Góc nhìn | Mô hình hoặc tài liệu | Nội dung |
 |---|---|---|
-| Logical | [Class](../class-diagram/class-diagram.png), [ERD](../database/erd.png) | Khái niệm nghiệp vụ và quan hệ dữ liệu |
-| Process | [Booking sequence](../sequence-diagrams/book-appointment.png), [telehealth](../sequence-diagrams/telehealth.png) | Giao dịch, cạnh tranh và các tích hợp bất đồng bộ |
-| Development | Bảng module bên dưới | Tách trách nhiệm, dependencies, lớp |
-| Physical | [Deployment](deployment.png) | Browser, ứng dụng, private DB, providers |
-| +1 Scenarios | [Use cases](../../analysis/use-cases.md) | UC-01–24 dẫn dắt thiết kế và kiểm thử |
+| Logical | [Class](../class-diagram/class-diagram.png), [ERD](../database/erd.png) | 24 thực thể miền & quan hệ MySQL `V1..V11` |
+| Process | [Auth/OTP](../sequence-diagrams/auth-otp-contact.png), [Booking](../sequence-diagrams/book-appointment.png), [Delay/NO_SHOW](../sequence-diagrams/delay-and-noshow.png), [Telehealth](../sequence-diagrams/telehealth.png) | Giao dịch `SELECT ... FOR UPDATE`, chống trùng lặp Idempotency, worker SMTP & P2P WebRTC |
+| Development | Bảng 9 phân hệ `M01–M09` | Ranh giới module, DTO, khóa & phân quyền |
+| Physical | [Docker local](deployment.png), [Azure VM Demo](deployment-azure.png) | Nginx rate-limit OTP `10r/m`, Caddy TLS/HSTS/CSP, Keycloak+Google, Brevo SMTP, `coturn` 3478 & CI auto-rollback |
+| +1 Scenarios | [Use cases](../../analysis/use-cases.md), [Use Case UML](../use-case/use-case-diagram.png) | 27 Use Case (Cockburn + UML 2.5) dẫn dắt thiết kế và kiểm thử |
 
-## Trách nhiệm và phụ thuộc
+## Trách nhiệm và phụ thuộc (`M01–M09`)
 
-| Phân hệ | Dữ liệu sở hữu | Phụ thuộc |
+| Phân hệ | Dữ liệu sở hữu | Phụ thuộc & điểm nhấn |
 |---|---|---|
-| M01 auth | UserAccount, vai trò mapping | IdP; M07 nhật ký kiểm toán |
-| M02 doctor | Doctor, Specialty, DoctorSpecialty | M01; M04 kiểm tra lịch trước vô hiệu hóa |
-| M03 availability | Availability, TimeOff, Slot | M02; M04 kiểm tra xung đột |
-| M04 appointment | Appointment | M01/M03, M07; phát sự kiện M06 |
-| M05 medicalrecord/prescription | Encounter, MedicalRecord, Prescription, Item | M04, M01, M07 |
-| M06 notification | NotificationJob, delivery attempts | Outbox; Email nhà cung cấp dịch vụ |
-| M07 security/audit | AuditEvent | Chính sách truy cập, kho nhật ký kiểm toán |
-| M08 checkin/queue | QueueTicket | M04, M01, M07 |
-| M09 telehealth | TelehealthSession | M04, M01, M07; video nhà cung cấp dịch vụ |
+| M01 `auth` | `user_account`, `user_role`, `contact_otp`, `contact_otp_send_log` | OIDC PKCE + Google OAuth2; OTP 6 số đổi email; tra cứu `patient-accounts/lookup` qua blind index HMAC-SHA256 tách khóa; M07 audit |
+| M02 `catalog` | `doctor`, `specialty`, `doctor_specialty` | M01; kiểm tra lịch hẹn hiệu lực trước khi ngừng nhận lịch / vô hiệu hóa bác sĩ |
+| M03 `availability` | `clinic_hours`, `clinic_holiday`, `availability`, `time_off`, `slot` | M02; ưu tiên `clinic_holiday` trên `clinic_hours`; tối ưu index `V10`/`V11` giúp `GET /api/slots` đạt `p95 = 7,81 ms` |
+| M04 `appointment` | `appointment`, `idempotency_record` | M01/M03/M07; khóa cố định `Doctor -> Patient`; sinh `notification_job` xác nhận & nhắc trước 30 phút |
+| M05 `clinical` | `encounter`, `medical_record`, `prescription` | M04/M01/M07; mã hóa AES-256-GCM; trigger MySQL khóa bất biến bản `FINAL`/`ISSUED`; bổ sung tạo version mới |
+| M06 `notification` | `notification_job` (kiêm transactional outbox) | Hàng đợi durable dùng `FOR UPDATE SKIP LOCKED` + lease 60s; `CONFIRMATION`, `REMINDER`, `DELAY_NOTICE`, `NO_SHOW_REBOOKING`; thử lại SMTP `+1/+5/+15` phút |
+| M07 `audit/security` | `audit_event` | Trigger append-only cấm `UPDATE`/`DELETE`; fail-closed hoàn tác giao dịch nếu ghi audit lỗi |
+| M08 `workflow` | `queue_ticket` | M04/M01/M07; check-in trực tiếp `[-15p, +15p)`; FIFO dưới khóa `Doctor`; hàng rỗng trả `204` |
+| M09 `telehealth` | `telehealth_session`, `telehealth_token`, `telehealth_signal` | M04/M01/M07; signaling WebRTC nội bộ mã hóa AES-256-GCM; `X-Room-Token` SHA-256 TTL 300s; `coturn` STUN/TURN `:3478` |
 
-Patient liên kết tài khoản người dùng với dữ liệu bệnh nhân. Các chức năng liên quan được phân bổ trong các phân hệ hiện có; hệ thống không tách riêng phân hệ quản lý bệnh nhân.
+## Tích hợp và bảo mật
 
-
-## Tích hợp và lỗi
-
-- Chức năng đăng nhập sử dụng OAuth2/OIDC Authorization Code + PKCE. Tích hợp IdP qua adapter; access token giữ trong bộ nhớ client, hết hạn thì đăng nhập lại.
-- Backend kiểm tra issuer/audience/expiry và quyền nội bộ; browser không tự quyết định quyền.
-- Media đi qua video nhà cung cấp dịch vụ; backend điều phối admission/session. Callback phải được xác minh và loại bỏ bản trùng theo event ID/version.
-- Thông báo: thử lại hữu hạn với backoff; khả năng bảo đảm gửi đúng một lần phụ thuộc vào cơ chế chống xử lý lặp của dịch vụ tích hợp. Trạng thái SENT chỉ xác nhận nhà cung cấp dịch vụ nhận, DELIVERED chỉ khi có receipt.
-- HTTP 400 định dạng, 401 chưa xác thực, 403 thiếu quyền, 404 không thấy tài nguyên được phép, 409 conflict/version, 422 dữ liệu nghiệp vụ sai, 503 phụ thuộc hoặc nhật ký kiểm toán không khả dụng. Không trả stack trace hay nội dung PHI trong lỗi.
-
-## Đồng bộ các vòng đời nghiệp vụ
-
-Các giao dịch bắt đầu/kết thúc khám được mô tả trong [trình tự tiến trình khám](../sequence-diagrams/consultation-progress.png). Hoàn tất bản ghi, kết thúc media và hoàn tất Encounter là các thao tác riêng. Lệnh hoàn tất Encounter chỉ thành công khi hồ sơ FINAL và phiên từ xa ENDED nếu có.
-
-Bộ xử lý nền xử lý các tác vụ đã commit bằng lease có thời hạn. Thông báo được thử lại theo BR-11; đóng phòng từ xa được lưu trong outbox và thử lại đến khi nhà cung cấp xác nhận. Trong thời gian này hệ thống không cấp token mới, nhưng chỉ đánh dấu đóng phòng tại nhà cung cấp thành công khi có xác nhận. Sự kiện callback được lưu dấu trong ProviderEvent để loại trùng trong cùng giao dịch cập nhật trạng thái.
-
-Việc tạo phòng tại nhà cung cấp nằm ngoài giao dịch khóa dữ liệu. Sau khi nhà cung cấp trả phòng, hệ thống kiểm tra lại lịch/phiên trước khi lưu và cấp quyền. Nếu lịch đã NO_SHOW, phòng được đưa vào tác vụ đóng thay vì cấp token.
-
-Môi trường phát triển, kiểm thử và trình diễn sử dụng cấu hình, dữ liệu và thông tin bí mật tách biệt. Vòng Kỷ Phong phụ trách MySQL, môi trường, mã hóa đường truyền, sao lưu/phục hồi, đóng gói và CI/CD.
+- **Xác thực & Phiên:** OAuth2/OIDC Authorization Code + PKCE S256 trên Keycloak 26.4 (có Google OAuth2 broker, khóa tạm 60–900 giây sau 5 lần sai, Quên mật khẩu qua SMTP). Access token lưu trong bộ nhớ client; Backend kiểm tra chữ ký, issuer, audience và `user_account.active` ngay tại mỗi request (`403 Account disabled` tức thì khi bị khóa).
+- **Bảo vệ dữ liệu nhạy cảm (PII/PHI):** Mã hóa ứng dụng AES-256-GCM (`content_encrypted`, `items_encrypted`, `email_encrypted`, `phone_encrypted`, `payload_encrypted`) và HMAC-SHA256 tách khóa (`email_hash`, `phone_hash`, `otp_hash`). Khóa nằm ngoài CSDL qua biến môi trường.
+- **Khám từ xa P2P WebRTC:** Không lưu video/audio trên server. Client lấy cấu hình STUN/TURN tạm thời từ `/api/webrtc/ice` (`ice-config` dùng chung secret HMAC với `coturn:3478`), trao đổi SDP/ICE mã hóa qua `/api/telehealth-sessions/{id}/signals` (giới hạn `< 300` thông điệp/60s), hỗ trợ `ICE restart` và chế độ chỉ âm thanh.
+- **An toàn phát hành & biên mạng Azure VM:** `Caddy 2` chấm dứt TLS và gắn header bảo mật (`HSTS`, `CSP`, `X-Frame-Options: DENY`, `nosniff`, `Permissions-Policy`); `Nginx` giới hạn `10r/m` (`burst=5`, HTTP `429`) trên endpoint gửi OTP; script `deploy-azure-demo.sh` tự động rollback về commit trước khi health check thất bại và job `post-deploy-smoke` xác minh cả HTTP/TLS lẫn STUN `:3478`.
