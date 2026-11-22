@@ -1,23 +1,22 @@
 @startuml use-case-3
 skinparam usecase {
   BackgroundColor White
-  BorderColor #555
-  ArrowColor #333
+  BorderColor #64748B
+  FontColor #0F172A
 }
 skinparam packageStyle rectangle
 skinparam packageBackgroundColor #FAFAFA
-skinparam packageBorderColor #AAAAAA
+skinparam packageBorderColor #94A3B8
 skinparam shadowing false
 skinparam defaultFontName Arial
 skinparam defaultFontSize 11
 skinparam dpi 150
-title Chăm sóc lâm sàng & Khám từ xa WebRTC (M05–M09) — UML 2.5
+title Nhóm 3: Chăm sóc lâm sàng & Khám từ xa WebRTC (M05–M09) — UML 2.5
 
 left to right direction
 
-actor "Bệnh nhân" as Patient
-actor "Bác sĩ" as Doctor
-actor "WebRTC / coturn\n(STUN / TURN 3478)" as VideoNet
+actor "Bệnh nhân" as Patient #DCFCE7;line:15803D
+actor "Bác sĩ" as Doctor #DBEAFE;line:1D4ED8
 
 rectangle "Hệ thống phòng khám ClinicCare" {
 
@@ -34,20 +33,30 @@ rectangle "Hệ thống phòng khám ClinicCare" {
   }
 }
 
-Patient --> UC12
-Patient --> UC22
-Patient --> UC23
-Patient --> UC24
+actor "WebRTC / coturn\n(STUN / TURN 3478)" as VideoNet <<system>> #F1F5F9;line:475569
 
-Doctor --> UC12
-Doctor --> UC13
-Doctor --> UC14
-Doctor --> UC22
-Doctor --> UC23
-Doctor --> UC24
+Patient -[#15803D]- UC12
+Patient -[#15803D]- UC22
+Patient -[#15803D]- UC23
+Patient -[#15803D]- UC24
 
-VideoNet --> UC23
-VideoNet --> UC24
+Doctor -[#1D4ED8]- UC12
+Doctor -[#1D4ED8]- UC13
+Doctor -[#1D4ED8]- UC14
+Doctor -[#1D4ED8]- UC22
+Doctor -[#1D4ED8]- UC23
+Doctor -[#1D4ED8]- UC24
 
-UC14 ..> UC13 : <<include>>
+UC23 -[#475569]- VideoNet
+UC24 -[#475569]- VideoNet
+
+UC14 .[#64748B].> UC13 : <<include>>
+
+legend bottom
+  |= Màu dây |= Tác nhân / Quan hệ |
+  |<#15803D>   | Bệnh nhân |
+  |<#1D4ED8>   | Bác sĩ |
+  |<#475569>   | Hệ thống ngoài <<system>> (bên phải) |
+  |<#64748B>   | Nét đứt <<include>> |
+endlegend
 @enduml

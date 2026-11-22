@@ -1,18 +1,17 @@
 @startuml class-diagram
 skinparam class {
-  BackgroundColor White
-  BorderColor #555
-  ArrowColor #333
   FontName Arial
   FontSize 10
+  HeaderFontColor #0F172A
 }
 skinparam noteBackgroundColor #FFFDE7
 skinparam noteBorderColor #F9A825
 skinparam shadowing false
 skinparam dpi 150
-title Mô hình miền (PIM — Domain Model UML 2.5) · Đồng bộ 24 thực thể V1..V11
+title Mô hình miền (PIM — Domain Model UML 2.5) · 24 thực thể V1..V11 (Phân màu theo Miền)
 
-class UserAccount {
+' ── M01 / M07 Danh tính, OTP & Kiểm toán (#4F46E5) ──
+class UserAccount #EEF2FF;line:4F46E5 {
   id : UUID
   issuer : String
   subject : String
@@ -26,11 +25,11 @@ class UserAccount {
   updateAccess(active, reason)
 }
 
-class UserRole {
+class UserRole #EEF2FF;line:4F46E5 {
   role : VaiTro
 }
 
-class ContactOtp {
+class ContactOtp #EEF2FF;line:4F46E5 {
   emailHash : String
   otpHash : String
   expiresAt : Instant
@@ -38,33 +37,51 @@ class ContactOtp {
   verifyAndConsume()
 }
 
-class ContactOtpSendLog {
+class ContactOtpSendLog #EEF2FF;line:4F46E5 {
   emailHash : String
   sentAt : Instant
 }
 
-class Patient {
+class AuditEvent #EEF2FF;line:4F46E5 {
+  id : UUID
+  actorType : USER_hoac_SYSTEM
+  actorLabel : String
+  action : String
+  resourceId : String
+  result : String
+  correlationId : UUID
+}
+
+class IdempotencyRecord #EEF2FF;line:4F46E5 {
+  operation : String
+  requestKey : String
+  requestHash : String
+  expiresAt : Instant
+}
+
+' ── M02 / M03 / M04 Danh mục, Lịch làm & Đặt lịch (#0F766E) ──
+class Patient #F0FDFA;line:0F766E {
   id : UUID
 }
 
-class Doctor {
+class Doctor #F0FDFA;line:0F766E {
   id : UUID
   active : Boolean
 }
 
-class Specialty {
+class Specialty #F0FDFA;line:0F766E {
   id : UUID
   name : String
   active : Boolean
 }
 
-class ClinicHours {
+class ClinicHours #F0FDFA;line:0F766E {
   dayOfWeek : int
   opensAt : String
   closesAt : String
 }
 
-class ClinicHoliday {
+class ClinicHoliday #F0FDFA;line:0F766E {
   id : UUID
   startDate : LocalDate
   endDate : LocalDate
@@ -72,7 +89,7 @@ class ClinicHoliday {
   closed : Boolean
 }
 
-class Availability {
+class Availability #F0FDFA;line:0F766E {
   id : UUID
   startAt : Instant
   endAt : Instant
@@ -80,20 +97,20 @@ class Availability {
   mode : CheDoKham
 }
 
-class TimeOff {
+class TimeOff #F0FDFA;line:0F766E {
   id : UUID
   startAt : Instant
   endAt : Instant
 }
 
-class Slot {
+class Slot #F0FDFA;line:0F766E {
   id : UUID
   startAt : Instant
   endAt : Instant
   mode : CheDoKham
 }
 
-class Appointment {
+class Appointment #F0FDFA;line:0F766E {
   id : UUID
   status : TrangThaiLichHen
   mode : CheDoKham
@@ -105,7 +122,8 @@ class Appointment {
   markNoShow()
 }
 
-class QueueTicket {
+' ── M05 / M08 Lâm sàng & Hàng đợi (#7E22CE) ──
+class QueueTicket #FAF5FF;line:7E22CE {
   id : UUID
   queueDate : LocalDate
   position : Long
@@ -116,14 +134,14 @@ class QueueTicket {
   skip()
 }
 
-class Encounter {
+class Encounter #FAF5FF;line:7E22CE {
   id : UUID
   status : TrangThaiLanKham
   startedAt : Instant
   completedAt : Instant
 }
 
-class MedicalRecord {
+class MedicalRecord #FAF5FF;line:7E22CE {
   id : UUID
   version : Integer
   status : TrangThaiHoSo
@@ -133,7 +151,7 @@ class MedicalRecord {
   amend()
 }
 
-class Prescription {
+class Prescription #FAF5FF;line:7E22CE {
   id : UUID
   version : Integer
   status : TrangThaiDonThuoc
@@ -142,7 +160,8 @@ class Prescription {
   issue()
 }
 
-class TelehealthSession {
+' ── M09 Y tế từ xa WebRTC (#0284C7) ──
+class TelehealthSession #F0F9FF;line:0284C7 {
   id : UUID
   status : TrangThaiPhien
   version : Integer
@@ -154,17 +173,18 @@ class TelehealthSession {
   end()
 }
 
-class TelehealthToken {
+class TelehealthToken #F0F9FF;line:0284C7 {
   tokenHash : String
   expiresAt : Instant
 }
 
-class TelehealthSignal {
+class TelehealthSignal #F0F9FF;line:0284C7 {
   kind : OFFER_ANSWER_ICE
   payloadEncrypted : byte[]
 }
 
-class NotificationJob {
+' ── M06 Thông báo Outbox (#C2410C) ──
+class NotificationJob #FFF7ED;line:C2410C {
   id : UUID
   appointmentVersion : Integer
   eventType : String
@@ -174,52 +194,47 @@ class NotificationJob {
   estimatedStartAt : Instant
 }
 
-class AuditEvent {
-  id : UUID
-  actorType : USER_hoac_SYSTEM
-  actorLabel : String
-  action : String
-  resourceId : String
-  result : String
-  correlationId : UUID
-}
+' ── Quan hệ chuẩn UML 2.5 ──
+' Composition (*--): phụ thuộc vòng đời chặt
+UserAccount "1" *-[#4F46E5]- "1..*" UserRole
+UserAccount "1" *-[#4F46E5]- "0..1" ContactOtp
+Availability "1" *-[#0F766E]- "0..*" Slot
+Encounter "1" *-[#7E22CE]- "0..*" MedicalRecord : phiên bản
+Encounter "1" *-[#7E22CE]- "0..*" Prescription : chứa items_encrypted JSON
+TelehealthSession "1" *-[#0284C7]- "0..*" TelehealthToken
+TelehealthSession "1" *-[#0284C7]- "0..*" TelehealthSignal
 
-class IdempotencyRecord {
-  operation : String
-  requestKey : String
-  requestHash : String
-  expiresAt : Instant
-}
+' Association (--): thực thể độc lập / bảo toàn lịch sử y tế
+UserAccount "1" -[#4F46E5]- "0..1" Doctor
+UserAccount "1" -[#4F46E5]- "0..1" Patient
+UserAccount "1" -[#4F46E5]- "0..*" IdempotencyRecord
 
-UserAccount "1" *-- "1..*" UserRole
-UserAccount "1" -- "0..1" ContactOtp
-UserAccount "1" -- "0..1" Doctor
-UserAccount "1" -- "0..1" Patient
-UserAccount "1" ..> "0..*" AuditEvent : actor
-UserAccount "1" -- "0..*" IdempotencyRecord
-UserAccount .. ContactOtpSendLog : theo emailHash
+Doctor "*" -[#0F766E]- "*" Specialty
+Doctor "1" -[#0F766E]- "0..*" Availability
+Doctor "1" -[#0F766E]- "0..*" TimeOff
+Slot "1" -[#0F766E]- "0..*" Appointment : tối đa 1 hiệu lực
+Doctor "1" -[#0F766E]- "0..*" Appointment
+Patient "1" -[#0F766E]- "0..*" Appointment
 
-Doctor "*" -- "*" Specialty
-Doctor "1" *-- "0..*" Availability
-Doctor "1" *-- "0..*" TimeOff
-ClinicHours .. Availability : ràng buộc giờ mở ca
-ClinicHoliday .. Availability : ưu tiên ngày lễ
+Appointment "1" -[#7E22CE]- "0..1" QueueTicket
+Appointment "1" -[#7E22CE]- "0..1" Encounter
+MedicalRecord "0..1" -[#7E22CE]-> "0..1" MedicalRecord : supersedes (bổ sung)
+Appointment "1" -[#0284C7]- "0..1" TelehealthSession
+Appointment "1" -[#C2410C]- "0..*" NotificationJob : outbox giao dịch
 
-Availability "1" *-- "0..*" Slot
-Slot "1" -- "0..*" Appointment : lịch sử; tối đa 1 hiệu lực
-Doctor "1" -- "0..*" Appointment
-Patient "1" -- "0..*" Appointment
+' Dependency (..>): tham chiếu / chính sách / audit / rate-log
+UserAccount "1" .[#4F46E5].> "0..*" AuditEvent : actor
+ContactOtp .[#4F46E5].> ContactOtpSendLog : theo emailHash
+ClinicHours .[#0F766E].> Availability : ràng buộc giờ mở ca
+ClinicHoliday .[#0F766E].> Availability : ưu tiên ngày lễ
 
-Appointment "1" *-- "0..1" QueueTicket
-Appointment "1" *-- "0..1" Encounter
-Appointment "1" *-- "0..1" TelehealthSession
-Appointment "1" *-- "0..*" NotificationJob : outbox giao dịch
-
-Encounter "1" *-- "0..*" MedicalRecord : phiên bản
-MedicalRecord "0..1" --> "0..1" MedicalRecord : supersedes (bổ sung)
-Encounter "1" *-- "0..*" Prescription : chứa items_encrypted JSON
-
-TelehealthSession "1" *-- "0..*" TelehealthToken
-TelehealthSession "1" *-- "0..*" TelehealthSignal
+legend bottom
+  |= Màu miền |= Nhóm thực thể |= Ký pháp UML 2.5 |
+  |<#4F46E5>   | M01/M07 Danh tính, OTP & Audit | Hình thoi đặc: Composition (gắn vòng đời) |
+  |<#0F766E>   | M02/M03/M04 Danh mục & Lịch hẹn | Đường liền: Association (bảo toàn lịch sử) |
+  |<#7E22CE>   | M05/M08 Lâm sàng & Hàng đợi | Nét đứt mũi tên: Dependency (chính sách / log) |
+  |<#0284C7>   | M09 Y tế từ xa WebRTC | |
+  |<#C2410C>   | M06 Thông báo Outbox | |
+endlegend
 
 @enduml

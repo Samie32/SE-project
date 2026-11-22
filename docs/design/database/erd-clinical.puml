@@ -1,8 +1,5 @@
 @startuml erd-clinical
 skinparam entity {
-  BackgroundColor White
-  BorderColor #555
-  ArrowColor #333
   FontName Arial
   FontSize 10
 }
@@ -12,7 +9,7 @@ skinparam shadowing false
 skinparam dpi 150
 title ERD Nhóm Lâm sàng, Hàng đợi & Y tế từ xa (M05–M08–M09) — MySQL 8.4
 
-entity "user_account" as UA {
+entity "user_account" as UA #EEF2FF;line:4F46E5 {
   * id : CHAR(36) <<PK>>
   --
   display_name : VARCHAR(255)
@@ -20,14 +17,14 @@ entity "user_account" as UA {
   staff : BOOLEAN
 }
 
-entity "doctor" as D {
+entity "doctor" as D #F0FDFA;line:0F766E {
   * id : CHAR(36) <<PK>>
   --
   user_id : CHAR(36) <<FK,UK>>
   active : BOOLEAN
 }
 
-entity "appointment" as AP {
+entity "appointment" as AP #F0FDFA;line:0F766E {
   * id : CHAR(36) <<PK>>
   --
   patient_id : CHAR(36) <<FK>>
@@ -42,7 +39,7 @@ entity "appointment" as AP {
   no_show_reason : VARCHAR(24) [V7]
 }
 
-entity "queue_ticket" as QT {
+entity "queue_ticket" as QT #FAF5FF;line:7E22CE {
   * id : CHAR(36) <<PK>>
   --
   appointment_id : CHAR(36) <<FK,UK>>
@@ -55,7 +52,7 @@ entity "queue_ticket" as QT {
   created_at : DATETIME(6)
 }
 
-entity "encounter" as EN {
+entity "encounter" as EN #FAF5FF;line:7E22CE {
   * id : CHAR(36) <<PK>>
   --
   appointment_id : CHAR(36) <<FK,UK>>
@@ -64,7 +61,7 @@ entity "encounter" as EN {
   completed_at : DATETIME(6)
 }
 
-entity "medical_record" as MR {
+entity "medical_record" as MR #FAF5FF;line:7E22CE {
   * id : CHAR(36) <<PK>>
   --
   encounter_id : CHAR(36) <<FK,UK>>
@@ -76,7 +73,7 @@ entity "medical_record" as MR {
   created_at : DATETIME(6)
 }
 
-entity "prescription" as PR {
+entity "prescription" as PR #FAF5FF;line:7E22CE {
   * id : CHAR(36) <<PK>>
   --
   encounter_id : CHAR(36) <<FK>>
@@ -87,7 +84,7 @@ entity "prescription" as PR {
   issued_at : DATETIME(6)
 }
 
-entity "telehealth_session" as TS {
+entity "telehealth_session" as TS #F0F9FF;line:0284C7 {
   * id : CHAR(36) <<PK>>
   --
   appointment_id : CHAR(36) <<FK,UK>>
@@ -97,7 +94,7 @@ entity "telehealth_session" as TS {
   ended_at : DATETIME(6)
 }
 
-entity "telehealth_token" as TT {
+entity "telehealth_token" as TT #F0F9FF;line:0284C7 {
   * token_hash : CHAR(64) <<PK>>
   --
   session_id : CHAR(36) <<FK>>
@@ -105,7 +102,7 @@ entity "telehealth_token" as TT {
   expires_at : DATETIME(6) <<IX>>
 }
 
-entity "telehealth_signal" as TSG {
+entity "telehealth_signal" as TSG #F0F9FF;line:0284C7 {
   * id : BIGINT <<PK,AI>>
   --
   session_id : CHAR(36) <<FK>>
@@ -115,24 +112,33 @@ entity "telehealth_signal" as TSG {
   created_at : DATETIME(6)
 }
 
-UA ||--o| D
-D ||--o{ AP
-D ||--o{ QT
-AP ||--o| QT
-AP ||--o| EN
-AP ||--o| TS
-EN ||--o{ MR
-MR |o--o| MR : supersedes_id
-EN ||--o{ PR
-TS ||--o{ TT
-TS ||--o{ TSG
-UA ||--o{ TT
-UA ||--o{ TSG : sender
+UA ||-[#4F46E5]-o| D
+D ||-[#0F766E]-o{ AP
+D ||-[#7E22CE]-o{ QT
+AP ||-[#7E22CE]-o| QT
+AP ||-[#7E22CE]-o| EN
+EN ||-[#7E22CE]-o{ MR
+MR |o-[#7E22CE]-o| MR : supersedes_id
+EN ||-[#7E22CE]-o{ PR
+
+AP ||-[#0284C7]-o| TS
+TS ||-[#0284C7]-o{ TT
+TS ||-[#0284C7]-o{ TSG
+UA ||-[#0284C7]-o{ TT
+UA ||-[#0284C7]-o{ TSG : sender
 
 note as N1
   medical_record (FINAL) và prescription (ISSUED) có trigger cấm UPDATE/DELETE ở mức MySQL.
   prescription.items_encrypted mã hóa AES-256-GCM toàn bộ danh mục thuốc dưới dạng JSON BLOB.
   telehealth_token lưu SHA-256 của X-Room-Token (TTL 300s); telehealth_signal mã hóa SDP/ICE.
 end note
+
+legend bottom
+  |= Màu miền |= Nhóm thực thể |
+  |<#4F46E5>   | M01 Danh tính gốc (user_account) |
+  |<#0F766E>   | M02/M04 Bác sĩ & Lịch hẹn |
+  |<#7E22CE>   | M05/M08 Hàng đợi & Lâm sàng |
+  |<#0284C7>   | M09 Y tế từ xa WebRTC |
+endlegend
 
 @enduml

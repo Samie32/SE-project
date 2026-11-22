@@ -1,8 +1,5 @@
 @startuml erd-infrastructure
 skinparam entity {
-  BackgroundColor White
-  BorderColor #555
-  ArrowColor #333
   FontName Arial
   FontSize 10
 }
@@ -12,7 +9,7 @@ skinparam shadowing false
 skinparam dpi 150
 title ERD Nhóm Hạ tầng, Danh tính, OTP & Thông báo (M01–M06–M07) — MySQL 8.4
 
-entity "user_account" as UA {
+entity "user_account" as UA #EEF2FF;line:4F46E5 {
   * id : CHAR(36) <<PK>>
   --
   issuer : VARCHAR(255) <<UK>>
@@ -27,12 +24,12 @@ entity "user_account" as UA {
   phone_hash : CHAR(64) [V8,IX]
 }
 
-entity "user_role" as UR {
+entity "user_role" as UR #EEF2FF;line:4F46E5 {
   * user_id : CHAR(36) <<PK,FK>>
   * role : VARCHAR(32) <<PK>>
 }
 
-entity "contact_otp [V9]" as CO {
+entity "contact_otp [V9]" as CO #EEF2FF;line:4F46E5 {
   * actor_id : CHAR(36) <<PK,FK>>
   --
   email_hash : CHAR(64) <<IX>>
@@ -42,14 +39,14 @@ entity "contact_otp [V9]" as CO {
   attempts : INT
 }
 
-entity "contact_otp_send_log [V9]" as COS {
+entity "contact_otp_send_log [V9]" as COS #EEF2FF;line:4F46E5 {
   * id : CHAR(36) <<PK>>
   --
   email_hash : CHAR(64) <<IX>>
   sent_at : DATETIME(6) <<IX>>
 }
 
-entity "audit_event" as AE {
+entity "audit_event" as AE #EEF2FF;line:4F46E5 {
   * id : CHAR(36) <<PK>>
   --
   actor_id : CHAR(36) <<FK,nullable>>
@@ -62,7 +59,7 @@ entity "audit_event" as AE {
   created_at : DATETIME(6) <<IX>>
 }
 
-entity "idempotency_record" as IR {
+entity "idempotency_record" as IR #EEF2FF;line:4F46E5 {
   * actor_id : CHAR(36) <<PK,FK>>
   * operation : VARCHAR(64) <<PK>>
   * request_key : VARCHAR(128) <<PK>>
@@ -72,7 +69,7 @@ entity "idempotency_record" as IR {
   expires_at : DATETIME(6)
 }
 
-entity "appointment" as AP {
+entity "appointment" as AP #F0FDFA;line:0F766E {
   * id : CHAR(36) <<PK>>
   --
   patient_id : CHAR(36) <<FK>>
@@ -86,7 +83,7 @@ entity "appointment" as AP {
   no_show_reason : VARCHAR(24) [V7]
 }
 
-entity "notification_job" as NJ {
+entity "notification_job" as NJ #FFF7ED;line:C2410C {
   * id : CHAR(36) <<PK>>
   --
   appointment_id : CHAR(36) <<FK,UK>>
@@ -101,17 +98,24 @@ entity "notification_job" as NJ {
   estimated_start_at : DATETIME(6) [V7]
 }
 
-UA ||--o{ UR
-UA ||--o| CO
-UA .. COS : email_hash
-UA ||--o{ AE : actor_id
-UA ||--o{ IR : actor_id
-AP ||--o{ NJ : transactional outbox
+UA ||-[#4F46E5]-o{ UR
+UA ||-[#4F46E5]-o| CO
+CO .[#4F46E5]. COS : email_hash
+UA ||-[#4F46E5]-o{ AE : actor_id
+UA ||-[#4F46E5]-o{ IR : actor_id
+AP ||-[#C2410C]-o{ NJ : transactional outbox
 
 note as N1
   notification_job đóng vai trò transactional outbox (UNIQUE trên appointment_id, appointment_version, event_type).
   audit_event bảo vệ bằng trigger BEFORE UPDATE/DELETE; hệ thống dùng actor_type='SYSTEM' + actor_label.
   contact_otp_send_log chặn spam OTP qua email đích (cooldown 30s, tối đa 5 lượt / 3600s).
 end note
+
+legend bottom
+  |= Màu miền |= Nhóm thực thể |
+  |<#4F46E5>   | M01/M07 Danh tính, OTP, Idempotency & Audit |
+  |<#0F766E>   | M04 Lịch hẹn tham chiếu |
+  |<#C2410C>   | M06 Thông báo Outbox (notification_job) |
+endlegend
 
 @enduml

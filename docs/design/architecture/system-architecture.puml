@@ -1,81 +1,81 @@
 @startuml system-architecture
 skinparam rectangle {
   BackgroundColor White
-  BorderColor #555
+  BorderColor #64748B
   FontName Arial
   FontSize 10
 }
 skinparam component {
   BackgroundColor White
-  BorderColor #555
+  BorderColor #64748B
 }
 skinparam actor {
   BackgroundColor White
-  BorderColor #555
+  BorderColor #475569
 }
 skinparam noteBackgroundColor #FFFDE7
 skinparam noteBorderColor #F9A825
-skinparam cloud {
-  BackgroundColor #F5F5F5
-  BorderColor #888
-}
-skinparam database {
-  BackgroundColor White
-  BorderColor #555
-}
 skinparam shadowing false
 skinparam dpi 150
-title Kiến trúc hệ thống ClinicCare — Layered Modular Monolith (Kruchten 4+1 Views)
+title Kiến trúc hệ thống ClinicCare — Layered Modular Monolith (Kruchten 4+1 · Phân màu Luồng Giao thức)
 
-actor "Bệnh nhân" as Patient
-actor "Nhân viên\nphòng khám" as Staff
+actor "Bệnh nhân" as Patient #DCFCE7;line:15803D
+actor "Nhân viên\nphòng khám" as Staff #DBEAFE;line:1D4ED8
 
-component "React 18 + TypeScript 5\nWeb / Mobile Browser" as Browser
-component "Nginx 1.28\nSPA + Rate-limit OTP (10r/m)" as Nginx
+component "React 18 + TypeScript 5\nWeb / Mobile Browser" as Browser #EFF6FF;line:1D4ED8
+component "Nginx 1.28\nSPA + Rate-limit OTP (10r/m)" as Nginx #EFF6FF;line:1D4ED8
 
-rectangle "Spring Boot 3.5 — Modular Monolith (Java 21)" as Backend {
-  component "Controllers / REST API\n(OpenAPI 3.1 + RFC 9457)" as Controllers
-  component "M01 Auth & Access\nContactOtp + Provisioning" as M01
-  component "M02 Catalog (Bác sĩ/CK)\nM03 Schedule & ClinicHours" as M023
-  component "M04 AppointmentService\n(Idempotency + Lock Order)" as M04
-  component "M05 ClinicalService\n(Hồ sơ + Đơn thuốc)" as M05
-  component "M08 Workflow (Hàng đợi/NO_SHOW)\nM09 Telehealth (Signaling P2P)" as M089
-  component "M06 NotificationWorker\nM07 Audit & Crypto (GCM/HMAC)" as M067
+rectangle "Spring Boot 3.5 — Modular Monolith (Java 21)" as Backend #F8FAFC;line:475569 {
+  component "Controllers / REST API\n(OpenAPI 3.1 + RFC 9457)" as Controllers #EFF6FF;line:1D4ED8
+  component "M01 Auth & Access\nContactOtp + Provisioning" as M01 #EEF2FF;line:4F46E5
+  component "M02 Catalog (Bác sĩ/CK)\nM03 Schedule & ClinicHours" as M023 #F0FDFA;line:0F766E
+  component "M04 AppointmentService\n(Idempotency + Lock Order)" as M04 #F0FDFA;line:0F766E
+  component "M05 ClinicalService\n(Hồ sơ + Đơn thuốc)" as M05 #FAF5FF;line:7E22CE
+  component "M08 Workflow (Hàng đợi/NO_SHOW)\nM09 Telehealth (Signaling P2P)" as M089 #F0F9FF;line:0284C7
+  component "M06 NotificationWorker\nM07 Audit & Crypto (GCM/HMAC)" as M067 #FFF7ED;line:C2410C
 }
 
-cloud "Keycloak 26.4 +\nGoogle OAuth2\n(OIDC PKCE)" as IdP
-cloud "SMTP Provider\n(Mailpit / Brevo TLS)" as EmailSvc
-cloud "coturn 4.7\n(STUN/TURN :3478)" as TurnSvc
-database "MySQL 8.4 (InnoDB)\n24 bảng · Flyway V1..V11" as MySQL
+cloud "Keycloak 26.4 +\nGoogle OAuth2\n(OIDC PKCE)" as IdP #FFF7ED;line:C2410C
+cloud "SMTP Provider\n(Mailpit / Brevo TLS)" as EmailSvc #FFF7ED;line:C2410C
+cloud "coturn 4.7\n(STUN/TURN :3478)" as TurnSvc #FAF5FF;line:7E22CE
+database "MySQL 8.4 (InnoDB)\n24 bảng · Flyway V1..V11" as MySQL #F0FDF4;line:15803D
 
-Patient --> Browser
-Staff --> Browser
-Browser --> Nginx : HTTPS / REST API
-Browser <--> IdP : OIDC PKCE / Google
-Browser <--> TurnSvc : WebRTC P2P / TURN Relay
+Patient -[#1D4ED8]-> Browser
+Staff -[#1D4ED8]-> Browser
+Browser -[#1D4ED8]-> Nginx : HTTPS / REST API
+Browser <-[#C2410C]-> IdP : OIDC PKCE / Google
+Browser <-[#7E22CE]-> TurnSvc : WebRTC P2P / TURN Relay
 
-Nginx --> Controllers : /api/** (limit OTP 10r/m)
-Controllers --> M01
-Controllers --> M023
-Controllers --> M04
-Controllers --> M05
-Controllers --> M089
-Controllers --> M067
+Nginx -[#1D4ED8]-> Controllers : /api/** (limit OTP 10r/m)
+Controllers -[#1D4ED8]-> M01
+Controllers -[#1D4ED8]-> M023
+Controllers -[#1D4ED8]-> M04
+Controllers -[#1D4ED8]-> M05
+Controllers -[#1D4ED8]-> M089
+Controllers -[#1D4ED8]-> M067
 
-M01 --> IdP : JWT JWKS & Admin API
-M01 --> EmailSvc : Gửi OTP đổi email
-M067 --> EmailSvc : Nhắc lịch / Chậm giờ / NO_SHOW
+M01 -[#C2410C]-> IdP : JWT JWKS & Admin API
+M01 -[#C2410C]-> EmailSvc : Gửi OTP đổi email
+M067 -[#C2410C]-> EmailSvc : Nhắc lịch / Chậm giờ / NO_SHOW
 
-M01 --> MySQL : HikariCP (pool 30)
-M023 --> MySQL
-M04 --> MySQL : SELECT ... FOR UPDATE\n(Doctor -> Patient)
-M05 --> MySQL
-M089 --> MySQL
-M067 --> MySQL : Audit append-only\n& notification_job lease
+M01 -[#15803D]-> MySQL : HikariCP (pool 30)
+M023 -[#15803D]-> MySQL
+M04 -[#15803D]-> MySQL : SELECT ... FOR UPDATE\n(Doctor -> Patient)
+M05 -[#15803D]-> MySQL
+M089 -[#15803D]-> MySQL
+M067 -[#15803D]-> MySQL : Audit append-only\n& notification_job lease
 
 note as N1
   Mọi truy cập PHI qua RBAC + sở hữu và ghi AuditEvent fail-closed cùng giao dịch.
   /api/webrtc/ice cấp cấu hình STUN/TURN ephemeral cho kết nối WebRTC tới coturn :3478.
 end note
+
+legend bottom
+  |= Màu luồng |= Giao thức / Tuyến dữ liệu |
+  |<#1D4ED8>   | HTTPS Client / REST API nội bộ |
+  |<#15803D>   | MySQL JDBC / Giao dịch & Lưu trữ |
+  |<#C2410C>   | OIDC PKCE / Google OAuth2 / SMTP Email |
+  |<#7E22CE>   | WebRTC Media P2P & STUN/TURN Relay (:3478) |
+endlegend
 
 @enduml

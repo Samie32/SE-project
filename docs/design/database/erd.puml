@@ -1,8 +1,5 @@
 @startuml erd
 skinparam entity {
-  BackgroundColor White
-  BorderColor #555
-  ArrowColor #333
   FontName Arial
   FontSize 9
 }
@@ -11,9 +8,10 @@ skinparam noteBorderColor #F9A825
 skinparam shadowing false
 skinparam dpi 130
 left to right direction
-title ERD Tổng quan — 24 bảng MySQL 8.4 / InnoDB (Flyway V1..V11)
+title ERD Tổng quan — 24 bảng MySQL 8.4 / InnoDB (V1..V11 · Phân màu theo Miền)
 
-entity "user_account" as UA {
+' ── M01 / M07 Danh tính, OTP & Kiểm toán (#4F46E5) ──
+entity "user_account" as UA #EEF2FF;line:4F46E5 {
   * id : CHAR(36) <<PK>>
   --
   issuer : VARCHAR(255) <<UK>>
@@ -28,12 +26,12 @@ entity "user_account" as UA {
   phone_hash : CHAR(64) [V8,IX]
 }
 
-entity "user_role" as UR {
+entity "user_role" as UR #EEF2FF;line:4F46E5 {
   * user_id : CHAR(36) <<PK,FK>>
   * role : VARCHAR(32) <<PK>>
 }
 
-entity "contact_otp [V9]" as CO {
+entity "contact_otp [V9]" as CO #EEF2FF;line:4F46E5 {
   * actor_id : CHAR(36) <<PK,FK>>
   --
   email_hash : CHAR(64)
@@ -43,46 +41,70 @@ entity "contact_otp [V9]" as CO {
   attempts : INT
 }
 
-entity "contact_otp_send_log [V9]" as COS {
+entity "contact_otp_send_log [V9]" as COS #EEF2FF;line:4F46E5 {
   * id : CHAR(36) <<PK>>
   --
   email_hash : CHAR(64) <<IX>>
   sent_at : DATETIME(6) <<IX>>
 }
 
-entity "patient" as P {
+entity "audit_event" as AE #EEF2FF;line:4F46E5 {
+  * id : CHAR(36) <<PK>>
+  --
+  actor_id : CHAR(36) <<FK,nullable>>
+  actor_type : VARCHAR(16)
+  actor_label : VARCHAR(64)
+  action : VARCHAR(64)
+  resource_id : VARCHAR(128)
+  result : VARCHAR(16)
+  correlation_id : CHAR(36)
+  created_at : DATETIME(6)
+}
+
+entity "idempotency_record" as IR #EEF2FF;line:4F46E5 {
+  * actor_id : CHAR(36) <<PK,FK>>
+  * operation : VARCHAR(64) <<PK>>
+  * request_key : VARCHAR(128) <<PK>>
+  --
+  request_hash : CHAR(64)
+  response_json : JSON
+  expires_at : DATETIME(6)
+}
+
+' ── M02 / M03 / M04 Danh mục, Lịch làm & Đặt lịch (#0F766E) ──
+entity "patient" as P #F0FDFA;line:0F766E {
   * id : CHAR(36) <<PK>>
   --
   user_id : CHAR(36) <<FK,UK>>
 }
 
-entity "doctor" as D {
+entity "doctor" as D #F0FDFA;line:0F766E {
   * id : CHAR(36) <<PK>>
   --
   user_id : CHAR(36) <<FK,UK>>
   active : BOOLEAN
 }
 
-entity "specialty" as SP {
+entity "specialty" as SP #F0FDFA;line:0F766E {
   * id : CHAR(36) <<PK>>
   --
   name : VARCHAR(255) <<UK>>
   active : BOOLEAN
 }
 
-entity "doctor_specialty" as DS {
+entity "doctor_specialty" as DS #F0FDFA;line:0F766E {
   * doctor_id : CHAR(36) <<PK,FK>>
   * specialty_id : CHAR(36) <<PK,FK>>
 }
 
-entity "clinic_hours [V3]" as CH {
+entity "clinic_hours [V3]" as CH #F0FDFA;line:0F766E {
   * day_of_week : TINYINT <<PK>>
   --
   opens_at : CHAR(5)
   closes_at : CHAR(5)
 }
 
-entity "clinic_holiday [V6]" as HL {
+entity "clinic_holiday [V6]" as HL #F0FDFA;line:0F766E {
   * id : CHAR(36) <<PK>>
   --
   start_date : DATE <<IX>>
@@ -93,7 +115,7 @@ entity "clinic_holiday [V6]" as HL {
   closes_at : CHAR(5)
 }
 
-entity "availability" as AV {
+entity "availability" as AV #F0FDFA;line:0F766E {
   * id : CHAR(36) <<PK>>
   --
   doctor_id : CHAR(36) <<FK>>
@@ -103,7 +125,7 @@ entity "availability" as AV {
   mode : VARCHAR(16)
 }
 
-entity "time_off" as TO {
+entity "time_off" as TO #F0FDFA;line:0F766E {
   * id : CHAR(36) <<PK>>
   --
   doctor_id : CHAR(36) <<FK>>
@@ -111,7 +133,7 @@ entity "time_off" as TO {
   end_at : DATETIME(6) [V11]
 }
 
-entity "slot" as SL {
+entity "slot" as SL #F0FDFA;line:0F766E {
   * id : CHAR(36) <<PK>>
   --
   availability_id : CHAR(36) <<FK>>
@@ -121,7 +143,7 @@ entity "slot" as SL {
   mode : VARCHAR(16)
 }
 
-entity "appointment" as AP {
+entity "appointment" as AP #F0FDFA;line:0F766E {
   * id : CHAR(36) <<PK>>
   --
   patient_id : CHAR(36) <<FK>>
@@ -136,7 +158,8 @@ entity "appointment" as AP {
   no_show_reason : VARCHAR(24) [V7]
 }
 
-entity "queue_ticket" as QT {
+' ── M05 / M08 Lâm sàng & Hàng đợi (#7E22CE) ──
+entity "queue_ticket" as QT #FAF5FF;line:7E22CE {
   * id : CHAR(36) <<PK>>
   --
   appointment_id : CHAR(36) <<FK,UK>>
@@ -149,7 +172,7 @@ entity "queue_ticket" as QT {
   created_at : DATETIME(6)
 }
 
-entity "encounter" as EN {
+entity "encounter" as EN #FAF5FF;line:7E22CE {
   * id : CHAR(36) <<PK>>
   --
   appointment_id : CHAR(36) <<FK,UK>>
@@ -158,7 +181,7 @@ entity "encounter" as EN {
   completed_at : DATETIME(6)
 }
 
-entity "medical_record" as MR {
+entity "medical_record" as MR #FAF5FF;line:7E22CE {
   * id : CHAR(36) <<PK>>
   --
   encounter_id : CHAR(36) <<FK,UK>>
@@ -170,7 +193,7 @@ entity "medical_record" as MR {
   created_at : DATETIME(6)
 }
 
-entity "prescription" as PR {
+entity "prescription" as PR #FAF5FF;line:7E22CE {
   * id : CHAR(36) <<PK>>
   --
   encounter_id : CHAR(36) <<FK>>
@@ -181,7 +204,8 @@ entity "prescription" as PR {
   issued_at : DATETIME(6)
 }
 
-entity "telehealth_session" as TS {
+' ── M09 Y tế từ xa WebRTC (#0284C7) ──
+entity "telehealth_session" as TS #F0F9FF;line:0284C7 {
   * id : CHAR(36) <<PK>>
   --
   appointment_id : CHAR(36) <<FK,UK>>
@@ -191,7 +215,7 @@ entity "telehealth_session" as TS {
   ended_at : DATETIME(6)
 }
 
-entity "telehealth_token" as TT {
+entity "telehealth_token" as TT #F0F9FF;line:0284C7 {
   * token_hash : CHAR(64) <<PK>>
   --
   session_id : CHAR(36) <<FK>>
@@ -199,7 +223,7 @@ entity "telehealth_token" as TT {
   expires_at : DATETIME(6)
 }
 
-entity "telehealth_signal" as TSG {
+entity "telehealth_signal" as TSG #F0F9FF;line:0284C7 {
   * id : BIGINT <<PK,AI>>
   --
   session_id : CHAR(36) <<FK>>
@@ -209,7 +233,8 @@ entity "telehealth_signal" as TSG {
   created_at : DATETIME(6)
 }
 
-entity "notification_job" as NJ {
+' ── M06 Thông báo Outbox (#C2410C) ──
+entity "notification_job" as NJ #FFF7ED;line:C2410C {
   * id : CHAR(36) <<PK>>
   --
   appointment_id : CHAR(36) <<FK,UK>>
@@ -224,66 +249,53 @@ entity "notification_job" as NJ {
   estimated_start_at : DATETIME(6) [V7]
 }
 
-entity "audit_event" as AE {
-  * id : CHAR(36) <<PK>>
-  --
-  actor_id : CHAR(36) <<FK,nullable>>
-  actor_type : VARCHAR(16)
-  actor_label : VARCHAR(64)
-  action : VARCHAR(64)
-  resource_id : VARCHAR(128)
-  result : VARCHAR(16)
-  correlation_id : CHAR(36)
-  created_at : DATETIME(6)
-}
+' ── Quan hệ Crow's Foot phân màu theo miền ──
+UA ||-[#4F46E5]-o{ UR
+UA ||-[#4F46E5]-o| CO
+CO .[#4F46E5]. COS : email_hash
+UA ||-[#4F46E5]-o| P
+UA ||-[#4F46E5]-o| D
+UA ||-[#4F46E5]-o{ AE : actor_id
+UA ||-[#4F46E5]-o{ IR
+UA ||-[#0284C7]-o{ TT
+UA ||-[#0284C7]-o{ TSG : sender
 
-entity "idempotency_record" as IR {
-  * actor_id : CHAR(36) <<PK,FK>>
-  * operation : VARCHAR(64) <<PK>>
-  * request_key : VARCHAR(128) <<PK>>
-  --
-  request_hash : CHAR(64)
-  response_json : JSON
-  expires_at : DATETIME(6)
-}
+D ||-[#0F766E]-o{ DS
+SP ||-[#0F766E]-o{ DS
+D ||-[#0F766E]-o{ AV
+D ||-[#0F766E]-o{ TO
+D ||-[#0F766E]-o{ SL
+D ||-[#0F766E]-o{ AP
+AV ||-[#0F766E]-o{ SL
+SL ||-[#0F766E]-o{ AP
+P ||-[#0F766E]-o{ AP
 
-UA ||--o{ UR
-UA ||--o| CO
-UA ||--o| P
-UA ||--o| D
-UA ||--o{ AE : actor_id
-UA ||--o{ IR
-UA ||--o{ TT
-UA ||--o{ TSG : sender
+D ||-[#7E22CE]-o{ QT
+AP ||-[#7E22CE]-o| QT
+AP ||-[#7E22CE]-o| EN
+EN ||-[#7E22CE]-o{ MR
+MR |o-[#7E22CE]-o| MR : supersedes_id
+EN ||-[#7E22CE]-o{ PR
 
-D ||--o{ DS
-SP ||--o{ DS
-D ||--o{ AV
-D ||--o{ TO
-D ||--o{ SL
-D ||--o{ AP
-D ||--o{ QT
-AV ||--o{ SL
-SL ||--o{ AP
-P ||--o{ AP
+AP ||-[#0284C7]-o| TS
+TS ||-[#0284C7]-o{ TT
+TS ||-[#0284C7]-o{ TSG
 
-AP ||--o| QT
-AP ||--o| EN
-AP ||--o| TS
-AP ||--o{ NJ : transactional outbox
-
-EN ||--o{ MR
-MR |o--o| MR : supersedes_id
-EN ||--o{ PR
-
-TS ||--o{ TT
-TS ||--o{ TSG
+AP ||-[#C2410C]-o{ NJ : transactional outbox
 
 note as N1
-  Tổng 24 bảng InnoDB theo đúng migration V1..V11 (Flyway).
+  Tổng 24 bảng InnoDB theo đúng migration V1..V11 (Flyway). Mọi DATETIME(6) lưu UTC; queue_date dùng DATE theo Asia/Ho_Chi_Minh.
   Trigger bất biến/append-only: audit_event (cấm UPDATE/DELETE), medical_record FINAL & prescription ISSUED (cấm UPDATE/DELETE).
-  Chỉ mục hiệu năng V10/V11: ix_slot_start_at, ix_appointment_active_window, ix_time_off_window (giảm NFR-01 p95 từ 4,52s xuống 7,81ms).
-  Mọi DATETIME(6) lưu UTC; hàng đợi queue_date dùng DATE theo Asia/Ho_Chi_Minh.
+  Index NFR-01 (V10/V11): ix_slot_start_at, ix_appointment_active_window, ix_time_off_window.
 end note
+
+legend bottom
+  |= Màu miền |= Phân hệ / Nhóm bảng |
+  |<#4F46E5>   | M01 / M07 Danh tính, OTP, Idempotency & Audit |
+  |<#0F766E>   | M02 / M03 / M04 Danh mục, Giờ khám/Ngày lễ, Slot & Lịch hẹn |
+  |<#7E22CE>   | M05 / M08 Hàng đợi & Hồ sơ lâm sàng |
+  |<#0284C7>   | M09 Y tế từ xa WebRTC (telehealth_*) |
+  |<#C2410C>   | M06 Thông báo Outbox (notification_job) |
+endlegend
 
 @enduml

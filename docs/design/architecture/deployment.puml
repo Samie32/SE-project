@@ -1,17 +1,11 @@
 @startuml deployment
 skinparam node {
-  BackgroundColor White
-  BorderColor #555
   FontName Arial
   FontSize 10
 }
 skinparam component {
-  BackgroundColor #F5F5F5
-  BorderColor #777
-}
-skinparam database {
   BackgroundColor White
-  BorderColor #555
+  BorderColor #64748B
 }
 skinparam noteBackgroundColor #FFFDE7
 skinparam noteBorderColor #F9A825
@@ -19,45 +13,52 @@ skinparam shadowing false
 skinparam dpi 150
 title Sơ đồ Triển khai Docker Compose (Phát triển & Kiểm thử cục bộ — compose.yaml)
 
-node "Thiết bị người dùng\n(localhost Browser)" as Client {
+node "Thiết bị người dùng\n(localhost Browser)" as Client #EFF6FF;line:1D4ED8 {
   component "React 18 + Vite 8\n(WebRTC Client)" as SPA
 }
 
-node "Docker Network: clinic-telehealth" {
-  node "frontend (Nginx 1.28)" as FE {
+node "Docker Network: clinic-telehealth" #FAFAFA;line:64748B {
+  node "frontend (Nginx 1.28)" as FE #EFF6FF;line:1D4ED8 {
     component "Static SPA + CSP\n127.0.0.1:5173:80" as NginxLocal
     component "limit_req otp_ip 10r/m\nProxy /api/** -> backend" as ProxyLocal
   }
 
-  node "backend (Spring Boot 3.5)" as BE {
+  node "backend (Spring Boot 3.5)" as BE #F0FDFA;line:0F766E {
     component "REST API + Workers\n127.0.0.1:8080" as SBLocal
     component "Flyway V1..V11 + DemoData" as FlywayLocal
   }
 
-  node "keycloak (26.4.0 dev)" as KC {
+  node "keycloak (26.4.0 dev)" as KC #FFF7ED;line:C2410C {
     component "OIDC Realm: clinic\n127.0.0.1:8180" as KCLocal
     component "Theme cliniccare" as ThemeLocal
   }
 
-  node "mailpit (v1.27.0)" as MP {
+  node "mailpit (v1.27.0)" as MP #FFF7ED;line:C2410C {
     component "SMTP :1025 · Web UI :8025" as MailpitLocal
   }
 
-  database "mysql:8.4 (InnoDB)" as DB {
+  database "mysql:8.4 (InnoDB)" as DB #F0FDF4;line:15803D {
     component "DB clinic · Volume mysql-data\n127.0.0.1:3307:3306" as MySQLLocal
   }
 }
 
-SPA --> NginxLocal : HTTP :5173
-SPA <--> KCLocal : OIDC Auth Code + PKCE :8180
-ProxyLocal --> SBLocal : HTTP :8080
-SBLocal --> MySQLLocal : JDBC UTC
-SBLocal --> KCLocal : JWKS /certs & Admin API
-SBLocal --> MailpitLocal : SMTP :1025 (OTP + Nhắc lịch)
+SPA -[#1D4ED8]-> NginxLocal : HTTP :5173
+SPA <-[#C2410C]-> KCLocal : OIDC Auth Code + PKCE :8180
+ProxyLocal -[#1D4ED8]-> SBLocal : HTTP :8080
+SBLocal -[#15803D]-> MySQLLocal : JDBC UTC
+SBLocal -[#C2410C]-> KCLocal : JWKS /certs & Admin API
+SBLocal -[#C2410C]-> MailpitLocal : SMTP :1025 (OTP + Nhắc lịch)
 
 note as N1
   Biến môi trường cấu hình trong .env (setup-local.ps1 sinh khóa AES/HMAC & mật khẩu giả).
   Bản triển khai Internet Azure VM sử dụng compose.internet.yaml + Caddy 2 + coturn + Brevo SMTP xem ở deployment-azure.png.
 end note
+
+legend bottom
+  |= Màu luồng |= Giao thức / Tuyến dữ liệu |
+  |<#1D4ED8>   | HTTP / REST API & SPA |
+  |<#15803D>   | MySQL JDBC (localhost / Docker) |
+  |<#C2410C>   | OIDC PKCE (:8180) & Mailpit SMTP (:1025) |
+endlegend
 
 @enduml

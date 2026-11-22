@@ -1,23 +1,23 @@
 @startuml use-case-2
 skinparam usecase {
   BackgroundColor White
-  BorderColor #555
-  ArrowColor #333
+  BorderColor #64748B
+  FontColor #0F172A
 }
 skinparam packageStyle rectangle
 skinparam packageBackgroundColor #FAFAFA
-skinparam packageBorderColor #AAAAAA
+skinparam packageBorderColor #94A3B8
 skinparam shadowing false
 skinparam defaultFontName Arial
 skinparam defaultFontSize 11
 skinparam dpi 150
-title Lịch hẹn, Vắng hẹn & Hàng đợi (M03–M04–M06–M08) — UML 2.5
+title Nhóm 2: Lịch hẹn, Vắng hẹn & Hàng đợi (M03–M04–M06–M08) — UML 2.5
 
 left to right direction
 
-actor "Bệnh nhân" as Patient
-actor "Bác sĩ" as Doctor
-actor "Lễ tân" as Receptionist
+actor "Bệnh nhân" as Patient #DCFCE7;line:15803D
+actor "Bác sĩ" as Doctor #DBEAFE;line:1D4ED8
+actor "Lễ tân" as Receptionist #FFEDD5;line:C2410C
 
 rectangle "Hệ thống phòng khám ClinicCare" {
 
@@ -41,24 +41,32 @@ rectangle "Hệ thống phòng khám ClinicCare" {
   }
 }
 
-Patient --> UC07
-Patient --> UC08
-Patient --> UC09
-Patient --> UC10
-Patient --> UC11
+Patient -[#15803D]- UC07
+Patient -[#15803D]- UC08
+Patient -[#15803D]- UC09
+Patient -[#15803D]- UC10
+Patient -[#15803D]- UC11
 
-Receptionist --> UC07
-Receptionist --> UC19
-Receptionist --> UC20
-Receptionist --> UC21
-Receptionist --> UC25
-Receptionist --> UC26
+Receptionist -[#C2410C]- UC07
+Receptionist -[#C2410C]- UC19
+Receptionist -[#C2410C]- UC20
+Receptionist -[#C2410C]- UC21
+Receptionist -[#C2410C]- UC25
+Receptionist -[#C2410C]- UC26
 
-Doctor --> UC11
-Doctor --> UC20
-Doctor --> UC21
-Doctor --> UC26
+Doctor -[#1D4ED8]- UC11
+Doctor -[#1D4ED8]- UC20
+Doctor -[#1D4ED8]- UC21
+Doctor -[#1D4ED8]- UC26
 
-UC08 ..> UC07 : <<include>>
-UC09 ..> UC07 : <<include>>
+UC08 .[#64748B].> UC07 : <<include>>
+UC09 .[#64748B].> UC07 : <<include>>
+
+legend bottom
+  |= Màu dây |= Tác nhân / Quan hệ |
+  |<#15803D>   | Bệnh nhân |
+  |<#1D4ED8>   | Bác sĩ |
+  |<#C2410C>   | Lễ tân |
+  |<#64748B>   | Nét đứt <<include>> |
+endlegend
 @enduml

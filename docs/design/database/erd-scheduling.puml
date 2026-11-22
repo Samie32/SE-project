@@ -1,8 +1,5 @@
 @startuml erd-scheduling
 skinparam entity {
-  BackgroundColor White
-  BorderColor #555
-  ArrowColor #333
   FontName Arial
   FontSize 10
 }
@@ -12,7 +9,7 @@ skinparam shadowing false
 skinparam dpi 150
 title ERD Nhóm Đặt lịch & Danh mục (M02–M03–M04) — MySQL 8.4 V1..V11
 
-entity "user_account" as UA {
+entity "user_account" as UA #EEF2FF;line:4F46E5 {
   * id : CHAR(36) <<PK>>
   --
   issuer : VARCHAR(255) <<UK>>
@@ -27,39 +24,39 @@ entity "user_account" as UA {
   phone_hash : CHAR(64) [V8,IX]
 }
 
-entity "patient" as P {
+entity "patient" as P #F0FDFA;line:0F766E {
   * id : CHAR(36) <<PK>>
   --
   user_id : CHAR(36) <<FK,UK>>
 }
 
-entity "doctor" as D {
+entity "doctor" as D #F0FDFA;line:0F766E {
   * id : CHAR(36) <<PK>>
   --
   user_id : CHAR(36) <<FK,UK>>
   active : BOOLEAN
 }
 
-entity "specialty" as SP {
+entity "specialty" as SP #F0FDFA;line:0F766E {
   * id : CHAR(36) <<PK>>
   --
   name : VARCHAR(255) <<UK>>
   active : BOOLEAN
 }
 
-entity "doctor_specialty" as DS {
+entity "doctor_specialty" as DS #F0FDFA;line:0F766E {
   * doctor_id : CHAR(36) <<PK,FK>>
   * specialty_id : CHAR(36) <<PK,FK>>
 }
 
-entity "clinic_hours [V3]" as CH {
+entity "clinic_hours [V3]" as CH #F0FDFA;line:0F766E {
   * day_of_week : TINYINT <<PK>>
   --
   opens_at : CHAR(5)
   closes_at : CHAR(5)
 }
 
-entity "clinic_holiday [V6]" as HL {
+entity "clinic_holiday [V6]" as HL #F0FDFA;line:0F766E {
   * id : CHAR(36) <<PK>>
   --
   start_date : DATE <<IX>>
@@ -70,7 +67,7 @@ entity "clinic_holiday [V6]" as HL {
   closes_at : CHAR(5)
 }
 
-entity "availability" as AV {
+entity "availability" as AV #F0FDFA;line:0F766E {
   * id : CHAR(36) <<PK>>
   --
   doctor_id : CHAR(36) <<FK>>
@@ -80,7 +77,7 @@ entity "availability" as AV {
   mode : VARCHAR(16)
 }
 
-entity "time_off" as TO {
+entity "time_off" as TO #F0FDFA;line:0F766E {
   * id : CHAR(36) <<PK>>
   --
   doctor_id : CHAR(36) <<FK>>
@@ -88,7 +85,7 @@ entity "time_off" as TO {
   end_at : DATETIME(6) [V11]
 }
 
-entity "slot" as SL {
+entity "slot" as SL #F0FDFA;line:0F766E {
   * id : CHAR(36) <<PK>>
   --
   availability_id : CHAR(36) <<FK>>
@@ -98,7 +95,7 @@ entity "slot" as SL {
   mode : VARCHAR(16)
 }
 
-entity "appointment" as AP {
+entity "appointment" as AP #F0FDFA;line:0F766E {
   * id : CHAR(36) <<PK>>
   --
   patient_id : CHAR(36) <<FK>>
@@ -113,21 +110,27 @@ entity "appointment" as AP {
   no_show_reason : VARCHAR(24) [V7]
 }
 
-UA ||--o| D
-UA ||--o| P
-D ||--o{ DS
-SP ||--o{ DS
-D ||--o{ AV
-D ||--o{ TO
-D ||--o{ SL
-AV ||--o{ SL
-SL ||--o{ AP
-P ||--o{ AP
-D ||--o{ AP
+UA ||-[#4F46E5]-o| D
+UA ||-[#4F46E5]-o| P
+D ||-[#0F766E]-o{ DS
+SP ||-[#0F766E]-o{ DS
+D ||-[#0F766E]-o{ AV
+D ||-[#0F766E]-o{ TO
+D ||-[#0F766E]-o{ SL
+AV ||-[#0F766E]-o{ SL
+SL ||-[#0F766E]-o{ AP
+P ||-[#0F766E]-o{ AP
+D ||-[#0F766E]-o{ AP
 
 note as N1
   clinic_holiday ưu tiên trên clinic_hours khi tạo availability.
   V10 ix_slot_start_at + V11 ix_appointment_active_window / ix_time_off_window phục vụ GET /api/slots và đặt lịch.
 end note
+
+legend bottom
+  |= Màu miền |= Nhóm thực thể |
+  |<#4F46E5>   | M01 Danh tính gốc (user_account) |
+  |<#0F766E>   | M02 / M03 / M04 Danh mục, Lịch làm, Slot & Lịch hẹn |
+endlegend
 
 @enduml

@@ -1,33 +1,26 @@
 @startuml use-case-4
 skinparam usecase {
   BackgroundColor White
-  BorderColor #555
-  ArrowColor #333
+  BorderColor #64748B
+  FontColor #0F172A
 }
 skinparam packageStyle rectangle
 skinparam packageBackgroundColor #FAFAFA
-skinparam packageBorderColor #AAAAAA
+skinparam packageBorderColor #94A3B8
 skinparam noteBackgroundColor #FFFDE7
 skinparam noteBorderColor #F9A825
 skinparam shadowing false
 skinparam defaultFontName Arial
 skinparam defaultFontSize 11
 skinparam dpi 150
-title Thông báo Outbox & Kiểm toán (M06–M07) — UML 2.5
-
-note as N1
-  UC-17 là hành vi audit nội bộ fail-closed của mọi dịch vụ được bảo vệ (gồm UC-26, UC-27).
-  Kiểm toán viên chỉ tra cứu nhật ký append-only qua UC-18, không lộ nội dung PHI.
-  UC-25 (báo chậm giờ) & UC-26 (mời đặt lại NO_SHOW) xếp hàng gửi email qua M06 (UC-15/16).
-end note
+title Nhóm 4: Thông báo Outbox & Kiểm toán (M06–M07) — UML 2.5
 
 left to right direction
 
-actor "Bệnh nhân" as Patient
-actor "Lễ tân" as Receptionist
-actor "Quản trị viên" as Admin
-actor "Kiểm toán viên" as Auditor
-actor "Dịch vụ Email\n(SMTP / Brevo)" as EmailSvc
+actor "Bệnh nhân" as Patient #DCFCE7;line:15803D
+actor "Lễ tân" as Receptionist #FFEDD5;line:C2410C
+actor "Quản trị viên" as Admin #F3E8FF;line:7E22CE
+actor "Kiểm toán viên" as Auditor #FEE2E2;line:B91C1C
 
 rectangle "Hệ thống phòng khám ClinicCare" {
 
@@ -37,15 +30,30 @@ rectangle "Hệ thống phòng khám ClinicCare" {
   }
 
   package "M07 — Kiểm toán" {
-    usecase "UC-17\nGhi sự kiện kiểm toán" as UC17
     usecase "UC-18\nTra cứu lịch sử kiểm toán" as UC18
+    usecase "UC-17\nGhi sự kiện kiểm toán" as UC17
   }
 }
 
-Patient --> UC15
-Receptionist --> UC15
-Admin --> UC16
-Auditor --> UC18
-EmailSvc --> UC15
-EmailSvc --> UC16
+actor "Dịch vụ Email\n(SMTP / Brevo)" as EmailSvc <<system>> #F1F5F9;line:475569
+
+Patient -[#15803D]- UC15
+Receptionist -[#C2410C]- UC15
+Admin -[#7E22CE]- UC16
+Auditor -[#B91C1C]- UC18
+
+UC15 -[#475569]- EmailSvc
+UC16 -[#475569]- EmailSvc
+
+note bottom of UC17
+  UC-17 là hành vi audit fail-closed nội bộ của các dịch vụ bảo vệ (gồm UC-26, UC-27).
+  Kiểm toán viên chỉ tra cứu nhật ký append-only qua UC-18, không lộ PHI.
+end note
+
+legend bottom
+  |= Màu dây |= Tác nhân |= Màu dây |= Tác nhân |
+  |<#15803D>   | Bệnh nhân |<#7E22CE>   | Quản trị viên |
+  |<#C2410C>   | Lễ tân |<#B91C1C>   | Kiểm toán viên |
+  |<#475569>   | Hệ thống ngoài <<system>> (bên phải) | | |
+endlegend
 @enduml
