@@ -2,7 +2,9 @@ import { Link, useSearchParams } from "react-router-dom";
 import { ArrowLeft } from "lucide-react";
 import { useDirectory } from "@/core/directory";
 import { formatDate, formatTime } from "@/core/datetime";
+import { APPOINTMENT_STATUS } from "@/core/labels";
 import { Empty, PageHead, Panel } from "@/ui";
+import { pickDefaultRemote } from "@/features/doctor/Telehealth";
 import { TelehealthRoom } from "@/features/shared/TelehealthRoom";
 import { usePatient } from "./PatientContext";
 
@@ -11,7 +13,7 @@ export function PatientTelehealthPage() {
   const dir = useDirectory();
   const [params, setParams] = useSearchParams();
   const remote = appointments.filter((a) => a.mode === "REMOTE" && ["CONFIRMED", "IN_PROGRESS"].includes(a.status)).sort((a, b) => a.startAt.localeCompare(b.startAt));
-  const selected = remote.find((a) => a.id === params.get("appointmentId")) ?? remote[0];
+  const selected = remote.find((a) => a.id === params.get("appointmentId")) ?? pickDefaultRemote(remote);
 
   return (
     <>
@@ -29,7 +31,7 @@ export function PatientTelehealthPage() {
             <div className="filters">
               <label className="row"><span className="sub">Lịch khám từ xa</span>
                 <select className="field" value={selected.id} onChange={(e) => setParams({ appointmentId: e.target.value })}>
-                  {remote.map((a) => <option key={a.id} value={a.id}>{formatDate(a.startAt)} {formatTime(a.startAt)} · {dir.doctorName(a.doctorId)}</option>)}
+                  {remote.map((a) => <option key={a.id} value={a.id}>{formatDate(a.startAt)} {formatTime(a.startAt)} · {dir.doctorName(a.doctorId)} · {APPOINTMENT_STATUS[a.status].label}</option>)}
                 </select>
               </label>
             </div>

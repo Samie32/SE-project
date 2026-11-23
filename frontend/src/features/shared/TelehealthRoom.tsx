@@ -6,7 +6,7 @@ import { createCallTransport } from "@/core/rtc-transport";
 import { useCommand } from "@/core/useCommand";
 import { config } from "@/core/config";
 import { ApiError, errorMessage } from "@/core/client";
-import { MIN, formatTime, inJoinWindow } from "@/core/datetime";
+import { MIN, formatDate, formatTime, inJoinWindow } from "@/core/datetime";
 import { SESSION_STATUS } from "@/core/labels";
 import { useNow } from "@/core/useAsync";
 import type { Appointment, JoinToken, TelehealthSession } from "@/core/types";
@@ -297,17 +297,17 @@ export function TelehealthRoom({ role, appointment, counterpartName, onSessionCh
       {deviceNote && <Notice tone="info">{deviceNote}</Notice>}
       <div className="video-layout">
         <div>
-          <div className="stage">
+          <div className={"stage" + (closed ? " closed" : "")}>
             <div className="tiles">
-              <div className="tile">
+              <div className={"tile" + (remoteStream ? "" : " hidden-video")}>
                 <video ref={remoteVideo} autoPlay playsInline aria-label="Hình ảnh người tham gia" data-testid="remote-video" />
                 {compatDisplay && remoteStream && <canvas ref={remoteCanvas} aria-label="Video tương thích" style={{position:"absolute", inset:0, width:"100%", height:"100%", objectFit:"cover"}} />}
-                {!remoteStream && <div><Video size={30} aria-hidden/><p>{counterpartName}</p><small>{stateLabel[callState]}</small></div>}
+                {!remoteStream && <div className="tile-empty"><Video size={30} aria-hidden/><p>{counterpartName}</p><small>{st === "ENDED" ? "Phiên khám đã kết thúc" : st === "CANCELLED" ? "Phiên khám đã hủy" : stateLabel[callState]}</small></div>}
                 <span className="tag">{counterpartName}</span>
               </div>
               <div className={"tile" + (media === "ok" && cam ? "" : " hidden-video")}>
                 <video ref={video} data-testid="local-video" autoPlay muted playsInline aria-label="Camera của bạn" />
-                {(media !== "ok" || !cam) && <div><CameraOff size={30} aria-hidden /><p style={{ margin: "8px 0 0" }}>{media === "ok" ? "Camera đang tắt" : media === "denied" ? "Không mở được camera/micro" : "Chưa kiểm tra thiết bị"}</p></div>}
+                {(media !== "ok" || !cam) && <div className="tile-empty"><CameraOff size={30} aria-hidden /><p style={{ margin: "8px 0 0" }}>{st === "ENDED" ? "Camera & micro đã đóng" : st === "CANCELLED" ? "Phiên khám đã hủy" : media === "ok" ? "Camera đang tắt" : media === "denied" ? "Không mở được camera/micro" : "Chưa kiểm tra thiết bị"}</p></div>}
                 <span className="tag">Bạn</span>
               </div>
             </div>
@@ -333,7 +333,7 @@ export function TelehealthRoom({ role, appointment, counterpartName, onSessionCh
         </div>
         <aside className="panel">
           <h2>Phiên khám từ xa</h2>
-          <p className="sub">{formatTime(appointment.startAt)}–{formatTime(appointment.endAt)} · {counterpartName}</p>
+          <p className="sub">{formatDate(appointment.startAt)} · {formatTime(appointment.startAt)}–{formatTime(appointment.endAt)} · {counterpartName}</p>
           <div className="row" style={{ margin: "10px 0" }}>Trạng thái: {sInfo ? <Pill tone={sInfo.tone}>{sInfo.label}</Pill> : <Pill>{error ? "Không tải được phiên" : !enabled ? "Chưa kết nối" : admissionOpen ? "Đang tải…" : admissionExpired ? "Hết giờ vào phòng" : "Chưa mở phòng"}</Pill>}</div>
           {hint && <Notice><span>{hint}</span></Notice>}
           {!localStream && !closed && <label className="chk"><input type="checkbox" checked={!cam} onChange={e=>setCam(!e.target.checked)}/>Chỉ âm thanh</label>}
@@ -344,13 +344,13 @@ export function TelehealthRoom({ role, appointment, counterpartName, onSessionCh
             </label>
           )}
           {role === "PATIENT" && (
-            <button className="btn primary block" disabled={!enabled || busy || !canPatientJoin || !!token} onClick={() => void join()}>
+            <button className={"btn block" + (closed ? "" : " primary")} disabled={!enabled || busy || !canPatientJoin || !!token} onClick={() => void join()}>
               <LogIn size={16} aria-hidden /> {token ? "Đã tham gia phòng" : "Tham gia phòng chờ"}
             </button>
           )}
           {role === "DOCTOR" && (
             <div className="stack">
-              <button className="btn primary block" disabled={!enabled || busy || !canDoctorStart} onClick={() => void start()}>
+              <button className={"btn block" + (closed ? "" : " primary")} disabled={!enabled || busy || !canDoctorStart} onClick={() => void start()}>
                 <PlayCircle size={16} aria-hidden /> Bắt đầu phiên khám
               </button>
               {canDoctorEnter && <button className="btn block" disabled={busy} onClick={() => void join()}><LogIn size={16} aria-hidden /> Vào lại phòng</button>}
