@@ -22,13 +22,18 @@ export function skipTicket(ticketId: string, reason: string, version: number, ke
   return api.post<QueueTicket>(`/queue-tickets/${ticketId}/skip`, {reason,version}, key);
 }
 
-async function history<T>(path: string): Promise<T[]> {
+async function history<T>(path: string, maxPages = 10): Promise<T[]> {
   const result: T[] = [];
-  for (let offset = 0; ; offset += 100) {
-    const rows = await api.get<T[]>(path + qs({limit:100,offset}));
+  for (let page = 0; page < maxPages; page++) {
+    const rows = await api.get<T[]>(path + qs({ limit: 100, offset: page * 100 }));
     result.push(...rows);
     if (rows.length < 100) return result;
   }
+  return result;
+}
+export function listPatientRecordsPage(patientId: string, limit = 100, offset = 0) {
+  requireBackend("clinical");
+  return api.get<MedicalRecord[]>(`/patients/${patientId}/records${qs({ limit, offset })}`);
 }
 export function listPatientRecords(patientId: string) {
   requireBackend("clinical");
@@ -62,6 +67,10 @@ export function updatePrescription(id:string, version:number, items:Prescription
 export function issuePrescription(id:string, version:number, key:string) {
   requireBackend("clinical");
   return api.post<Prescription>(`/prescriptions/${id}/issue`, {version}, key);
+}
+export function listPatientPrescriptionsPage(patientId: string, limit = 100, offset = 0) {
+  requireBackend("clinical");
+  return api.get<Prescription[]>(`/patients/${patientId}/prescriptions${qs({ limit, offset })}`);
 }
 export function listPatientPrescriptions(patientId: string) {
   requireBackend("clinical");

@@ -1,11 +1,22 @@
 import { Link } from "react-router-dom";
-import { CalendarCheck, CalendarPlus, CheckCircle2, Clock3, FileHeart, MailWarning, Video } from "lucide-react";
+import {
+  CalendarCheck,
+  CalendarPlus,
+  CheckCircle2,
+  ChevronRight,
+  Clock3,
+  FileHeart,
+  MailCheck,
+  MailWarning,
+  Video,
+} from "lucide-react";
+import { analyzeAccountProfile } from "@/core/account-profile";
 import { useDirectory } from "@/core/directory";
 import { useSession } from "@/core/session";
 import { useNow } from "@/core/useAsync";
 import { MIN, dayKey, formatDate, formatTime, inJoinWindow, longDate, todayKey } from "@/core/datetime";
 import { MODE_LABEL } from "@/core/labels";
-import { AsyncBlock, Metric, Notice, PageHead, Panel, StatusPill } from "@/ui";
+import { AsyncBlock, Metric, Notice, PageHead, Panel, Pill, StatusPill } from "@/ui";
 import { AppointmentRow } from "@/features/shared/AppointmentRow";
 import { usePatient } from "./PatientContext";
 
@@ -41,7 +52,8 @@ export function PatientDashboard() {
   const next = upcoming[0];
   const done = appointments.filter((a) => a.status === "COMPLETED").length;
   const remote = upcoming.filter((a) => a.mode === "REMOTE").length;
-  const missingEmail = Boolean(identity && !identity.email?.trim());
+  const profile = analyzeAccountProfile(identity);
+  const hasMissingProfile = profile.missing.length > 0;
 
   return (
     <>
@@ -63,27 +75,43 @@ export function PatientDashboard() {
       </div>
       <div className="grid2">
         <Panel title="Lịch khám sắp tới" subtitle="Tối đa 5 lịch gần nhất" actions={<Link className="btn sm" to="/patient/appointments">Xem tất cả</Link>}>
-          <AsyncBlock loading={loading} error={error} onRetry={() => void reload()} empty={upcoming.length === 0} emptyTitle="Bạn chưa có lịch khám sắp tới" emptyText={<Link to="/patient/booking">Đặt lịch khám ngay</Link>}>
-            {upcoming.slice(0, 5).map((a) => (
-              <AppointmentRow
-                key={a.id}
-                item={a}
-                actions={
-                  a.mode === "REMOTE" ? (
-                    <Link className="btn sm soft" to={`/patient/telehealth?appointmentId=${a.id}`}>
-                      <Video size={14} aria-hidden /> {inJoinWindow(a.startAt, now) ? "Vào phòng chờ" : "Phòng chờ"}
-                    </Link>
-                  ) : (
-                    <Link className="btn sm" to="/patient/appointments">Chi tiết</Link>
-                  )
-                }
-              />
-            ))}
+          <AsyncBlock loading={loading} error={error} onRetry={() => void reload()}>
+            {upcoming.length === 0 ? (
+              <div className="empty empty-cta">
+                <CalendarPlus className="ic" aria-hidden />
+                <h3>Bạn chưa có lịch khám sắp tới</h3>
+                <p className="muted">Chọn chuyên khoa &amp; bác sĩ → chọn giờ trống → nhận xác nhận.</p>
+                <div className="row" style={{ justifyContent: "center", marginTop: 14 }}>
+                  <Link className="btn primary" to="/patient/booking">
+                    <CalendarPlus size={16} aria-hidden /> Đặt lịch khám ngay
+                  </Link>
+                  <Link className="btn soft" to="/patient/booking?mode=REMOTE">
+                    <Video size={16} aria-hidden /> Đặt khám từ xa
+                  </Link>
+                </div>
+              </div>
+            ) : (
+              upcoming.slice(0, 5).map((a) => (
+                <AppointmentRow
+                  key={a.id}
+                  item={a}
+                  actions={
+                    a.mode === "REMOTE" ? (
+                      <Link className="btn sm soft" to={`/patient/telehealth?appointmentId=${a.id}`}>
+                        <Video size={14} aria-hidden /> {inJoinWindow(a.startAt, now) ? "Vào phòng chờ" : "Phòng chờ"}
+                      </Link>
+                    ) : (
+                      <Link className="btn sm" to="/patient/appointments">Chi tiết</Link>
+                    )
+                  }
+                />
+              ))
+            )}
           </AsyncBlock>
         </Panel>
         <div>
-          <Panel title="Lần khám tiếp theo">
-            {next ? (
+          {next && (
+            <Panel title="Lần khám tiếp theo">
               <div className="next-appt">
                 <div className="next-appt-head">
                   <div>
@@ -108,21 +136,52 @@ export function PatientDashboard() {
                   <Link className="btn sm" to="/patient/appointments">Quản lý lịch</Link>
                 </div>
               </div>
-            ) : (
-              <p className="sub">Chưa có lịch. Hãy đặt lịch để được bác sĩ chăm sóc.</p>
-            )}
-          </Panel>
+            </Panel>
+          )}
           <Panel title="Lối tắt">
-            <div className="stack">
-              {missingEmail && (
-                <Notice tone="warn">
-                  <span style={{ display: "inline-flex", gap: 6, alignItems: "center" }}>
-                    <MailWarning size={15} aria-hidden /> Bạn chưa có email liên hệ để nhận xác nhận và nhắc lịch trước 30 phút.
+            {profile.missingImportant.length > 0 && (
+              <Notice tone="warn">
+                Bạn chưa có email liên hệ để nhận xác nhận và nhắc lịch trước 30 phút.
+              </Notice>
+            )}
+            <div className="shortcut-list">
+              <Link className="shortcut-card" to="/patient/records">
+                <span className="shortcut-icon info"><FileHeart size={18} aria-hidden /></span>
+                <span className="shortcut-body">
+                  <span className="shortcut-title">
+                    <b>Hồ sơ &amp; đơn thuốc</b>
                   </span>
-                </Notice>
-              )}
-              <Link className="btn" to="/patient/records"><FileHeart size={16} aria-hidden /> Hồ sơ & đơn thuốc</Link>
-              <Link className="btn" to="/account">Cập nhật email nhận thông báo</Link>
+                  <small className="muted">
+                    {done > 0
+                      ? `${done} lần khám đã hoàn tất — xem bệnh án & đơn thuốc`
+                      : "Xem bệnh án hoàn tất và đơn thuốc đã phát hành"}
+                  </small>
+                </span>
+                <ChevronRight size={16} className="shortcut-arrow" aria-hidden />
+              </Link>
+              <Link className="shortcut-card" to={hasMissingProfile ? "/account?edit=1" : "/account"}>
+                <span className={"shortcut-icon " + (hasMissingProfile ? "warn" : "ok")}>
+                  {hasMissingProfile ? <MailWarning size={18} aria-hidden /> : <MailCheck size={18} aria-hidden />}
+                </span>
+                <span className="shortcut-body">
+                  <span className="shortcut-title">
+                    <b>{hasMissingProfile ? "Hoàn thiện thông tin tài khoản" : "Tài khoản & thông báo"}</b>
+                    {profile.totalCount > 0 && (
+                      <Pill tone={hasMissingProfile ? "wait" : "ok"}>
+                        {hasMissingProfile ? `Còn thiếu ${profile.missing.length}` : "Đầy đủ"}
+                      </Pill>
+                    )}
+                  </span>
+                  <small className="muted">
+                    {hasMissingProfile
+                      ? `Còn thiếu: ${profile.missing.map((f) => f.shortLabel).join(", ")}`
+                      : identity?.email
+                        ? `Email: ${identity.email}`
+                        : "Quản lý thông tin liên hệ và bảo mật"}
+                  </small>
+                </span>
+                <ChevronRight size={16} className="shortcut-arrow" aria-hidden />
+              </Link>
             </div>
           </Panel>
           <Notice>Bạn có thể đổi/hủy lịch khi lịch đã xác nhận và còn ít nhất <b>2 giờ</b> trước giờ khám.</Notice>

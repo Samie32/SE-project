@@ -16,6 +16,8 @@ export interface Identity {
   email?: string | null;
   phone?: string | null;
   active?: boolean | number;
+  attributes?: Record<string, unknown> | null;
+  [extra: string]: unknown;
 }
 
 export interface Specialty {

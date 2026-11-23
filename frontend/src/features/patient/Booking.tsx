@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Link, useNavigate, useSearchParams } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { ArrowLeft, ArrowRight, Check, CheckCircle2, Info, Stethoscope, Video } from "lucide-react";
 import { listSlots } from "@/api/schedule";
 import { bookAppointment } from "@/api/appointments";
@@ -146,11 +146,6 @@ export function BookingPage() {
 
   return (
     <>
-      <div style={{ marginBottom: 14 }}>
-        <Link to="/patient" className="btn sm" style={{ textDecoration: "none", display: "inline-flex", alignItems: "center", gap: 6 }}>
-          <ArrowLeft size={16} aria-hidden /> Quay lại Tổng quan
-        </Link>
-      </div>
       <PageHead eyebrow="Dịch vụ khám" title="Đặt lịch khám" text="Chọn chuyên khoa, bác sĩ và khung giờ còn trống." />
       {error && <Notice tone="error">{error}</Notice>}
       <div className="booking">

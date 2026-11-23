@@ -1,5 +1,5 @@
 import { Link, useSearchParams } from "react-router-dom";
-import { ArrowLeft, CheckCircle2, FileHeart, Video } from "lucide-react";
+import { CheckCircle2, FileHeart, Video } from "lucide-react";
 import { useDirectory } from "@/core/directory";
 import { dayKey, formatDate, formatTime, todayKey } from "@/core/datetime";
 import { APPOINTMENT_STATUS, apptCode } from "@/core/labels";
@@ -24,11 +24,6 @@ export function PatientTelehealthPage() {
 
   return (
     <>
-      <div style={{ marginBottom: 14 }}>
-        <Link to="/patient" className="btn sm" style={{ textDecoration: "none", display: "inline-flex", alignItems: "center", gap: 6 }}>
-          <ArrowLeft size={16} aria-hidden /> Quay lại Tổng quan
-        </Link>
-      </div>
       <PageHead eyebrow="Khám từ xa" title="Phòng chờ trực tuyến" text="Kiểm tra thiết bị và vào phòng chờ trước giờ hẹn." />
       {error && (
         <Notice tone="error" actions={<button type="button" className="btn sm" onClick={() => void reload()}>Thử lại</button>}>

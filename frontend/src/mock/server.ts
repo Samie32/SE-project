@@ -699,7 +699,10 @@ on("GET", "/patients/:id/prescriptions", (c) => {
     need(c.db.appts.some((a) => a.patientId === pid && myDoctorIds(c.db, c.actor).includes(a.doctorId)), 403, "Doctor assignment required");
   }
   audit(c.db, c.actor.id, "PRESCRIPTION_LIST_READ", pid, c.now);
-  return c.db.rx.filter((r) => r.patientId === pid && r.status === "ISSUED");
+  const rxRows = c.db.rx
+    .filter((r) => r.patientId === pid && r.status === "ISSUED")
+    .sort((a, b) => (b.issuedAt ?? "").localeCompare(a.issuedAt ?? "") || a.id.localeCompare(b.id));
+  return page(rxRows, c.query, 100);
 });
 
 // ---------- khám từ xa ----------
