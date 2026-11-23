@@ -76,7 +76,7 @@ on("PUT", "/clinic/hours", (c) => {
     day && Number.isInteger(day.dayOfWeek) && day.dayOfWeek >= 1 && day.dayOfWeek <= 7
     && isValidClinicDay(day)) && new Set(days.map(day => day.dayOfWeek)).size === 7, 422, "Invalid clinic hours");
   need(!c.db.avail.some(shift => Date.parse(shift.endAt) > c.now
-    && scheduleIntervalError(shift.startAt, shift.endAt, -Infinity, days)),
+    && scheduleIntervalError(shift.startAt, shift.endAt, -Infinity, days, c.db.clinicHolidays)),
   409, "Clinic hours conflict with an existing shift");
   c.db.clinicHours = [...days].sort((a, b) => a.dayOfWeek - b.dayOfWeek);
   audit(c.db, c.actor.id, "CLINIC_HOURS_UPDATED", "clinic-hours", c.now);
@@ -354,7 +354,9 @@ on("DELETE", "/availability/:id", c=>{
   need(Date.parse(shift.startAt)>c.now,409,"Past schedules are retained");
   const slots=new Set(c.db.slots.filter(s=>s.availabilityId===shift.id).map(s=>s.id));
   need(!c.db.appts.some(a=>slots.has(a.slotId)),409,"Availability with appointment history cannot be deleted");
+  const shiftStart=Date.parse(shift.startAt),shiftEnd=Date.parse(shift.endAt);
   c.db.slots=c.db.slots.filter(s=>s.availabilityId!==shift.id);
+  c.db.timeoff=c.db.timeoff.filter(t=>!(t.doctorId===shift.doctorId&&Date.parse(t.startAt)>=shiftStart&&Date.parse(t.endAt)<=shiftEnd));
   c.db.avail=c.db.avail.filter(a=>a.id!==shift.id);
   audit(c.db,c.actor.id,"AVAILABILITY_REMOVED",shift.id,c.now);
   return res(204);
@@ -373,9 +375,9 @@ on("POST", "/doctors/:id/availability", (c) => {
   const { startAt, endAt, slotMinutes, mode } = c.body ?? {};
   need(startAt && endAt && Date.parse(startAt) < Date.parse(endAt) && Number.isInteger(slotMinutes) && slotMinutes >= 1 && slotMinutes <= 540 && ["IN_PERSON", "REMOTE"].includes(mode), 400, "Invalid request");
   need(Date.parse(startAt) > c.now, 422, "Availability must be in the future");
-  const issue=scheduleIntervalError(startAt,endAt,c.now,c.db.clinicHours)||slotDurationError(startAt,endAt,slotMinutes);
+  const issue=scheduleIntervalError(startAt,endAt,c.now,c.db.clinicHours,c.db.clinicHolidays)||slotDurationError(startAt,endAt,slotMinutes);
   need(!issue,422,issue);
-  need(!c.db.avail.some((a) => a.doctorId === c.params[0] && overlap(a.startAt, a.endAt, startAt, endAt)), 409, "Constraint conflict");
+  need(!c.db.avail.some((a) => a.doctorId === c.params[0] && overlap(a.startAt, a.endAt, startAt, endAt)), 409, "Overlapping availability");
   const a = { id: mid(), doctorId: c.params[0], startAt: new Date(startAt).toISOString(), endAt: new Date(endAt).toISOString(), slotMinutes, mode };
   c.db.avail.push(a);
   c.db.slots.push(...genSlots(a));
@@ -386,9 +388,10 @@ on("POST", "/doctors/:id/time-off", (c) => {
   doctorGuard(c, c.params[0]);
   const { startAt, endAt } = c.body ?? {};
   need(startAt && endAt && Date.parse(startAt) < Date.parse(endAt), 400, "Invalid request");
-  const issue=scheduleIntervalError(startAt,endAt,c.now,c.db.clinicHours);
+  const issue=scheduleIntervalError(startAt,endAt,c.now,c.db.clinicHours,c.db.clinicHolidays);
   need(!issue,422,issue);
-  need(!c.db.appts.some((a) => a.doctorId === c.params[0] && ACTIVE.includes(a.status) && overlap(a.startAt, a.endAt, startAt, endAt)), 409, "Constraint conflict");
+  need(!c.db.timeoff.some((t) => t.doctorId === c.params[0] && overlap(t.startAt, t.endAt, startAt, endAt)), 409, "Overlapping time off");
+  need(!c.db.appts.some((a) => a.doctorId === c.params[0] && ACTIVE.includes(a.status) && overlap(a.startAt, a.endAt, startAt, endAt)), 409, "Time off conflicts with appointments");
   const t = { id: mid(), doctorId: c.params[0], startAt: new Date(startAt).toISOString(), endAt: new Date(endAt).toISOString() };
   c.db.timeoff.push(t);
   audit(c.db, c.actor.id, "TIME_OFF_CREATED", t.id, c.now);

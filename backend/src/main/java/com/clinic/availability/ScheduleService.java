@@ -89,6 +89,16 @@ public class ScheduleService {
     Problem.require(start.isAfter(clock.instant()), 422, "Time off must be in the future");
     Problem.require(
         db.list(
+                "SELECT id FROM time_off WHERE doctor_id=? AND start_at<? AND end_at>?"
+                    + " LIMIT 1 FOR SHARE",
+                doctor,
+                end,
+                start)
+            .isEmpty(),
+        409,
+        "Overlapping time off");
+    Problem.require(
+        db.list(
                 "SELECT id FROM appointment WHERE doctor_id=? AND start_at<? AND end_at>? AND"
                     + " status IN ('CONFIRMED','CHECKED_IN','IN_PROGRESS') LIMIT 1 FOR SHARE",
                 doctor,
@@ -131,6 +141,11 @@ public class ScheduleService {
           409,
           "Availability with appointment history cannot be deleted");
       db.update("DELETE FROM slot WHERE availability_id=?", id);
+      db.update(
+          "DELETE FROM time_off WHERE doctor_id=? AND start_at>=? AND end_at<=?",
+          row.get("doctorId").toString(),
+          Db.instant(row, "startAt"),
+          Db.instant(row, "endAt"));
     }
     db.update("DELETE FROM " + table + " WHERE id=?", id);
     audit.record(actor.id(), off ? "TIME_OFF_REMOVED" : "AVAILABILITY_REMOVED", id);

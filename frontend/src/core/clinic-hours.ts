@@ -24,7 +24,33 @@ export function isValidClinicDay(day: ClinicDayHours) {
       && HH_MM.test(day.opensAt) && HH_MM.test(day.closesAt) && day.opensAt < day.closesAt);
 }
 
-export function clinicWindow(date: string, days: readonly ClinicDayHours[]) {
+export interface ClinicHolidayWindow {
+  startDate: string;
+  endDate: string;
+  name?: string;
+  closed: boolean;
+  opensAt: string | null;
+  closesAt: string | null;
+}
+
+export function findClinicHoliday(
+  date: string,
+  holidays: readonly ClinicHolidayWindow[] = [],
+): ClinicHolidayWindow | undefined {
+  return holidays.find((h) => h.startDate <= date && date <= h.endDate);
+}
+
+export function clinicWindow(
+  date: string,
+  days: readonly ClinicDayHours[],
+  holidays: readonly ClinicHolidayWindow[] = [],
+) {
+  const holiday = findClinicHoliday(date, holidays);
+  if (holiday) {
+    return !holiday.closed && holiday.opensAt && holiday.closesAt
+      ? { start: holiday.opensAt, end: holiday.closesAt }
+      : null;
+  }
   const weekday = new Date(`${date}T00:00:00Z`).getUTCDay() || 7;
   const day = days.find(item => item.dayOfWeek === weekday);
   return day?.opensAt && day.closesAt ? { start: day.opensAt, end: day.closesAt } : null;

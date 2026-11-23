@@ -67,6 +67,16 @@ const DETAIL_MESSAGES: Record<string, string> = {
   "Clinic holiday conflicts with an existing shift":
     "Đã có ca làm việc của bác sĩ nằm trong khoảng ngày nghỉ lễ này. Hãy điều chỉnh lịch bác sĩ trước.",
   "Outside clinic hours": "Thời gian đã chọn nằm ngoài giờ hoạt động của phòng khám.",
+  "Overlapping time off": "Khoảng nghỉ bị trùng hoặc chồng giờ với lịch nghỉ đã có.",
+  "Time off conflicts with appointments":
+    "Không thể nghỉ trong khoảng đã có lịch hẹn còn hiệu lực. Hãy xử lý các lịch hẹn bị ảnh hưởng trước.",
+  "Time off must be in the future": "Thời gian nghỉ phải bắt đầu ở trong tương lai.",
+  "Overlapping availability": "Ca làm việc bị trùng giờ với một ca khác của bác sĩ.",
+  "Availability must be in the future": "Ca làm việc phải bắt đầu ở trong tương lai.",
+  "Past schedules are retained": "Lịch đã bắt đầu hoặc đã qua, hệ thống giữ lại lịch sử và không cho xóa.",
+  "Availability with appointment history cannot be deleted":
+    "Không thể xóa ca đã từng có lịch hẹn (kể cả lịch đã hủy).",
+  "Doctor inactive": "Bác sĩ hiện đang tạm ngừng nhận lịch.",
   "Self role changes are not allowed": "Không thể tự thay đổi vai trò của chính mình.",
   "Cannot disable your own account": "Không thể vô hiệu hóa tài khoản của chính mình.",
   "Patient account cannot be enrolled as staff": "Tài khoản này đã thuộc cổng bệnh nhân. Hãy dùng tài khoản nhân sự do phòng khám cấp.",

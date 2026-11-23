@@ -663,6 +663,8 @@ dl.detail dd { margin: 0; overflow-wrap: anywhere; }
 .shift-break-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 7px 10px; border-radius: 8px; background: #fff1f2; color: #9f1239; border: 1px solid #fecdd3; font-size: 13px; font-weight: 600; }
 .shift-break-row > span { display: inline-flex; align-items: center; gap: 6px; }
 .shift-break-form { margin-top: 12px; padding: 12px; border: 1px solid var(--line); border-radius: 10px; background: #f8fafc; display: grid; gap: 10px; }
+.break-presets { display: flex; flex-wrap: wrap; gap: 6px; }
+.break-presets .btn { font-weight: 600; }
 @supports not selector(::-webkit-scrollbar) {
   * { scrollbar-width: thin; scrollbar-color: #b7c9e6 transparent; }
 }
