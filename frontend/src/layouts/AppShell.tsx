@@ -1,4 +1,4 @@
-import { memo, useEffect, useState, type CSSProperties, type PointerEvent as ReactPointerEvent } from "react";
+import { memo, useEffect, useRef, useState, type CSSProperties, type PointerEvent as ReactPointerEvent } from "react";
 import { Link, NavLink, Outlet, useLocation } from "react-router-dom";
 import { LogOut, Menu, PanelLeftClose, PanelLeftOpen, ShieldCheck } from "lucide-react";
 import { useSession } from "@/core/session";
@@ -37,8 +37,14 @@ export function AppShell() {
     return Number.isFinite(saved) && saved >= MIN_SIDE_W && saved <= MAX_SIDE_W ? saved : DEFAULT_SIDE_W;
   });
   const [resizing, setResizing] = useState(false);
+  const mainScrollRef = useRef<HTMLDivElement>(null);
 
-  useEffect(() => setOpen(false), [pathname]);
+  useEffect(() => {
+    setOpen(false);
+    if (mainScrollRef.current) mainScrollRef.current.scrollTop = 0;
+    setScrolled(false);
+    if (typeof document !== "undefined") document.documentElement.scrollTop = 0;
+  }, [pathname]);
   useEffect(() => {
     localStorage.setItem("cc_side_collapsed", collapsed ? "1" : "0");
   }, [collapsed]);
@@ -169,6 +175,7 @@ export function AppShell() {
             </div>
           </header>
           <div
+            ref={mainScrollRef}
             className="main-scroll"
             onScroll={(e) => {
               const isScrolled = e.currentTarget.scrollTop > 4;

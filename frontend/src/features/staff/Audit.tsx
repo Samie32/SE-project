@@ -141,6 +141,7 @@ export function AuditPage() {
   const [detail, setDetail] = useState<AuditEvent | null>(null);
   const [copiedKey, setCopiedKey] = useState<string | null>(null);
   const [errs, setErrs] = useState<{ actorId?: string; correlationId?: string; range?: string }>({});
+  const [showIdFilters, setShowIdFilters] = useState(false);
 
   const [exporting, setExporting] = useState(false);
   const [verifying, setVerifying] = useState(false);
@@ -203,6 +204,7 @@ export function AuditPage() {
   };
 
   const reset = () => {
+    setShowIdFilters(false);
     commitFilters(EMPTY_FORM, "ALL");
   };
 
@@ -758,6 +760,20 @@ export function AuditPage() {
             <button className="btn sm primary" type="submit" disabled={!config.backend.audit}>
               <Search size={14} aria-hidden /> Lọc
             </button>
+            {(() => {
+              const idCount = [form.actorId, form.resourceId, form.correlationId].filter((v) => v.trim()).length;
+              const idOpen = showIdFilters || idCount > 0 || Boolean(errs.actorId || errs.correlationId);
+              return (
+                <button
+                  type="button"
+                  className={"btn sm" + (idOpen ? " soft" : "")}
+                  aria-expanded={idOpen}
+                  onClick={() => setShowIdFilters((v) => !v)}
+                >
+                  <Filter size={13} aria-hidden /> Lọc theo mã{idCount > 0 ? ` (${idCount})` : ""}
+                </button>
+              );
+            })()}
             {hasDraftOrActive && (
               <button className="btn sm" type="button" onClick={reset} title="Xóa toàn bộ bộ lọc">
                 <RotateCcw size={14} aria-hidden /> Đặt lại
@@ -765,29 +781,33 @@ export function AuditPage() {
             )}
           </div>
 
-          <div className="audit-id-filters">
-            <input
-              className="field"
-              aria-label="Mã tác nhân (UUID)"
-              placeholder="Mã tác nhân (UUID 36 ký tự)…"
-              value={form.actorId}
-              onChange={(e) => setForm({ ...form, actorId: e.target.value })}
-            />
-            <input
-              className="field"
-              aria-label="Mã đối tượng"
-              placeholder="Mã đối tượng (UUID hoặc tài nguyên)…"
-              value={form.resourceId}
-              onChange={(e) => setForm({ ...form, resourceId: e.target.value })}
-            />
-            <input
-              className="field"
-              aria-label="Correlation ID (UUID)"
-              placeholder="Correlation ID (UUID)…"
-              value={form.correlationId}
-              onChange={(e) => setForm({ ...form, correlationId: e.target.value })}
-            />
-          </div>
+          {(showIdFilters ||
+            Boolean(form.actorId.trim() || form.resourceId.trim() || form.correlationId.trim()) ||
+            Boolean(errs.actorId || errs.correlationId)) && (
+            <div className="audit-id-filters">
+              <input
+                className="field"
+                aria-label="Mã tác nhân (UUID)"
+                placeholder="Mã tác nhân (UUID 36 ký tự)…"
+                value={form.actorId}
+                onChange={(e) => setForm({ ...form, actorId: e.target.value })}
+              />
+              <input
+                className="field"
+                aria-label="Mã đối tượng"
+                placeholder="Mã đối tượng (UUID hoặc tài nguyên)…"
+                value={form.resourceId}
+                onChange={(e) => setForm({ ...form, resourceId: e.target.value })}
+              />
+              <input
+                className="field"
+                aria-label="Correlation ID (UUID)"
+                placeholder="Correlation ID (UUID)…"
+                value={form.correlationId}
+                onChange={(e) => setForm({ ...form, correlationId: e.target.value })}
+              />
+            </div>
+          )}
         </form>
 
         {activeChips.length > 0 && (
@@ -838,9 +858,6 @@ export function AuditPage() {
                   <th>Đối tượng</th>
                   <th>Kết quả</th>
                   <th>Correlation</th>
-                  <th>
-                    <span className="sr-only">Chi tiết</span>
-                  </th>
                 </tr>
               </thead>
               <tbody>
@@ -850,7 +867,15 @@ export function AuditPage() {
                   const resCtx = auditResourceContext(e.action, e.resourceId, e.actorId);
                   const isSelf = Boolean(e.actorId && e.resourceId === e.actorId);
                   return (
-                    <tr key={e.id} className={e.result === "DENIED" ? "audit-row-warn" : undefined}>
+                    <tr
+                      key={e.id}
+                      className={"audit-row-clickable" + (e.result === "DENIED" ? " audit-row-warn" : "")}
+                      title="Bấm vào dòng để xem chi tiết sự kiện"
+                      onClick={() => {
+                        if (window.getSelection()?.toString()) return;
+                        setDetail(e);
+                      }}
+                    >
                       <td className="nowrap">
                         <div>{formatDateTimeSec(e.createdAt)}</div>
                         {e.chainSeq != null && (
@@ -860,16 +885,27 @@ export function AuditPage() {
                         )}
                       </td>
                       <td>
-                        <div className={"audit-action-name" + (highRisk ? " is-high" : "")}>
+                        <button
+                          type="button"
+                          className={"audit-action-trigger" + (highRisk ? " is-high" : "")}
+                          onClick={(ev) => {
+                            ev.stopPropagation();
+                            setDetail(e);
+                          }}
+                          aria-label={`Xem chi tiết sự kiện ${auditActionLabel(e.action, e.result)}`}
+                        >
                           {auditActionLabel(e.action, e.result)}
-                        </div>
+                        </button>
                         <div className="audit-sub mono">{e.action}</div>
                       </td>
-                      <td>
+                      <td className="nowrap">
                         <button
                           type="button"
                           className="audit-pivot"
-                          onClick={() => pivotActor(e)}
+                          onClick={(ev) => {
+                            ev.stopPropagation();
+                            pivotActor(e);
+                          }}
                           title={
                             isSystem
                               ? `Bấm để lọc tác nhân Hệ thống (${e.actorLabel ?? "clinic-background-worker"})`
@@ -893,11 +929,14 @@ export function AuditPage() {
                           </span>
                         </button>
                       </td>
-                      <td>
+                      <td className="nowrap">
                         <button
                           type="button"
                           className="audit-pivot"
-                          onClick={() => pivotResource(e.resourceId)}
+                          onClick={(ev) => {
+                            ev.stopPropagation();
+                            pivotResource(e.resourceId);
+                          }}
                           title={`Bấm để truy vết đối tượng · Mã đầy đủ: ${e.resourceId}`}
                           aria-label={`Truy vết đối tượng ${resCtx} ${e.resourceId}`}
                         >
@@ -914,21 +953,14 @@ export function AuditPage() {
                         <button
                           type="button"
                           className="audit-corr-btn mono"
-                          onClick={() => pivotCorrelation(e.correlationId)}
+                          onClick={(ev) => {
+                            ev.stopPropagation();
+                            pivotCorrelation(e.correlationId);
+                          }}
                           title={`Bấm để truy vết Correlation ID đầy đủ: ${e.correlationId}`}
                           aria-label={`Truy vết Correlation ID ${e.correlationId.slice(0, 8)}`}
                         >
                           {e.correlationId.slice(0, 8)}
-                        </button>
-                      </td>
-                      <td className="nowrap">
-                        <button
-                          type="button"
-                          className="btn sm"
-                          onClick={() => setDetail(e)}
-                          aria-label={`Xem chi tiết sự kiện ${auditActionLabel(e.action, e.result)}`}
-                        >
-                          Chi tiết
                         </button>
                       </td>
                     </tr>
