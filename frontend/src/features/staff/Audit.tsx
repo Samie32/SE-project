@@ -1,8 +1,9 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   Activity,
   Archive,
   Check,
+  ChevronDown,
   Copy,
   Download,
   FilePenLine,
@@ -36,6 +37,7 @@ import {
   auditResourceContext,
   formatCompactId,
   isHighRiskAuditAction,
+  matchAuditActionCodes,
   resolveAuditActionFilter,
 } from "@/core/audit-labels";
 import { errorMessage } from "@/core/client";
@@ -142,6 +144,58 @@ export function AuditPage() {
   const [copiedKey, setCopiedKey] = useState<string | null>(null);
   const [errs, setErrs] = useState<{ actorId?: string; correlationId?: string; range?: string }>({});
   const [showIdFilters, setShowIdFilters] = useState(false);
+  const [toolsOpen, setToolsOpen] = useState(false);
+  const [actionSuggestOpen, setActionSuggestOpen] = useState(false);
+  const toolsRef = useRef<HTMLDivElement>(null);
+  const actionComboRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!toolsOpen && !actionSuggestOpen) return;
+    const onDown = (ev: MouseEvent) => {
+      const target = ev.target as Node | null;
+      if (toolsOpen && toolsRef.current && target && !toolsRef.current.contains(target)) {
+        setToolsOpen(false);
+      }
+      if (actionSuggestOpen && actionComboRef.current && target && !actionComboRef.current.contains(target)) {
+        setActionSuggestOpen(false);
+      }
+    };
+    const onKey = (ev: KeyboardEvent) => {
+      if (ev.key === "Escape") {
+        setToolsOpen(false);
+        setActionSuggestOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", onDown);
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("mousedown", onDown);
+      document.removeEventListener("keydown", onKey);
+    };
+  }, [toolsOpen, actionSuggestOpen]);
+
+  const actionSuggestions = useMemo(() => {
+    const q = form.action.trim();
+    if (!q) {
+      const featured = [
+        "RECORD_AMENDED",
+        "RECORD_FINAL",
+        "PRESCRIPTION_ISSUED",
+        "APPOINTMENT_BOOKED",
+        "APPOINTMENT_CANCELLED",
+        "ROLES_CHANGED",
+        "PATIENT_ACCOUNT_LOCKED_SECURITY_REVIEW",
+        "TELEHEALTH_JOINED",
+        "AUDIT_EXPORT",
+        "AUDIT_INTEGRITY_VERIFIED",
+      ];
+      return featured
+        .filter((code) => code in AUDIT_ACTION_LABELS)
+        .map((code) => ({ code, label: AUDIT_ACTION_LABELS[code] }));
+    }
+    const matched = matchAuditActionCodes(q);
+    return matched.slice(0, 15).map((code) => ({ code, label: AUDIT_ACTION_LABELS[code] ?? code }));
+  }, [form.action]);
 
   const [exporting, setExporting] = useState(false);
   const [verifying, setVerifying] = useState(false);
@@ -448,40 +502,53 @@ export function AuditPage() {
         title="Nhật ký kiểm toán"
         text="Chỉ đọc (append-only), bảo vệ chuỗi băm HMAC-SHA256. Không chứa token, mật khẩu hay nội dung bệnh án."
         actions={
-          <>
+          <div className="audit-tools-wrap" ref={toolsRef}>
             <button
               type="button"
-              className="btn sm"
-              onClick={() => void handleVerify()}
-              disabled={!config.backend.audit || verifying}
-            >
-              <ShieldCheck size={15} aria-hidden /> {verifying ? "Đang kiểm chứng…" : "Kiểm chứng toàn vẹn"}
-            </button>
-            <button
-              type="button"
-              className="btn sm"
-              onClick={() => setRetentionOpen(true)}
+              className={"btn sm" + (toolsOpen ? " soft" : "")}
+              aria-expanded={toolsOpen}
+              aria-haspopup="menu"
+              onClick={() => setToolsOpen((v) => !v)}
               disabled={!config.backend.audit}
             >
-              <Archive size={15} aria-hidden /> Chính sách lưu trữ
+              <ShieldCheck size={15} aria-hidden /> Tiện ích kiểm toán <ChevronDown size={14} aria-hidden />
             </button>
-            <button
-              type="button"
-              className="btn sm"
-              onClick={() => void handleExport()}
-              disabled={!config.backend.audit || exporting}
-            >
-              <Download size={15} aria-hidden /> {exporting ? "Đang xuất…" : "Xuất CSV"}
-            </button>
-            <button
-              type="button"
-              className="btn sm"
-              onClick={handleRefresh}
-              disabled={!config.backend.audit || listQuery.loading}
-            >
-              <RefreshCw size={15} aria-hidden /> Làm mới
-            </button>
-          </>
+            {toolsOpen && (
+              <div className="audit-tools-menu" role="menu" aria-label="Tiện ích kiểm toán">
+                <button
+                  type="button"
+                  role="menuitem"
+                  className="audit-tools-item"
+                  disabled={verifying}
+                  onClick={() => {
+                    setToolsOpen(false);
+                    void handleVerify();
+                  }}
+                >
+                  <ShieldCheck size={16} aria-hidden />
+                  <span>
+                    <b>{verifying ? "Đang kiểm chứng…" : "Kiểm chứng toàn vẹn"}</b>
+                    <small>Đối chiếu chuỗi băm HMAC-SHA256 chống sửa đổi</small>
+                  </span>
+                </button>
+                <button
+                  type="button"
+                  role="menuitem"
+                  className="audit-tools-item"
+                  onClick={() => {
+                    setToolsOpen(false);
+                    setRetentionOpen(true);
+                  }}
+                >
+                  <Archive size={16} aria-hidden />
+                  <span>
+                    <b>Chính sách lưu trữ</b>
+                    <small>Chu kỳ 365/1.825 ngày &amp; niêm phong lô bất biến</small>
+                  </span>
+                </button>
+              </div>
+            )}
+          </div>
         }
       />
       <PendingBackend feature="audit" />
@@ -634,7 +701,27 @@ export function AuditPage() {
       <Panel
         className="audit-panel"
         title="Sự kiện kiểm toán (mới nhất trước)"
-        subtitle="Bấm trực tiếp vào Tác nhân, Đối tượng hoặc Correlation để truy vết nhanh. UUID đầy đủ nằm trong Chi tiết và file CSV."
+        subtitle="Bấm vào dòng để xem đủ UUID và mã băm; bấm vào Tác nhân, Đối tượng hoặc Correlation để truy vết nhanh."
+        actions={
+          <div className="row" style={{ gap: 8 }}>
+            <button
+              type="button"
+              className="btn sm"
+              onClick={() => void handleExport()}
+              disabled={!config.backend.audit || exporting}
+            >
+              <Download size={14} aria-hidden /> {exporting ? "Đang xuất…" : "Xuất CSV"}
+            </button>
+            <button
+              type="button"
+              className="btn sm"
+              onClick={handleRefresh}
+              disabled={!config.backend.audit || listQuery.loading}
+            >
+              <RefreshCw size={14} aria-hidden /> Làm mới
+            </button>
+          </div>
+        }
       >
         <div className="audit-toolbar">
           <div className="seg" role="group" aria-label="Chọn nhanh mốc thời gian">
@@ -679,19 +766,41 @@ export function AuditPage() {
           }}
         >
           <div className="audit-filters">
-            <input
-              className="field audit-action-input"
-              aria-label="Hành động (tiếng Việt hoặc mã)"
-              placeholder="Hành động (VN hoặc mã, VD: bệnh án, CREATED)…"
-              list="audit-action-datalist"
-              value={form.action}
-              onChange={(e) => setForm({ ...form, action: e.target.value })}
-            />
-            <datalist id="audit-action-datalist">
-              {Object.entries(AUDIT_ACTION_LABELS).map(([code, label]) => (
-                <option key={code} value={`${label} (${code})`} />
-              ))}
-            </datalist>
+            <div className="audit-action-combo" ref={actionComboRef}>
+              <input
+                className="field audit-action-input"
+                aria-label="Hành động (tiếng Việt hoặc mã)"
+                placeholder="Hành động (VN hoặc mã, VD: bệnh án, CREATED)…"
+                autoComplete="off"
+                value={form.action}
+                onFocus={() => setActionSuggestOpen(true)}
+                onChange={(e) => {
+                  setForm({ ...form, action: e.target.value });
+                  setActionSuggestOpen(true);
+                }}
+              />
+              {actionSuggestOpen && actionSuggestions.length > 0 && (
+                <div className="audit-suggest-list" role="listbox" aria-label="Gợi ý hành động">
+                  {actionSuggestions.map((item) => (
+                    <button
+                      key={item.code}
+                      type="button"
+                      role="option"
+                      aria-selected={form.action === item.label || form.action === item.code}
+                      className="audit-suggest-item"
+                      onMouseDown={(ev) => ev.preventDefault()}
+                      onClick={() => {
+                        setForm({ ...form, action: item.label });
+                        setActionSuggestOpen(false);
+                      }}
+                    >
+                      <b>{item.label}</b>
+                      <small className="mono">{item.code}</small>
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
 
             <select
               className="field"
