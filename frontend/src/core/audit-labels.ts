@@ -55,7 +55,6 @@ export const AUDIT_ACTION_LABELS: Record<string, string> = {
   PRESCRIPTION_ISSUED: "Phát hành đơn thuốc",
   ENCOUNTER_PRESCRIPTIONS_READ: "Xem đơn thuốc của ca khám",
   PATIENT_PRESCRIPTIONS_READ: "Xem lịch sử đơn thuốc bệnh nhân",
-  PRESCRIPTION_LIST_READ: "Xem lịch sử đơn thuốc bệnh nhân",
   // M09 — Khám từ xa WebRTC
   TELEHEALTH_CREATED: "Khởi tạo phòng khám từ xa",
   TELEHEALTH_READ: "Xem trạng thái phòng khám từ xa",
@@ -141,6 +140,11 @@ export function auditActionLabel(action: string, result?: string): string {
   }
   const exact = AUDIT_ACTION_LABELS[action];
   if (exact) return exact;
+  if (action === "PRESCRIPTION_LIST_READ") return "Xem lịch sử đơn thuốc bệnh nhân";
+  if (action === "RECORD_LIST_READ") return "Xem lịch sử bệnh án bệnh nhân";
+  if (action === "RECORD_SAVED") return "Lưu bản nháp bệnh án";
+  if (action === "RECORD_FINALIZED") return "Hoàn tất hồ sơ bệnh án";
+  if (action === "PRESCRIPTION_SAVED") return "Tạo đơn thuốc nháp";
   if (action.startsWith("PATIENT_ACCOUNT_LOCKED_")) {
     const reason = action.slice("PATIENT_ACCOUNT_LOCKED_".length);
     return `Khóa tài khoản bệnh nhân (${ACCOUNT_REASON_VI[reason] ?? reason})`;
@@ -186,6 +190,8 @@ export function auditResourceContext(action: string, resourceId: string, actorId
   if (action.startsWith("TIME_OFF_")) return "Lịch nghỉ BS";
   if (action.startsWith("CLINIC_HOLIDAY_")) return "Ngày lễ";
   if (action.startsWith("NOTIFICATION_")) return "Thông báo";
+  if (action === "COMMAND_REPLAYED") return "Thao tác lặp";
+  if (action === "CONTACT_OTP_SENT" || action === "CONTACT_UPDATED") return "Liên hệ";
   if (
     action === "ROLES_CHANGED" ||
     action.startsWith("STAFF_") ||
@@ -204,6 +210,24 @@ function stripDiacritics(input: string): string {
     .replace(/đ/g, "d")
     .replace(/Đ/g, "D")
     .toLowerCase();
+}
+
+/** Khớp từ khóa tiếng Việt (không phân biệt dấu) hoặc mã hành động sang danh sách mã hành động chuẩn. */
+export function matchAuditActionCodes(raw: string): string[] {
+  const needle = stripDiacritics(raw.trim());
+  if (!needle) return [];
+  const matched: string[] = [];
+  for (const [code, vi] of Object.entries(AUDIT_ACTION_LABELS)) {
+    if (stripDiacritics(vi).includes(needle) || code.toLowerCase().includes(needle)) {
+      matched.push(code);
+    } else if (
+      code === "TELEHEALTH_JOINED" &&
+      stripDiacritics("Từ chối tham gia phòng khám từ xa").includes(needle)
+    ) {
+      matched.push(code);
+    }
+  }
+  return matched;
 }
 
 /** Cho phép nhập nhãn tiếng Việt hoặc mã hành động chuẩn, ánh xạ sang tham số `action` gửi backend. */
@@ -225,10 +249,8 @@ export function resolveAuditActionFilter(raw: string): string | undefined {
   if (matches.length > 1) {
     const exact = matches.find(([, vi]) => stripDiacritics(vi) === needle);
     if (exact) return exact[0];
-    // Tìm tiền tố chung theo nhóm (VD: "benh an" -> RECORD_, "lich hen" -> APPOINTMENT_)
-    const prefixes = new Set(matches.map(([code]) => code.split("_")[0] + "_"));
-    if (prefixes.size === 1) return [...prefixes][0];
   }
+  // Giữ nguyên từ khóa tiếng Việt (VD: "bệnh án", "đơn thuốc", "khóa tài khoản") để backend giải mã đủ mọi mã hành động khớp.
   return trimmed;
 }
 

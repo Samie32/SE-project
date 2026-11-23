@@ -1,7 +1,7 @@
 // Backend giả lập: bám backend thật (Access, CatalogService, ScheduleService, AppointmentService)
 // và hợp đồng thiết kế openapi.yaml cho các phần chưa có. CHỈ dùng cho `npm run dev:mock`.
 import { canSendDelayNotice, dayKey, MIN } from "@/core/datetime";
-import { AUDIT_READ_NOISE_ACTIONS, AUDIT_RESULT_LABEL, auditActionLabel } from "@/core/audit-labels";
+import { AUDIT_READ_NOISE_ACTIONS, AUDIT_RESULT_LABEL, auditActionLabel, matchAuditActionCodes } from "@/core/audit-labels";
 import { NO_SHOW_REASON } from "@/core/labels";
 import { scheduleIntervalError, slotDurationError } from "@/core/schedule-rules";
 import { isValidClinicDay, type ClinicDayHours } from "@/core/clinic-hours";
@@ -647,7 +647,7 @@ on("GET", "/patients/:id/records", (c) => {
     need(c.db.appts.some((a) => a.patientId === pid && mine.includes(a.doctorId)), 403, "Doctor assignment required");
     rows = rows.filter((r) => r.status === "FINAL");
   }
-  audit(c.db, c.actor.id, "RECORD_LIST_READ", pid, c.now);
+  audit(c.db, c.actor.id, "PATIENT_RECORDS_READ", pid, c.now);
   return page(rows.sort((a, b) => b.updatedAt.localeCompare(a.updatedAt)), c.query, 100).map((r) => {
     const a = c.db.appts.find((x) => x.encounterId === r.encounterId || x.id === r.appointmentId);
     return { ...outRecord(r), ...(a ? { startAt: a.startAt } : {}) };
@@ -665,7 +665,7 @@ on("PUT", "/encounters/:id/record", (c) => {
   if (cur) Object.assign(cur, { content, status, version: cur.version + 1, updatedAt: iso });
   else c.db.records.push({ id: mid(), encounterId: c.params[0], appointmentId: a.id, patientId: a.patientId, doctorId: a.doctorId, version: 1, status, content, createdAt: iso, updatedAt: iso, supersedesId: null, amendmentReason: null });
   const out = c.db.records.find((r) => r.encounterId === c.params[0] && r.supersedesId === null)!;
-  audit(c.db, c.actor.id, status === "FINAL" ? "RECORD_FINALIZED" : "RECORD_SAVED", out.id, c.now);
+  audit(c.db, c.actor.id, status === "FINAL" ? "RECORD_FINAL" : "RECORD_DRAFT", out.id, c.now);
   return outRecord(out);
 });
 on("POST", "/records/:id/amendments", (c) => {
@@ -689,9 +689,10 @@ on("POST", "/encounters/:id/prescriptions", (c) => {
   need(Array.isArray(items) && items.every((i: unknown) => typeof i === "object"), 400, "Invalid request");
   let rx = c.db.rx.find((r) => r.encounterId === c.params[0] && r.status === "DRAFT");
   need(!c.db.rx.some((r) => r.encounterId === c.params[0] && r.status === "ISSUED"), 409, "Constraint conflict");
+  const existed = Boolean(rx);
   if (rx) Object.assign(rx, { items, version: rx.version + 1 });
   else { rx = { id: mid(), encounterId: c.params[0], patientId: a.patientId, doctorId: a.doctorId, status: "DRAFT", version: 1, items }; c.db.rx.push(rx); }
-  audit(c.db, c.actor.id, "PRESCRIPTION_SAVED", rx.id, c.now);
+  audit(c.db, c.actor.id, existed ? "PRESCRIPTION_UPDATED" : "PRESCRIPTION_CREATED", rx.id, c.now);
   return res(201, rx);
 });
 on("POST", "/prescriptions/:id/issue", (c) => idem(c, "issue", () => {
@@ -711,7 +712,7 @@ on("GET", "/patients/:id/prescriptions", (c) => {
     req(c.actor, "DOCTOR");
     need(c.db.appts.some((a) => a.patientId === pid && myDoctorIds(c.db, c.actor).includes(a.doctorId)), 403, "Doctor assignment required");
   }
-  audit(c.db, c.actor.id, "PRESCRIPTION_LIST_READ", pid, c.now);
+  audit(c.db, c.actor.id, "PATIENT_PRESCRIPTIONS_READ", pid, c.now);
   const rxRows = c.db.rx
     .filter((r) => r.patientId === pid && r.status === "ISSUED")
     .sort((a, b) => (b.issuedAt ?? "").localeCompare(a.issuedAt ?? "") || a.id.localeCompare(b.id));
@@ -862,7 +863,21 @@ function filterAuditRows(db: DB, q: URLSearchParams): MAudit[] {
   need(!from || !to || from < to, 400, "Invalid time range");
   need(!result || ["SUCCESS", "DENIED", "FAILURE"].includes(result), 400, "Invalid audit filter");
   need(!actorType || ["USER", "SYSTEM"].includes(actorType), 400, "Invalid audit filter");
+  need(!resourceId || resourceId.length <= 128, 400, "Invalid audit filter");
+  need(!action || action.length <= 64, 400, "Invalid audit filter");
   if (category) matchAuditCategory(category, "AUDIT_SEARCH");
+  let actionPrefix: string | null = null;
+  let actionMatchedSet: Set<string> | null = null;
+  if (action) {
+    const upper = action.toUpperCase();
+    if (upper.endsWith("*") || upper.endsWith("_")) {
+      actionPrefix = upper.endsWith("*") ? upper.slice(0, -1) : upper;
+      need(actionPrefix.length > 0, 400, "Invalid audit filter");
+    } else {
+      const matchedCodes = matchAuditActionCodes(action);
+      if (matchedCodes.length > 0) actionMatchedSet = new Set(matchedCodes);
+    }
+  }
 
   return db.audit
     .filter((e) => {
@@ -876,10 +891,10 @@ function filterAuditRows(db: DB, q: URLSearchParams): MAudit[] {
       if (correlationId && e.correlationId !== correlationId) return false;
       if (category && !matchAuditCategory(category, e.action)) return false;
       if (action) {
-        const upper = action.toUpperCase();
-        if (upper.endsWith("*") || upper.endsWith("_")) {
-          const pref = upper.endsWith("*") ? upper.slice(0, -1) : upper;
-          if (!e.action.toUpperCase().startsWith(pref)) return false;
+        if (actionPrefix) {
+          if (!e.action.toUpperCase().startsWith(actionPrefix)) return false;
+        } else if (actionMatchedSet) {
+          if (!actionMatchedSet.has(e.action) && !e.action.toLowerCase().includes(action.toLowerCase())) return false;
         } else if (!e.action.toLowerCase().includes(action.toLowerCase())) {
           return false;
         }
@@ -939,9 +954,9 @@ on("GET", "/audit-events/export", (c) => {
   const all = filterAuditRows(c.db, c.query);
   const truncated = all.length > maxRows;
   const rows = all.slice(0, maxRows).map((e) => outAudit(c.db, e));
-  const header = "STT chuỗi,Thời điểm (UTC),Mã hành động,Hành động (tiếng Việt),Kết quả,Loại tác nhân,Nhãn tác nhân,Mã tác nhân (UUID),Mã đối tượng,Correlation ID,Mã băm sự kiện (event_hash),Mã băm liền trước (prev_hash)";
+  const header = "STT chuỗi,Mã sự kiện (UUID),Thời điểm (UTC),Mã hành động,Hành động (tiếng Việt),Kết quả,Loại tác nhân,Nhãn tác nhân,Mã tác nhân (UUID),Mã đối tượng,Correlation ID,Mã băm sự kiện (event_hash),Mã băm liền trước (prev_hash)";
   const lines = rows.map((r) => [
-    r.chainSeq ?? "", r.createdAt, r.action, auditActionLabel(r.action, r.result),
+    r.chainSeq ?? "", r.id, r.createdAt, r.action, auditActionLabel(r.action, r.result),
     AUDIT_RESULT_LABEL[r.result] ?? r.result, r.actorType, r.actorLabel, r.actorId ?? "",
     r.resourceId, r.correlationId, r.eventHash ?? "", r.prevHash ?? "",
   ].map(mockCsvCell).join(","));
@@ -963,6 +978,9 @@ on("GET", "/audit-events/export", (c) => {
 
 on("POST", "/audit-events/verify", (c) => {
   req(c.actor, "AUDITOR");
+  const rawMax = c.query.get("maxEvents");
+  const maxEvents = rawMax == null ? 10000 : Number(rawMax);
+  need(Number.isInteger(maxEvents) && maxEvents >= 1 && maxEvents <= 50000, 400, "Invalid pagination");
   const chained = c.db.audit.filter((e) => e.chainSeq != null).sort((a, b) => (a.chainSeq ?? 0) - (b.chainSeq ?? 0));
   const legacy = c.db.audit.length - chained.length;
   let expectedSeq = 1;
@@ -972,6 +990,7 @@ on("POST", "/audit-events/verify", (c) => {
   let firstBrokenEventId: string | null = null;
   let checked = 0;
   for (const e of chained) {
+    if (checked >= maxEvents) break;
     if (e.chainSeq !== expectedSeq) {
       mismatchReason = "SEQUENCE_GAP"; firstBrokenSeq = expectedSeq; firstBrokenEventId = e.id; break;
     }
@@ -992,6 +1011,7 @@ on("POST", "/audit-events/verify", (c) => {
     expectedSeq++;
   }
   const head = chained[chained.length - 1];
+  const truncated = !mismatchReason && checked === maxEvents && chained.length > checked;
   const status = mismatchReason ? "TAMPERED" : chained.length === 0 ? "LEGACY_ONLY" : "VERIFIED";
   audit(c.db, c.actor.id, "AUDIT_INTEGRITY_VERIFIED", `${status}:${checked}`, c.now);
   return {
@@ -1001,7 +1021,7 @@ on("POST", "/audit-events/verify", (c) => {
     checkedCount: checked,
     totalChainedCount: chained.length,
     legacyUnchainedCount: legacy,
-    truncated: false,
+    truncated,
     headSeq: head?.chainSeq ?? 0,
     headHash: head?.eventHash ?? MOCK_GENESIS_HASH,
     firstBrokenSeq,
@@ -1016,7 +1036,7 @@ on("GET", "/audit-events/retention", (c) => {
   const cutoff = new Date(c.now - hotDays * 86400000).toISOString();
   const sorted = [...c.db.audit].sort((a, b) => a.createdAt.localeCompare(b.createdAt));
   const batches = [...(c.db.auditArchives ?? [])].sort((a, b) => b.createdAt.localeCompare(a.createdAt));
-  const lastTo = batches[0]?.toCreatedAt ?? null;
+  const lastTo = batches.reduce<string | null>((acc, b) => (!acc || b.toCreatedAt > acc ? b.toCreatedAt : acc), null);
   const eligible = sorted.filter((e) => e.createdAt < cutoff && (!lastTo || e.createdAt >= lastTo)).length;
   return {
     hotRetentionDays: hotDays,

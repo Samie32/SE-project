@@ -1,5 +1,5 @@
 @startuml audit-fail-closed
-title M07 — Ghi Audit Fail-Closed, DENIED Độc Lập & Tra cứu Bất Biến (FR-17/18 · NFR-05 · RG-01/03)
+title M07 — Audit Fail-Closed, Chuỗi Băm HMAC-SHA256, Tra Cứu Con Trỏ & Lưu Trữ (FR-17/18 · V12)
 
 skinparam sequenceMessageAlign center
 skinparam responseMessageBelowArrow true
@@ -12,24 +12,26 @@ skinparam dpi 150
 
 actor       "Client / Kiểm toán viên"     as U
 participant "RequestCorrelation Filter"   as FLT
-participant "Service / AuditController"   as SVC
-participant "Audit (M07)"                 as AUD
-database    "MySQL (audit_event)"         as DB
+participant "Service / AuditService"      as SVC
+participant "Audit & AuditHashChain"      as AUD
+database    "MySQL (audit_event, head, archive)" as DB
 
-== 1. Ghi Audit Fail-Closed cho mọi đột biến & đọc PHI (Propagation.MANDATORY) ==
+== 1. Ghi Audit Fail-Closed nối chuỗi băm (Propagation.MANDATORY · V12) ==
 U   -> FLT : HTTP Request (Bearer JWT, tùy chọn X-Request-Id)
 FLT -> FLT : Gán UUID correlation_id vào RequestAttribute & Response Header X-Request-Id
 FLT -> SVC : Bắt đầu @Transactional (giao dịch nghiệp vụ)
 SVC -> DB  : Thực thi nghiệp vụ (INSERT/UPDATE domain row hoặc SELECT PHI)
 SVC -> AUD : Audit.record(actorId, action, resourceId)\n[@Transactional(propagation = MANDATORY)]
-AUD -> DB  : INSERT INTO audit_event\n(actor_id, actor_type=USER|SYSTEM, action, resource_id, result='SUCCESS', correlation_id)
+AUD -> DB  : SELECT last_seq, last_hash FROM audit_chain_head WHERE id=1 FOR UPDATE
+AUD -> AUD : Tính chain_seq = last_seq + 1 & event_hash = HMAC-SHA256(K_audit, ...)
+AUD -> DB  : INSERT INTO audit_event(..., chain_seq, prev_hash, event_hash)\nUPDATE audit_chain_head SET last_seq, last_hash
 
-alt INSERT audit_event thành công
-  SVC -> DB : COMMIT (dữ liệu nghiệp vụ + audit bền vững nguyên tử)
+alt INSERT audit_event & UPDATE head thành công
+  SVC -> DB : COMMIT (dữ liệu nghiệp vụ + audit + đỉnh chuỗi bền vững nguyên tử)
   SVC --> U : 200 / 201 + Header X-Request-Id
 else Lỗi DB / vi phạm ràng buộc khi ghi audit
   DB  --> AUD : DataAccessException
-  SVC -> DB   : ROLLBACK toàn bộ giao dịch nghiệp vụ (Fail-closed: không lưu dữ liệu không audit)
+  SVC -> DB   : ROLLBACK toàn bộ giao dịch (kể cả audit_chain_head, không tạo lỗ hổng chain_seq)
   SVC --> U   : 503 Service Unavailable (ProblemDetail + X-Request-Id)
 end
 
@@ -38,22 +40,24 @@ U   -> FLT : Gửi yêu cầu trái quyền (VD: người ngoài gọi join phò
 FLT -> SVC : Bắt đầu @Transactional ngoài
 SVC -> SVC : Phát hiện thiếu quyền sở hữu / điều trị
 SVC -> AUD : Audit.denied(actorId, "TELEHEALTH_JOINED", resourceId)\n[@Transactional(propagation = REQUIRES_NEW)]
-AUD -> DB  : Mở giao dịch con riêng -> INSERT audit_event (result='DENIED', correlation_id) -> COMMIT con
+AUD -> DB  : Giao dịch con riêng -> khóa head, nối chuỗi băm, INSERT DENIED -> COMMIT con
 SVC -> DB  : Ném Problem(404/403) -> ROLLBACK giao dịch ngoài (không thay đổi dữ liệu miền)
-SVC --> U  : 404 / 403 + X-Request-Id (bản ghi DENIED vẫn được bảo toàn để truy vết)
+SVC --> U  : 404 / 403 + X-Request-Id (bản ghi DENIED nối chuỗi vẫn được bảo toàn)
 
-== 3. Tra cứu Nhật ký Kiểm toán & Bảo vệ Bất biến CSDL (FR-18) ==
-U   -> SVC : GET /api/audit-events?from=&to=&actorId=&resourceId=&limit=20&offset=0
-SVC -> SVC : actor.require("AUDITOR"); kiểm tra 1<=limit<=100, offset>=0, from<to (sai -> 400)
-SVC -> DB  : SELECT * FROM audit_event WHERE ... ORDER BY created_at DESC, id LIMIT ? OFFSET ?
-SVC -> AUD : Audit.record(actorId, "AUDIT_SEARCH", actorId) (cùng giao dịch @Transactional)
-SVC -> DB  : COMMIT
-SVC --> U  : 200 Danh sách sự kiện (không chứa mật khẩu, token hay nội dung PHI)
+== 3. Tra cứu Con trỏ, Xuất CSV, Kiểm chứng & Niêm phong Lưu trữ (FR-18 · AUDITOR) ==
+U   -> SVC : GET /api/audit-events (lọc server-side, hành động VN/mã, cursorCreatedAt+cursorId)
+SVC -> SVC : actor.require("AUDITOR"); làm giàu actorLabel an toàn (không lộ email/SĐT/PHI)
+SVC -> DB  : SELECT ... LEFT JOIN user_account + ghi AUDIT_SEARCH (không trôi trang nhờ con trỏ)
+SVC --> U  : 200 Danh sách sự kiện | /summary | /export (CSV BOM, chống formula injection, AUDIT_EXPORT)
+
+U   -> SVC : POST /api/audit-events/verify hoặc POST /api/audit-events/archive
+SVC -> DB  : /verify: @Transactional(REPEATABLE_READ) đối chiếu chuỗi băm & audit_chain_head\n/archive: khóa audit_chain_head FOR UPDATE -> niêm phong audit_archive_batch (batch_hash)
+SVC --> U  : 200 AuditIntegrityReport (VERIFIED/TAMPERED) hoặc AuditArchiveBatch bất biến
 
 note over DB
-  Bất biến mức MySQL (V1__scheduling.sql):
-  Trigger BEFORE UPDATE (audit_no_update) & BEFORE DELETE (audit_no_delete)
-  chặn mọi thao tác sửa/xóa audit_event với SQLSTATE '45000' ("Audit is append-only").
+  Bất biến mức MySQL (V1 & V12):
+  Trigger BEFORE UPDATE/DELETE trên cả audit_event và audit_archive_batch
+  chặn mọi thao tác sửa/xóa từ ứng dụng với SQLSTATE '45000' (APPEND_ONLY_NO_APP_DELETE).
 end note
 
 @enduml

@@ -8,7 +8,7 @@ skinparam noteBackgroundColor #FFFDE7
 skinparam noteBorderColor #F9A825
 skinparam shadowing false
 skinparam dpi 150
-title Mô hình miền (PIM — Domain Model UML 2.5) · 24 thực thể V1..V11 (Phân màu theo Miền)
+title Mô hình miền (PIM — Domain Model UML 2.5) · 26 thực thể V1..V12 (Phân màu theo Miền)
 
 ' ── M01 / M07 Danh tính, OTP & Kiểm toán (#4F46E5) ──
 class UserAccount #EEF2FF;line:4F46E5 {
@@ -50,6 +50,27 @@ class AuditEvent #EEF2FF;line:4F46E5 {
   resourceId : String
   result : String
   correlationId : UUID
+  chainSeq : Long
+  prevHash : String
+  eventHash : String
+}
+
+class AuditChainHead #EEF2FF;line:4F46E5 {
+  id : int
+  lastSeq : Long
+  lastHash : String
+  updatedAt : Instant
+  verifyChain()
+}
+
+class AuditArchiveBatch #EEF2FF;line:4F46E5 {
+  id : UUID
+  fromCreatedAt : Instant
+  toCreatedAt : Instant
+  eventCount : Integer
+  batchHash : String
+  retentionDays : Integer
+  sealBatch()
 }
 
 class IdempotencyRecord #EEF2FF;line:4F46E5 {
@@ -224,6 +245,8 @@ Appointment "1" -[#C2410C]- "0..*" NotificationJob : outbox giao dịch
 
 ' Dependency (..>): tham chiếu / chính sách / audit / rate-log
 UserAccount "1" .[#4F46E5].> "0..*" AuditEvent : actor
+AuditChainHead "1" .[#4F46E5].> "0..*" AuditEvent : chuỗi HMAC-SHA256
+UserAccount "1" .[#4F46E5].> "0..*" AuditArchiveBatch : createdBy
 ContactOtp .[#4F46E5].> ContactOtpSendLog : theo emailHash
 ClinicHours .[#0F766E].> Availability : ràng buộc giờ mở ca
 ClinicHoliday .[#0F766E].> Availability : ưu tiên ngày lễ

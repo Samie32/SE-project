@@ -328,7 +328,7 @@ textarea.field { width: 100%; min-height: 110px; resize: vertical; }
 .audit-row-warn td { background: #fffbeb; }
 .audit-action-name { font-weight: 700; color: var(--ink); line-height: 1.3; }
 .audit-action-name.is-high { color: #9a3412; }
-.audit-sub { font-size: 11.5px; color: var(--muted); margin-top: 2px; display: inline-flex; align-items: center; gap: 3px; }
+.audit-sub { font-size: 12px; color: var(--muted); margin-top: 2px; display: inline-flex; align-items: center; gap: 3px; }
 .audit-pivot {
   display: inline-flex; flex-direction: column; align-items: flex-start; gap: 2px;
   border: 1px solid transparent; background: transparent; padding: 3px 6px; margin: -3px -6px;
@@ -338,7 +338,7 @@ textarea.field { width: 100%; min-height: 110px; resize: vertical; }
 .audit-pivot:focus-visible, .audit-corr-btn:focus-visible { outline: 2px solid var(--blue); outline-offset: 1px; }
 .audit-actor-top { font-size: 13px; line-height: 1.25; }
 .audit-ctx-tag {
-  display: inline-block; font-size: 11.5px; font-weight: 700; padding: 1px 7px; border-radius: 999px;
+  display: inline-block; font-size: 12px; font-weight: 700; padding: 1px 7px; border-radius: 999px;
   background: #f1f5f9; color: #334155;
 }
 .audit-ctx-tag.is-self { background: var(--blue-50); color: #1d4fc4; }

@@ -1,6 +1,6 @@
 # Thiết kế hệ thống
 
-Thiết kế sử dụng **React 18 + TypeScript 5**, **Java 21 / Spring Boot 3.5 modular monolith** và **MySQL 8.4 (InnoDB, Flyway `V1..V11`)**. Các sơ đồ mô tả hệ thống thực tế đã triển khai (bao gồm 27 ca sử dụng, 24 bảng CSDL và hạ tầng Internet Azure VM với `Caddy 2`, `Nginx 1.28`, `Keycloak 26.4 + Google OAuth2`, `Brevo SMTP` và `coturn` STUN/TURN), đồng bộ cùng hợp đồng OpenAPI 3.1 và bộ kiểm thử tự động.
+Thiết kế sử dụng **React 18 + TypeScript 5**, **Java 21 / Spring Boot 3.5 modular monolith** và **MySQL 8.4 (InnoDB, Flyway `V1..V12`)**. Các sơ đồ mô tả hệ thống thực tế đã triển khai (bao gồm 27 ca sử dụng, 26 bảng CSDL và hạ tầng Internet Azure VM với `Caddy 2`, `Nginx 1.28`, `Keycloak 26.4 + Google OAuth2`, `Brevo SMTP` và `coturn` STUN/TURN), đồng bộ cùng hợp đồng OpenAPI 3.1 (55 paths / 66 ops) và bộ kiểm thử tự động.
 
 ## Chuẩn mô hình hóa & đặc tả tham chiếu
 
@@ -34,12 +34,12 @@ Thiết kế sử dụng **React 18 + TypeScript 5**, **Java 21 / Spring Boot 3.
 | architecture | [deployment-azure](architecture/deployment-azure.png) | Triển khai Azure VM (`Caddy 2`, `Nginx`, `Keycloak/Google`, `Brevo`, `coturn`, CI rollback) |
 | architecture | [deployment](architecture/deployment.png) | Triển khai Docker Compose phát triển & kiểm thử cục bộ |
 | architecture | [system-architecture](architecture/system-architecture.png) | Kiến trúc phân tầng Modular Monolith (Kruchten 4+1) |
-| class-diagram | [class-diagram](class-diagram/class-diagram.png) | Mô hình miền PIM đồng bộ 24 thực thể `V1..V11` |
-| database | [erd](database/erd.png) | ERD tổng quan 24 bảng MySQL 8.4 / InnoDB (`V1..V11`) |
+| class-diagram | [class-diagram](class-diagram/class-diagram.png) | Mô hình miền PIM đồng bộ 26 thực thể `V1..V12` |
+| database | [erd](database/erd.png) | ERD tổng quan 26 bảng MySQL 8.4 / InnoDB (`V1..V12`) |
 | database | [erd-scheduling](database/erd-scheduling.png) | ERD nhóm Đặt lịch & Danh mục (`M02–M03–M04`) |
 | database | [erd-clinical](database/erd-clinical.png) | ERD nhóm Lâm sàng, Hàng đợi & WebRTC (`M05–M08–M09`) |
-| database | [erd-infrastructure](database/erd-infrastructure.png) | ERD nhóm Danh tính, OTP, Thông báo Outbox & Kiểm toán (`M01–M06–M07`) |
-| sequence-diagrams | [audit-fail-closed](sequence-diagrams/audit-fail-closed.png) | M07 Ghi Audit Fail-Closed (`MANDATORY`), `DENIED` độc lập (`REQUIRES_NEW`) & trigger bất biến |
+| database | [erd-infrastructure](database/erd-infrastructure.png) | ERD nhóm Danh tính, OTP, Thông báo Outbox & Kiểm toán (`M01–M06–M07`, gồm `V12` chuỗi băm & lưu trữ) |
+| sequence-diagrams | [audit-fail-closed](sequence-diagrams/audit-fail-closed.png) | M07 Ghi Audit Fail-Closed (`MANDATORY`), chuỗi băm `HMAC-SHA256-CHAIN-V1`, `DENIED` độc lập (`REQUIRES_NEW`), kiểm chứng & lưu trữ (`V12`) |
 | sequence-diagrams | [auth-otp-contact](sequence-diagrams/auth-otp-contact.png) | UC-01 Xác thực PKCE/Google & OTP đổi email |
 | sequence-diagrams | [book-appointment](sequence-diagrams/book-appointment.png) | UC-08/09 Đặt lịch và đổi lịch nguyên tử |
 | sequence-diagrams | [change-appointment](sequence-diagrams/change-appointment.png) | UC-09 Đổi lịch hẹn chi tiết |
@@ -69,4 +69,4 @@ Thiết kế sử dụng **React 18 + TypeScript 5**, **Java 21 / Spring Boot 3.
 
 Use case tổng quan liệt kê toàn bộ **27 mục tiêu người dùng**, các bản `use-case-1` đến `use-case-4` tách nhóm theo phân hệ. `UC-17` là hành vi ghi audit fail-closed nội bộ trong giao dịch; kiểm toán viên tra cứu lịch sử qua `UC-18`. Quan hệ `<<include>>` chỉ dùng cho hành vi bắt buộc, không biểu diễn thứ tự thời gian.
 
-Class diagram thể hiện mô hình khái niệm miền (PIM); ERD tổng quan và 3 ERD góc nhìn thể hiện **24 bảng MySQL 8.4 (InnoDB)** theo đúng migration `V1..V11`. Ranh giới truyền thông WebRTC dùng signaling P2P nội bộ (`telehealth_session`, `telehealth_token`, `telehealth_signal`) kết hợp `coturn` STUN/TURN `:3478`, và `notification_job` trực tiếp đóng vai trò hàng đợi transactional outbox cho worker SMTP.
+Class diagram thể hiện mô hình khái niệm miền (PIM); ERD tổng quan và 3 ERD góc nhìn thể hiện **26 bảng MySQL 8.4 (InnoDB)** theo đúng migration `V1..V12`. Ranh giới truyền thông WebRTC dùng signaling P2P nội bộ (`telehealth_session`, `telehealth_token`, `telehealth_signal`) kết hợp `coturn` STUN/TURN `:3478`, và `notification_job` trực tiếp đóng vai trò hàng đợi transactional outbox cho worker SMTP.

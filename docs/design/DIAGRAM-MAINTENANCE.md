@@ -10,8 +10,8 @@ Hướng dẫn nhanh để cập nhật sơ đồ và trạng thái đồng bộ
 | `sequence-diagrams/` | Tuần tự cho từng UC & cơ chế lõi (`M01–M09`) | 16 puml + 16 png |
 | `activity-diagrams/` | Hoạt động có swimlane & CI/CD Auto-Rollback | 5 puml + 5 png |
 | `state-diagrams/` | Trạng thái thực thể | 4 puml + 4 png |
-| `class-diagram/` | Mô hình miền PIM (đồng bộ 24 thực thể `V1..V11`) | 1 puml + 1 png |
-| `database/` | ERD tổng (24 bảng) + 3 góc nhìn | 4 puml + 4 png |
+| `class-diagram/` | Mô hình miền PIM (đồng bộ 26 thực thể `V1..V12`) | 1 puml + 1 png |
+| `database/` | ERD tổng (26 bảng) + 3 góc nhìn | 4 puml + 4 png |
 | `architecture/` | Kiến trúc 4+1 + Triển khai local + Triển khai Azure VM | 3 puml + 3 png |
 
 **Tổng: 38 file `.puml` → 38 file `.png`**
@@ -54,7 +54,7 @@ Trang đặc tả tĩnh nằm ở repo `clinic-spec` (`index.html`, `requirement
 
 - [ ] Tất cả **38 `.puml`** render thành **38 `.png`**, không có PNG mồ côi hoặc `.puml` chưa render.
 - [ ] `docs/design/README.md` — liệt kê đủ 38 sơ đồ và bảng chuẩn áp dụng.
-- [ ] `docs/design/database/data-dictionary.md` & `erd*.puml` — khớp 100% 24 bảng từ `V1..V11` (không sót bảng cũ giả định).
+- [ ] `docs/design/database/data-dictionary.md` & `erd*.puml` — khớp 100% 26 bảng từ `V1..V12` (không sót bảng cũ giả định).
 - [ ] `clinic-spec/assets/design/` — khớp mã băm SHA-256 từng file `.png` với `SE-project-main/docs/design/`.
 - [ ] `clinic-spec/sections/diagrams.js`, `requirements.js`, `usecases.js`, `overview.js`, `testing.js` — không có chú thích trạng thái cũ hoặc ảnh gãy.
 - [ ] Dữ liệu minh họa/kiểm thử chỉ dùng dữ liệu giả; không đưa secret/token/PHI thật lên repo.

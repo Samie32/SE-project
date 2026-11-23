@@ -8,7 +8,7 @@ skinparam noteBorderColor #F9A825
 skinparam shadowing false
 skinparam dpi 130
 left to right direction
-title ERD Tổng quan — 24 bảng MySQL 8.4 / InnoDB (V1..V11 · Phân màu theo Miền)
+title ERD Tổng quan — 26 bảng MySQL 8.4 / InnoDB (V1..V12 · Phân màu theo Miền)
 
 ' ── M01 / M07 Danh tính, OTP & Kiểm toán (#4F46E5) ──
 entity "user_account" as UA #EEF2FF;line:4F46E5 {
@@ -48,7 +48,7 @@ entity "contact_otp_send_log [V9]" as COS #EEF2FF;line:4F46E5 {
   sent_at : DATETIME(6) <<IX>>
 }
 
-entity "audit_event" as AE #EEF2FF;line:4F46E5 {
+entity "audit_event [V12]" as AE #EEF2FF;line:4F46E5 {
   * id : CHAR(36) <<PK>>
   --
   actor_id : CHAR(36) <<FK,nullable>>
@@ -58,6 +58,31 @@ entity "audit_event" as AE #EEF2FF;line:4F46E5 {
   resource_id : VARCHAR(128)
   result : VARCHAR(16)
   correlation_id : CHAR(36)
+  created_at : DATETIME(6)
+  chain_seq : BIGINT <<UK,V12>>
+  prev_hash : CHAR(64) [V12]
+  event_hash : CHAR(64) [V12]
+}
+
+entity "audit_chain_head [V12]" as ACH #EEF2FF;line:4F46E5 {
+  * id : TINYINT <<PK>>
+  --
+  last_seq : BIGINT
+  last_hash : CHAR(64)
+  updated_at : DATETIME(6)
+}
+
+entity "audit_archive_batch [V12]" as AAB #EEF2FF;line:4F46E5 {
+  * id : CHAR(36) <<PK>>
+  --
+  from_created_at : DATETIME(6)
+  to_created_at : DATETIME(6)
+  event_count : INT
+  first_chain_seq : BIGINT
+  last_chain_seq : BIGINT
+  batch_hash : CHAR(64)
+  retention_days : INT
+  created_by : CHAR(36) <<FK,nullable>>
   created_at : DATETIME(6)
 }
 
@@ -256,6 +281,8 @@ CO .[#4F46E5]. COS : email_hash
 UA ||-[#4F46E5]-o| P
 UA ||-[#4F46E5]-o| D
 UA ||-[#4F46E5]-o{ AE : actor_id
+ACH .[#4F46E5]. AE : chain_seq
+UA ||-[#4F46E5]-o{ AAB : created_by
 UA ||-[#4F46E5]-o{ IR
 UA ||-[#0284C7]-o{ TT
 UA ||-[#0284C7]-o{ TSG : sender
@@ -284,9 +311,9 @@ TS ||-[#0284C7]-o{ TSG
 AP ||-[#C2410C]-o{ NJ : transactional outbox
 
 note as N1
-  Tổng 24 bảng InnoDB theo đúng migration V1..V11 (Flyway). Mọi DATETIME(6) lưu UTC; queue_date dùng DATE theo Asia/Ho_Chi_Minh.
-  Trigger bất biến/append-only: audit_event (cấm UPDATE/DELETE), medical_record FINAL & prescription ISSUED (cấm UPDATE/DELETE).
-  Index NFR-01 (V10/V11): ix_slot_start_at, ix_appointment_active_window, ix_time_off_window.
+  Tổng 26 bảng InnoDB theo đúng migration V1..V12 (Flyway). Mọi DATETIME(6) lưu UTC; queue_date dùng DATE theo Asia/Ho_Chi_Minh.
+  Trigger bất biến/append-only: audit_event & audit_archive_batch (cấm UPDATE/DELETE), medical_record FINAL & prescription ISSUED.
+  Index NFR-01/M07 (V10..V12): ix_slot_start_at, ix_appointment_active_window, ix_time_off_window và 5 chỉ mục audit_event.
 end note
 
 legend bottom

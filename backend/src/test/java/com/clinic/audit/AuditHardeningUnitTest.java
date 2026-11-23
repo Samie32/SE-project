@@ -14,7 +14,10 @@ import java.time.ZoneOffset;
 import java.util.*;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
+import org.mockito.InOrder;
 import org.springframework.security.oauth2.jwt.Jwt;
+import org.springframework.transaction.annotation.Isolation;
+import org.springframework.transaction.annotation.Transactional;
 
 class AuditHardeningUnitTest {
   private static final Instant NOW = Instant.parse("2026-11-23T09:00:00.123456789Z");
@@ -41,13 +44,37 @@ class AuditHardeningUnitTest {
     assertEquals("Chỉnh sửa bổ sung bệnh án", AuditActionCatalog.labelVi("RECORD_AMENDED"));
     assertEquals("Thay đổi phân quyền nhân sự", AuditActionCatalog.labelVi("ROLES_CHANGED"));
     assertEquals(
+        "Từ chối tham gia phòng khám từ xa",
+        AuditActionCatalog.labelVi("TELEHEALTH_JOINED", "DENIED"));
+    assertEquals(
+        "Tham gia phòng khám từ xa",
+        AuditActionCatalog.labelVi("TELEHEALTH_JOINED", "SUCCESS"));
+    assertEquals(
         "Khóa tài khoản bệnh nhân (Rà soát bảo mật)",
         AuditActionCatalog.labelVi("PATIENT_ACCOUNT_LOCKED_SECURITY_REVIEW"));
     assertEquals(
         "Mở khóa tài khoản bệnh nhân (Yêu cầu bệnh nhân)",
         AuditActionCatalog.labelVi("PATIENT_ACCOUNT_UNLOCKED_PATIENT_REQUEST"));
+    assertEquals(
+        "Khóa tài khoản bệnh nhân (CUSTOM_REASON)",
+        AuditActionCatalog.labelVi("PATIENT_ACCOUNT_LOCKED_CUSTOM_REASON"));
+    assertEquals(
+        "Mở khóa tài khoản bệnh nhân (CUSTOM_REASON)",
+        AuditActionCatalog.labelVi("PATIENT_ACCOUNT_UNLOCKED_CUSTOM_REASON"));
     assertEquals("CUSTOM_FUTURE_EVENT", AuditActionCatalog.labelVi("CUSTOM_FUTURE_EVENT"));
     assertEquals("", AuditActionCatalog.labelVi(" "));
+
+    // Vietnamese keyword action matching (accent-insensitive)
+    var recordMatches = AuditActionCatalog.matchActions("bệnh án");
+    assertTrue(recordMatches.contains("RECORD_AMENDED"));
+    assertTrue(recordMatches.contains("PATIENT_RECORDS_READ"));
+    assertTrue(AuditActionCatalog.matchActions("don thuoc").contains("PRESCRIPTION_ISSUED"));
+    assertTrue(
+        AuditActionCatalog.matchActions("khóa tài khoản")
+            .contains("PATIENT_ACCOUNT_LOCKED_SECURITY_REVIEW"));
+    assertTrue(AuditActionCatalog.matchActions("từ chối tham gia").contains("TELEHEALTH_JOINED"));
+    assertTrue(AuditActionCatalog.matchActions("   ").isEmpty());
+    assertTrue(AuditActionCatalog.matchActions("zzzz_nonexistent_keyword").isEmpty());
 
     assertEquals("Thành công", AuditActionCatalog.resultVi("SUCCESS"));
     assertEquals("Bị từ chối", AuditActionCatalog.resultVi("DENIED"));
@@ -150,12 +177,18 @@ class AuditHardeningUnitTest {
   @Test
   void auditRecordAndDeniedAppendToCryptographicHashChain() {
     Db db = mock(Db.class);
+    Clock spyClock = mock(Clock.class);
+    when(spyClock.instant()).thenReturn(NOW);
     when(db.one("SELECT last_seq,last_hash FROM audit_chain_head WHERE id=1 FOR UPDATE"))
         .thenReturn(Map.of("lastSeq", 5L, "lastHash", AuditHashChain.GENESIS_HASH));
-    Audit audit = new Audit(db, FIXED_CLOCK, CRYPTO);
+    Audit audit = new Audit(db, spyClock, CRYPTO);
 
     audit.record(AUDITOR.id(), "RECORD_AMENDED", "rec-9");
     audit.denied(null, "TELEHEALTH_JOINED", "room-1");
+
+    InOrder order = inOrder(db, spyClock);
+    order.verify(db).one("SELECT last_seq,last_hash FROM audit_chain_head WHERE id=1 FOR UPDATE");
+    order.verify(spyClock).instant();
 
     ArgumentCaptor<Object[]> argsCaptor = ArgumentCaptor.forClass(Object[].class);
     verify(db, times(2)).update(startsWith("INSERT INTO audit_event("), argsCaptor.capture());
@@ -338,7 +371,7 @@ class AuditHardeningUnitTest {
     assertFalse(sql.contains("OFFSET"));
     verify(audit).record(AUDITOR.id(), "AUDIT_SEARCH", AUDITOR.id());
 
-    // Prefix and substring action branches with offset pagination
+    // Prefix, Vietnamese keyword, and unknown substring action branches with offset pagination
     when(db.list(anyString(), any(Object[].class))).thenReturn(List.of());
     service.list(
         AUDITOR,
@@ -351,13 +384,22 @@ class AuditHardeningUnitTest {
     service.list(
         AUDITOR,
         new AuditService.AuditFilter(
-            null, null, null, null, null, "CREATED", null, null, null, false),
+            null, null, null, null, null, "bệnh án", null, null, null, false),
+        null,
+        null,
+        10,
+        0);
+    service.list(
+        AUDITOR,
+        new AuditService.AuditFilter(
+            null, null, null, null, null, "XYZ_FUTURE_TOKEN", null, null, null, false),
         null,
         null,
         10,
         0);
     verify(db).list(contains("a.action LIKE ? ESCAPE '!'"), any(Object[].class));
-    verify(db).list(contains("LOCATE(?,LOWER(a.action))>0"), any(Object[].class));
+    verify(db).list(contains("AND (a.action IN ("), any(Object[].class));
+    verify(db).list(contains("AND LOCATE(?,LOWER(a.action))>0"), any(Object[].class));
   }
 
   @Test
@@ -425,14 +467,33 @@ class AuditHardeningUnitTest {
     assertEquals(1, export.maxRows());
     assertEquals(64, export.contentSha256().length());
     assertTrue(export.csv().startsWith("\uFEFF"));
+    assertTrue(export.csv().contains("Mã sự kiện (UUID)"));
+    assertTrue(export.csv().contains(",ev-1,"));
     assertTrue(export.csv().contains("Chỉnh sửa bổ sung bệnh án"));
     assertTrue(export.csv().contains("'=HYPERLINK("));
     assertTrue(export.csv().contains(AUDITOR.id()));
     verify(audit).record(eq(AUDITOR.id()), eq("AUDIT_EXPORT"), startsWith("export:1:"));
+
+    // Denied telehealth join exports contextual Vietnamese label
+    Map<String, Object> deniedTele = new LinkedHashMap<>(r1);
+    deniedTele.put("action", "TELEHEALTH_JOINED");
+    deniedTele.put("result", "DENIED");
+    when(db.list(startsWith("SELECT a.id,a.actor_id"), any(Object[].class)))
+        .thenReturn(new ArrayList<>(List.of(deniedTele)));
+    var exportDenied = service.exportCsv(AUDITOR, empty, 5);
+    assertTrue(exportDenied.csv().contains("Từ chối tham gia phòng khám từ xa"));
   }
 
   @Test
-  void verifyIntegrityHandlesVerifiedLegacyAndAllTamperModes() {
+  void verifyIntegrityHandlesVerifiedLegacyAndAllTamperModes() throws Exception {
+    // Verify REPEATABLE_READ snapshot isolation prevents false positives under concurrent writes
+    Transactional tx =
+        AuditService.class
+            .getMethod("verifyIntegrity", Access.Actor.class, Integer.class)
+            .getAnnotation(Transactional.class);
+    assertNotNull(tx);
+    assertEquals(Isolation.REPEATABLE_READ, tx.isolation());
+
     Db db = mock(Db.class);
     Audit audit = mock(Audit.class);
     AuditService service = new AuditService(db, audit, CRYPTO, FIXED_CLOCK, 365, 1825, 5000);
@@ -478,7 +539,7 @@ class AuditHardeningUnitTest {
         .thenReturn(Map.of("chained", 2L, "legacy", 3L));
     when(db.one("SELECT last_seq,last_hash FROM audit_chain_head WHERE id=1"))
         .thenReturn(Map.of("lastSeq", 2L, "lastHash", h2));
-    when(db.list(contains("FROM audit_event WHERE chain_seq IS NOT NULL"), eq(0L), anyInt()))
+    when(db.list(contains("FROM audit_event WHERE chain_seq IS NOT NULL ORDER BY"), anyInt()))
         .thenReturn(List.of(ev1, ev2));
 
     var ok = service.verifyIntegrity(AUDITOR, 1000);
@@ -488,10 +549,18 @@ class AuditHardeningUnitTest {
     assertFalse(ok.truncated());
     assertNull(ok.mismatchReason());
 
+    // 1b. Truncated partial scan (maxEvents=1 < totalChained=2)
+    when(db.list(contains("FROM audit_event WHERE chain_seq IS NOT NULL ORDER BY"), eq(1)))
+        .thenReturn(List.of(ev1));
+    var partial = service.verifyIntegrity(AUDITOR, 1);
+    assertEquals("VERIFIED", partial.status());
+    assertTrue(partial.truncated());
+    assertEquals(1L, partial.checkedCount());
+
     // 2. HASH_MISMATCH (tampered action on ev2)
     Map<String, Object> tamperedEv2 = new LinkedHashMap<>(ev2);
     tamperedEv2.put("action", "NOTIFICATION_FAILED");
-    when(db.list(contains("FROM audit_event WHERE chain_seq IS NOT NULL"), eq(0L), anyInt()))
+    when(db.list(contains("FROM audit_event WHERE chain_seq IS NOT NULL ORDER BY"), anyInt()))
         .thenReturn(List.of(ev1, tamperedEv2));
     var hashMismatch = service.verifyIntegrity(AUDITOR, 1000);
     assertEquals("TAMPERED", hashMismatch.status());
@@ -502,14 +571,24 @@ class AuditHardeningUnitTest {
     // 3. PREV_HASH_MISMATCH
     Map<String, Object> brokenPrev = new LinkedHashMap<>(ev2);
     brokenPrev.put("prevHash", "f".repeat(64));
-    when(db.list(contains("FROM audit_event WHERE chain_seq IS NOT NULL"), eq(0L), anyInt()))
+    when(db.list(contains("FROM audit_event WHERE chain_seq IS NOT NULL ORDER BY"), anyInt()))
         .thenReturn(List.of(ev1, brokenPrev));
     var prevMismatch = service.verifyIntegrity(AUDITOR, 1000);
     assertEquals("TAMPERED", prevMismatch.status());
     assertEquals("PREV_HASH_MISMATCH", prevMismatch.mismatchReason());
 
-    // 4. SEQUENCE_GAP
-    when(db.list(contains("FROM audit_event WHERE chain_seq IS NOT NULL"), eq(0L), anyInt()))
+    // 4. SEQUENCE_GAP (including injected seq=0)
+    Map<String, Object> seqZero = eventRow(0L, AuditHashChain.GENESIS_HASH, h1, "ev-0", t1,
+        "USER", AUDITOR.id(), null, "PROFILE_READ", AUDITOR.id(), "SUCCESS", "c-0");
+    when(db.list(contains("FROM audit_event WHERE chain_seq IS NOT NULL ORDER BY"), anyInt()))
+        .thenReturn(List.of(seqZero, ev1));
+    var zeroGap = service.verifyIntegrity(AUDITOR, 1000);
+    assertEquals("TAMPERED", zeroGap.status());
+    assertEquals("SEQUENCE_GAP", zeroGap.mismatchReason());
+    assertEquals(1L, zeroGap.firstBrokenSeq());
+    assertEquals("ev-0", zeroGap.firstBrokenEventId());
+
+    when(db.list(contains("FROM audit_event WHERE chain_seq IS NOT NULL ORDER BY"), anyInt()))
         .thenReturn(List.of(ev2));
     var gap = service.verifyIntegrity(AUDITOR, 1000);
     assertEquals("TAMPERED", gap.status());
@@ -521,7 +600,7 @@ class AuditHardeningUnitTest {
         .thenReturn(Map.of("chained", 1L, "legacy", 0L));
     when(db.one("SELECT last_seq,last_hash FROM audit_chain_head WHERE id=1"))
         .thenReturn(Map.of("lastSeq", 2L, "lastHash", h2));
-    when(db.list(contains("FROM audit_event WHERE chain_seq IS NOT NULL"), eq(0L), anyInt()))
+    when(db.list(contains("FROM audit_event WHERE chain_seq IS NOT NULL ORDER BY"), anyInt()))
         .thenReturn(List.of(ev1));
     var headMismatch = service.verifyIntegrity(AUDITOR, 1000);
     assertEquals("TAMPERED", headMismatch.status());
@@ -532,7 +611,7 @@ class AuditHardeningUnitTest {
         .thenReturn(Map.of("chained", 0L, "legacy", 10L));
     when(db.one("SELECT last_seq,last_hash FROM audit_chain_head WHERE id=1"))
         .thenReturn(Map.of("lastSeq", 0L, "lastHash", AuditHashChain.GENESIS_HASH));
-    when(db.list(contains("FROM audit_event WHERE chain_seq IS NOT NULL"), eq(0L), anyInt()))
+    when(db.list(contains("FROM audit_event WHERE chain_seq IS NOT NULL ORDER BY"), anyInt()))
         .thenReturn(List.of());
     var legacy = service.verifyIntegrity(AUDITOR, null);
     assertEquals("LEGACY_ONLY", legacy.status());
@@ -594,7 +673,9 @@ class AuditHardeningUnitTest {
         assertThrows(Problem.class, () -> service.archiveBatch(AUDITOR, NOW, "x".repeat(501)))
             .status);
 
-    // No events -> 409
+    // No events -> 409 (and acquires head lock before checking prev archive)
+    when(db.one("SELECT last_seq FROM audit_chain_head WHERE id=1 FOR UPDATE"))
+        .thenReturn(Map.of("lastSeq", 10L));
     Map<String, Object> prevNone = new LinkedHashMap<>();
     prevNone.put("lastTo", null);
     when(db.one("SELECT MAX(to_created_at) AS last_to FROM audit_archive_batch"))
@@ -621,8 +702,44 @@ class AuditHardeningUnitTest {
     assertEquals(7L, sealed.lastChainSeq());
     assertEquals(64, sealed.batchHash().length());
     assertEquals("Tháng 10", sealed.notes());
+    InOrder archOrder = inOrder(db);
+    archOrder.verify(db).one("SELECT last_seq FROM audit_chain_head WHERE id=1 FOR UPDATE");
+    archOrder.verify(db).one("SELECT MAX(to_created_at) AS last_to FROM audit_archive_batch");
     verify(db).update(startsWith("INSERT INTO audit_archive_batch("), any(Object[].class));
     verify(audit).record(AUDITOR.id(), "AUDIT_ARCHIVE_CREATED", sealed.id());
+
+    // Overflow split with shared microsecond boundary must NOT skip events at same timestamp
+    AuditService smallBatch =
+        new AuditService(db, audit, CRYPTO, FIXED_CLOCK, 365, 1825, 5000, 2);
+    Map<String, Object> e1 = new LinkedHashMap<>(ev);
+    e1.put("id", "ev-1");
+    e1.put("chainSeq", 1L);
+    e1.put("createdAt", "2026-10-01T00:00:00Z");
+    Map<String, Object> e2 = new LinkedHashMap<>(ev);
+    e2.put("id", "ev-2");
+    e2.put("chainSeq", 2L);
+    e2.put("createdAt", "2026-10-01T00:00:01Z");
+    Map<String, Object> e3 = new LinkedHashMap<>(ev);
+    e3.put("id", "ev-3");
+    e3.put("chainSeq", 3L);
+    e3.put("createdAt", "2026-10-01T00:00:01Z");
+    when(db.list(startsWith("SELECT id,chain_seq,event_hash"), any(), eq(3)))
+        .thenReturn(List.of(e1, e2, e3));
+    var split = smallBatch.archiveBatch(AUDITOR, Instant.parse("2026-11-01T00:00:00Z"), "split");
+    assertEquals(1, split.eventCount());
+    assertEquals("2026-10-01T00:00:01Z", split.toCreatedAt());
+
+    // Overflow when all rows share the exact same microsecond -> fallback to +1µs
+    Map<String, Object> s1 = new LinkedHashMap<>(e1);
+    Map<String, Object> s2 = new LinkedHashMap<>(e1);
+    s2.put("id", "ev-s2");
+    Map<String, Object> s3 = new LinkedHashMap<>(e1);
+    s3.put("id", "ev-s3");
+    when(db.list(startsWith("SELECT id,chain_seq,event_hash"), any(), eq(3)))
+        .thenReturn(List.of(s1, s2, s3));
+    var sameTs = smallBatch.archiveBatch(AUDITOR, Instant.parse("2026-11-01T00:00:00Z"), null);
+    assertEquals(2, sameTs.eventCount());
+    assertEquals("2026-10-01T00:00:00.000001Z", sameTs.toCreatedAt());
   }
 
   @Test

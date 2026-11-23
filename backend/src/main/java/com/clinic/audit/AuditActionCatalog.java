@@ -1,5 +1,6 @@
 package com.clinic.audit;
 
+import java.text.Normalizer;
 import java.util.*;
 import java.util.regex.Pattern;
 
@@ -58,6 +59,24 @@ public final class AuditActionCatalog {
           Map.entry("STAFF_UPDATED", "Cập nhật tài khoản nhân sự"),
           Map.entry("ROLES_CHANGED", "Thay đổi phân quyền nhân sự"),
           Map.entry("PATIENT_ACCOUNT_LOOKUP", "Tra cứu tài khoản bệnh nhân"),
+          Map.entry(
+              "PATIENT_ACCOUNT_LOCKED_SECURITY_REVIEW",
+              "Khóa tài khoản bệnh nhân (Rà soát bảo mật)"),
+          Map.entry(
+              "PATIENT_ACCOUNT_LOCKED_POLICY_REVIEW",
+              "Khóa tài khoản bệnh nhân (Rà soát quy định)"),
+          Map.entry(
+              "PATIENT_ACCOUNT_LOCKED_PATIENT_REQUEST",
+              "Khóa tài khoản bệnh nhân (Yêu cầu bệnh nhân)"),
+          Map.entry(
+              "PATIENT_ACCOUNT_UNLOCKED_SECURITY_REVIEW",
+              "Mở khóa tài khoản bệnh nhân (Rà soát bảo mật)"),
+          Map.entry(
+              "PATIENT_ACCOUNT_UNLOCKED_POLICY_REVIEW",
+              "Mở khóa tài khoản bệnh nhân (Rà soát quy định)"),
+          Map.entry(
+              "PATIENT_ACCOUNT_UNLOCKED_PATIENT_REQUEST",
+              "Mở khóa tài khoản bệnh nhân (Yêu cầu bệnh nhân)"),
           Map.entry("SPECIALTY_CREATED", "Tạo chuyên khoa"),
           Map.entry("SPECIALTY_UPDATED", "Cập nhật chuyên khoa"),
           Map.entry("DOCTOR_CREATED", "Tạo hồ sơ bác sĩ"),
@@ -121,6 +140,7 @@ public final class AuditActionCatalog {
       Map.of("SUCCESS", "Thành công", "DENIED", "Bị từ chối", "FAILURE", "Thất bại");
 
   private static final Pattern PHONE_LIKE = Pattern.compile("^[0-9]{7,15}$");
+  private static final Pattern COMBINING_MARKS = Pattern.compile("\\p{InCombiningDiacriticalMarks}+");
 
   public static boolean isKnownExactAction(String upperAction) {
     return ACTION_LABELS_VI.containsKey(upperAction)
@@ -129,7 +149,14 @@ public final class AuditActionCatalog {
   }
 
   public static String labelVi(String action) {
+    return labelVi(action, null);
+  }
+
+  public static String labelVi(String action, String result) {
     if (action == null || action.isBlank()) return "";
+    if ("TELEHEALTH_JOINED".equals(action) && "DENIED".equals(result)) {
+      return "Từ chối tham gia phòng khám từ xa";
+    }
     String exact = ACTION_LABELS_VI.get(action);
     if (exact != null) return exact;
     if (action.startsWith("PATIENT_ACCOUNT_LOCKED_")) {
@@ -141,6 +168,38 @@ public final class AuditActionCatalog {
       return "Mở khóa tài khoản bệnh nhân (" + REASON_LABELS_VI.getOrDefault(reason, reason) + ")";
     }
     return action;
+  }
+
+  public static String normalizeSearch(String raw) {
+    if (raw == null || raw.isBlank()) return "";
+    String nfd = Normalizer.normalize(raw.strip(), Normalizer.Form.NFD);
+    return COMBINING_MARKS
+        .matcher(nfd)
+        .replaceAll("")
+        .replace('đ', 'd')
+        .replace('Đ', 'd')
+        .toLowerCase(Locale.ROOT);
+  }
+
+  /**
+   * Resolves a Vietnamese or English action search keyword into matching canonical action codes.
+   */
+  public static List<String> matchActions(String rawQuery) {
+    String needle = normalizeSearch(rawQuery);
+    if (needle.isEmpty()) return List.of();
+    List<String> matched = new ArrayList<>();
+    for (var entry : ACTION_LABELS_VI.entrySet()) {
+      String code = entry.getKey();
+      String viNorm = normalizeSearch(entry.getValue());
+      if (viNorm.contains(needle) || code.toLowerCase(Locale.ROOT).contains(needle)) {
+        matched.add(code);
+      } else if ("TELEHEALTH_JOINED".equals(code)
+          && normalizeSearch("Từ chối tham gia phòng khám từ xa").contains(needle)) {
+        matched.add(code);
+      }
+    }
+    Collections.sort(matched);
+    return matched;
   }
 
   public static String resultVi(String result) {

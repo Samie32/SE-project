@@ -190,13 +190,16 @@ export function AuditPage() {
     if (form.from && form.to && form.from > form.to) e.range = "Ngày bắt đầu phải trước hoặc bằng ngày kết thúc.";
     setErrs(e);
     if (Object.keys(e).length) return;
-    commitFilters({
-      ...form,
-      actorId: actorTrim,
-      resourceId: form.resourceId.trim(),
-      correlationId: corrTrim,
-      action: form.action.trim(),
-    });
+    commitFilters(
+      {
+        ...form,
+        actorId: actorTrim,
+        resourceId: form.resourceId.trim(),
+        correlationId: corrTrim,
+        action: form.action.trim(),
+      },
+      !form.from && !form.to && !form.fromIsoOverride ? "ALL" : undefined,
+    );
   };
 
   const reset = () => {
@@ -309,13 +312,17 @@ export function AuditPage() {
     }
   };
 
-  const handleVerify = async () => {
+  const handleVerify = async (maxEvents?: number) => {
     if (!config.backend.audit || verifying) return;
     setVerifying(true);
     try {
-      const report = await verifyAuditIntegrity();
+      const report = await verifyAuditIntegrity(maxEvents);
       setIntegrity(report);
-      if (report.status === "VERIFIED") {
+      if (report.status === "VERIFIED" && report.truncated) {
+        toast.success(
+          `Đã xác minh ${report.checkedCount.toLocaleString("vi-VN")}/${report.totalChainedCount.toLocaleString("vi-VN")} sự kiện đầu chuỗi (chưa tới đỉnh #${report.headSeq}).`,
+        );
+      } else if (report.status === "VERIFIED") {
         toast.success(
           `Chuỗi kiểm toán nguyên vẹn: đã xác minh ${report.checkedCount.toLocaleString("vi-VN")} sự kiện nối chuỗi.`,
         );
@@ -545,26 +552,48 @@ export function AuditPage() {
         <div style={{ marginBottom: 14 }}>
           <Notice
             tone={
-              integrity.status === "VERIFIED"
-                ? "ok"
-                : integrity.status === "TAMPERED"
-                  ? "error"
-                  : "info"
+              integrity.status === "TAMPERED"
+                ? "error"
+                : integrity.truncated
+                  ? "warn"
+                  : integrity.status === "VERIFIED"
+                    ? "ok"
+                    : "info"
             }
             actions={
-              <button
-                type="button"
-                className="btn sm"
-                onClick={() => setIntegrity(null)}
-                aria-label="Đóng kết quả kiểm chứng"
-              >
-                <X size={14} aria-hidden /> Đóng
-              </button>
+              <div className="row" style={{ gap: 6 }}>
+                {integrity.truncated && integrity.checkedCount < 50_000 && (
+                  <button
+                    type="button"
+                    className="btn sm"
+                    disabled={verifying}
+                    onClick={() => void handleVerify(50_000)}
+                  >
+                    <ShieldCheck size={14} aria-hidden /> Kiểm chứng sâu hơn (50.000)
+                  </button>
+                )}
+                <button
+                  type="button"
+                  className="btn sm"
+                  onClick={() => setIntegrity(null)}
+                  aria-label="Đóng kết quả kiểm chứng"
+                >
+                  <X size={14} aria-hidden /> Đóng
+                </button>
+              </div>
             }
           >
             <div className="audit-integrity-line">
-              <Pill tone={INTEGRITY_STATUS_LABEL[integrity.status]?.tone ?? "info"}>
-                {INTEGRITY_STATUS_LABEL[integrity.status]?.label ?? integrity.status}
+              <Pill
+                tone={
+                  integrity.truncated
+                    ? "wait"
+                    : (INTEGRITY_STATUS_LABEL[integrity.status]?.tone ?? "info")
+                }
+              >
+                {integrity.truncated
+                  ? "Xác minh một phần (chưa hết chuỗi)"
+                  : (INTEGRITY_STATUS_LABEL[integrity.status]?.label ?? integrity.status)}
               </Pill>
               <span>
                 Thuật toán <code>{integrity.algorithm}</code> · Đã kiểm chứng{" "}
@@ -582,6 +611,12 @@ export function AuditPage() {
                 {" · "}Lúc {formatDateTimeSec(integrity.verifiedAt)}.
               </span>
             </div>
+            {integrity.truncated && (
+              <div style={{ marginTop: 6 }}>
+                <b>Lưu ý phạm vi kiểm chứng:</b> Mới đối chiếu {integrity.checkedCount.toLocaleString("vi-VN")} bản ghi
+                đầu tiên, chưa chạm tới đỉnh chuỗi <code>#{integrity.headSeq}</code> nên chưa xác nhận toàn vẹn phần đuôi.
+              </div>
+            )}
             {integrity.mismatchReason && (
               <div style={{ marginTop: 6 }}>
                 <b>Chi tiết bất thường:</b>{" "}
@@ -1104,6 +1139,14 @@ export function AuditPage() {
                         <span className="mono wrap-anywhere" style={{ fontSize: 12 }}>
                           {detail.prevHash}
                         </span>
+                        <button
+                          type="button"
+                          className="btn sm"
+                          onClick={() => void copyValue("prevHash", detail.prevHash!, "mã băm liền trước")}
+                        >
+                          {copiedKey === "prevHash" ? <Check size={13} aria-hidden /> : <Copy size={13} aria-hidden />}
+                          {copiedKey === "prevHash" ? "Đã chép" : "Sao chép"}
+                        </button>
                       </div>
                     )}
                   </div>
@@ -1133,8 +1176,20 @@ function RetentionModal({ onClose, onArchived }: { onClose: () => void; onArchiv
   const [notes, setNotes] = useState("");
   const [sealing, setSealing] = useState(false);
   const [sealErr, setSealErr] = useState("");
+  const [copiedBatch, setCopiedBatch] = useState<string | null>(null);
 
   const data: AuditRetentionStatus | null = q.data ?? null;
+
+  const copyBatchHash = async (batchId: string, hash: string) => {
+    try {
+      await navigator.clipboard.writeText(hash);
+      setCopiedBatch(batchId);
+      toast.success("Đã sao chép mã băm lô lưu trữ.");
+      window.setTimeout(() => setCopiedBatch((cur) => (cur === batchId ? null : cur)), 2000);
+    } catch {
+      toast.error("Không thể sao chép tự động.");
+    }
+  };
 
   const handleSeal = async () => {
     setSealing(true);
@@ -1290,7 +1345,16 @@ function RetentionModal({ onClose, onArchived }: { onClose: () => void; onArchiv
                               : "Lịch sử"}
                           </td>
                           <td className="mono nowrap" title={b.batchHash}>
-                            {b.batchHash.slice(0, 12)}…
+                            <span style={{ marginRight: 6 }}>{b.batchHash.slice(0, 12)}…</span>
+                            <button
+                              type="button"
+                              className="btn sm"
+                              style={{ minHeight: 26, padding: "2px 7px", fontSize: 12 }}
+                              onClick={() => void copyBatchHash(b.id, b.batchHash)}
+                              aria-label={`Sao chép mã băm lô ${b.id.slice(0, 8)}`}
+                            >
+                              {copiedBatch === b.id ? <Check size={12} aria-hidden /> : <Copy size={12} aria-hidden />}
+                            </button>
                           </td>
                           <td>{b.notes ?? "—"}</td>
                         </tr>

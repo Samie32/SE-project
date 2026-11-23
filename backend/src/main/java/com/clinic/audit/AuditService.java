@@ -8,8 +8,10 @@ import java.security.NoSuchAlgorithmException;
 import java.time.*;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Isolation;
 import org.springframework.transaction.annotation.Transactional;
 
 @Service
@@ -100,7 +102,9 @@ public class AuditService {
   private final int hotRetentionDays;
   private final int archiveRetentionDays;
   private final int exportMaxRows;
+  private final int archiveBatchMaxEvents;
 
+  @Autowired
   public AuditService(
       Db db,
       Audit audit,
@@ -109,6 +113,26 @@ public class AuditService {
       @Value("${clinic.audit.hot-retention-days:365}") int hotRetentionDays,
       @Value("${clinic.audit.archive-retention-days:1825}") int archiveRetentionDays,
       @Value("${clinic.audit.export-max-rows:5000}") int exportMaxRows) {
+    this(
+        db,
+        audit,
+        crypto,
+        clock,
+        hotRetentionDays,
+        archiveRetentionDays,
+        exportMaxRows,
+        ARCHIVE_BATCH_MAX_EVENTS);
+  }
+
+  AuditService(
+      Db db,
+      Audit audit,
+      Crypto crypto,
+      Clock clock,
+      int hotRetentionDays,
+      int archiveRetentionDays,
+      int exportMaxRows,
+      int archiveBatchMaxEvents) {
     this.db = db;
     this.audit = audit;
     this.crypto = crypto;
@@ -116,6 +140,7 @@ public class AuditService {
     this.hotRetentionDays = hotRetentionDays;
     this.archiveRetentionDays = archiveRetentionDays;
     this.exportMaxRows = exportMaxRows;
+    this.archiveBatchMaxEvents = archiveBatchMaxEvents;
   }
 
   @Transactional
@@ -141,9 +166,10 @@ public class AuditService {
     List<Object> args = new ArrayList<>();
     appendFilters(sql, args, filter);
     if (cursorCreatedAt != null) {
+      Instant normalizedCursor = AuditHashChain.normalizeTimestamp(cursorCreatedAt);
       sql.append(" AND (a.created_at<? OR (a.created_at=? AND a.id<?))");
-      args.add(cursorCreatedAt);
-      args.add(cursorCreatedAt);
+      args.add(normalizedCursor);
+      args.add(normalizedCursor);
       args.add(cursorId.toString());
       sql.append(" ORDER BY a.created_at DESC,a.id DESC LIMIT ?");
       args.add(limit);
@@ -215,16 +241,17 @@ public class AuditService {
 
     StringBuilder csv = new StringBuilder("\uFEFF");
     csv.append(
-        "STT chuỗi,Thời điểm (UTC),Mã hành động,Hành động (tiếng Việt),Kết quả,"
+        "STT chuỗi,Mã sự kiện (UUID),Thời điểm (UTC),Mã hành động,Hành động (tiếng Việt),Kết quả,"
             + "Loại tác nhân,Nhãn tác nhân,Mã tác nhân (UUID),Mã đối tượng,"
             + "Correlation ID,Mã băm sự kiện (event_hash),Mã băm liền trước (prev_hash)\r\n");
     for (var row : rows) {
       String action = asStringOrNull(row.get("action"));
       String result = asStringOrNull(row.get("result"));
       csv.append(AuditActionCatalog.csvCell(row.get("chainSeq"))).append(',')
+          .append(AuditActionCatalog.csvCell(row.get("id"))).append(',')
           .append(AuditActionCatalog.csvCell(row.get("createdAt"))).append(',')
           .append(AuditActionCatalog.csvCell(action)).append(',')
-          .append(AuditActionCatalog.csvCell(AuditActionCatalog.labelVi(action))).append(',')
+          .append(AuditActionCatalog.csvCell(AuditActionCatalog.labelVi(action, result))).append(',')
           .append(AuditActionCatalog.csvCell(AuditActionCatalog.resultVi(result))).append(',')
           .append(AuditActionCatalog.csvCell(row.get("actorType"))).append(',')
           .append(AuditActionCatalog.csvCell(row.get("actorLabel"))).append(',')
@@ -254,7 +281,7 @@ public class AuditService {
         content);
   }
 
-  @Transactional
+  @Transactional(isolation = Isolation.REPEATABLE_READ)
   public AuditIntegrityReport verifyIntegrity(Access.Actor actor, Integer requestedMaxEvents) {
     actor.require("AUDITOR");
     int maxEvents = requestedMaxEvents == null ? 10_000 : requestedMaxEvents;
@@ -281,17 +308,24 @@ public class AuditService {
     String firstBrokenEventId = null;
     String mismatchReason = null;
 
-    long cursorSeq = 0;
+    Long cursorSeq = null;
     while (checked < maxEvents && mismatchReason == null) {
       int batchSize = (int) Math.min(VERIFY_BATCH_SIZE, maxEvents - checked);
       var batch =
-          db.list(
-              "SELECT id,actor_id,actor_type,actor_label,action,resource_id,result,"
-                  + "correlation_id,created_at,chain_seq,prev_hash,event_hash"
-                  + " FROM audit_event WHERE chain_seq IS NOT NULL AND chain_seq>?"
-                  + " ORDER BY chain_seq ASC LIMIT ?",
-              cursorSeq,
-              batchSize);
+          cursorSeq == null
+              ? db.list(
+                  "SELECT id,actor_id,actor_type,actor_label,action,resource_id,result,"
+                      + "correlation_id,created_at,chain_seq,prev_hash,event_hash"
+                      + " FROM audit_event WHERE chain_seq IS NOT NULL"
+                      + " ORDER BY chain_seq ASC LIMIT ?",
+                  batchSize)
+              : db.list(
+                  "SELECT id,actor_id,actor_type,actor_label,action,resource_id,result,"
+                      + "correlation_id,created_at,chain_seq,prev_hash,event_hash"
+                      + " FROM audit_event WHERE chain_seq IS NOT NULL AND chain_seq>?"
+                      + " ORDER BY chain_seq ASC LIMIT ?",
+                  cursorSeq,
+                  batchSize);
       if (batch.isEmpty()) break;
       for (var row : batch) {
         long seq = asLong(row.get("chainSeq"));
@@ -340,7 +374,7 @@ public class AuditService {
       if (batch.size() < batchSize) break;
     }
 
-    boolean truncated = mismatchReason == null && totalChained > checked;
+    boolean truncated = mismatchReason == null && checked == maxEvents && totalChained > checked;
     if (mismatchReason == null && !truncated) {
       if (lastCheckedSeq != headSeq
           || !AuditHashChain.constantTimeEquals(lastCheckedHash, headHash)) {
@@ -432,6 +466,8 @@ public class AuditService {
     String cleanNotes = notes == null || notes.isBlank() ? null : notes.strip();
     Problem.require(cleanNotes == null || cleanNotes.length() <= 500, 400, "Invalid request");
 
+    // Serialize concurrent archive calls and wait for any in-flight audit inserts before snapshotting.
+    db.one("SELECT last_seq FROM audit_chain_head WHERE id=1 FOR UPDATE");
     var prev = db.one("SELECT MAX(to_created_at) AS last_to FROM audit_archive_batch");
     String prevBoundaryStr = asStringOrNull(prev.get("lastTo"));
     Instant prevBoundary = prevBoundaryStr == null ? null : Instant.parse(prevBoundaryStr);
@@ -440,29 +476,47 @@ public class AuditService {
         409,
         "No unarchived audit events in selected period");
 
-    List<Map<String, Object>> events =
+    List<Map<String, Object>> fetched =
         prevBoundary == null
             ? db.list(
                 "SELECT id,chain_seq,event_hash,created_at,action,result FROM audit_event"
                     + " WHERE created_at<? ORDER BY created_at ASC,id ASC LIMIT ?",
                 cutoff,
-                ARCHIVE_BATCH_MAX_EVENTS)
+                archiveBatchMaxEvents + 1)
             : db.list(
                 "SELECT id,chain_seq,event_hash,created_at,action,result FROM audit_event"
                     + " WHERE created_at>=? AND created_at<? ORDER BY created_at ASC,id ASC LIMIT ?",
                 prevBoundary,
                 cutoff,
-                ARCHIVE_BATCH_MAX_EVENTS);
-    Problem.require(!events.isEmpty(), 409, "No unarchived audit events in selected period");
+                archiveBatchMaxEvents + 1);
+    Problem.require(!fetched.isEmpty(), 409, "No unarchived audit events in selected period");
 
+    List<Map<String, Object>> events;
     Instant fromAt =
         prevBoundary != null
             ? prevBoundary
-            : Instant.parse(events.getFirst().get("createdAt").toString());
-    Instant toAt =
-        events.size() < ARCHIVE_BATCH_MAX_EVENTS
-            ? cutoff
-            : Instant.parse(events.getLast().get("createdAt").toString()).plusNanos(1000);
+            : Instant.parse(fetched.getFirst().get("createdAt").toString());
+    Instant toAt;
+    if (fetched.size() <= archiveBatchMaxEvents) {
+      events = fetched;
+      toAt = cutoff;
+    } else {
+      Instant overflowTs =
+          Instant.parse(fetched.get(archiveBatchMaxEvents).get("createdAt").toString());
+      int splitIdx = archiveBatchMaxEvents;
+      while (splitIdx > 0
+          && Instant.parse(fetched.get(splitIdx - 1).get("createdAt").toString())
+              .equals(overflowTs)) {
+        splitIdx--;
+      }
+      if (splitIdx > 0) {
+        events = fetched.subList(0, splitIdx);
+        toAt = overflowTs;
+      } else {
+        events = fetched.subList(0, archiveBatchMaxEvents);
+        toAt = overflowTs.plusNanos(1000);
+      }
+    }
 
     Long firstSeq = null;
     Long lastSeq = null;
@@ -565,8 +619,20 @@ public class AuditService {
         sql.append(" AND a.action=?");
         args.add(upper);
       } else {
-        sql.append(" AND LOCATE(?,LOWER(a.action))>0");
-        args.add(act.toLowerCase(Locale.ROOT));
+        List<String> matched = AuditActionCatalog.matchActions(act);
+        if (!matched.isEmpty()) {
+          sql.append(" AND (a.action IN (");
+          for (int i = 0; i < matched.size(); i++) {
+            if (i > 0) sql.append(',');
+            sql.append('?');
+            args.add(matched.get(i));
+          }
+          sql.append(") OR LOCATE(?,LOWER(a.action))>0)");
+          args.add(act.toLowerCase(Locale.ROOT));
+        } else {
+          sql.append(" AND LOCATE(?,LOWER(a.action))>0");
+          args.add(act.toLowerCase(Locale.ROOT));
+        }
       }
     }
     if (f.excludeReadNoise()) {

@@ -46,17 +46,43 @@ entity "contact_otp_send_log [V9]" as COS #EEF2FF;line:4F46E5 {
   sent_at : DATETIME(6) <<IX>>
 }
 
-entity "audit_event" as AE #EEF2FF;line:4F46E5 {
+entity "audit_event [V1,V2,V12]" as AE #EEF2FF;line:4F46E5 {
   * id : CHAR(36) <<PK>>
   --
   actor_id : CHAR(36) <<FK,nullable>>
-  actor_type : VARCHAR(16)
+  actor_type : VARCHAR(16) <<IX>>
   actor_label : VARCHAR(64)
-  action : VARCHAR(64)
+  action : VARCHAR(64) <<IX>>
   resource_id : VARCHAR(128) <<IX>>
-  result : VARCHAR(16)
-  correlation_id : CHAR(36)
+  result : VARCHAR(16) <<IX>>
+  correlation_id : CHAR(36) <<IX>>
   created_at : DATETIME(6) <<IX>>
+  chain_seq : BIGINT <<UK,V12>>
+  prev_hash : CHAR(64) [V12]
+  event_hash : CHAR(64) [V12]
+}
+
+entity "audit_chain_head [V12]" as ACH #EEF2FF;line:4F46E5 {
+  * id : TINYINT <<PK,CHECK=1>>
+  --
+  last_seq : BIGINT
+  last_hash : CHAR(64)
+  updated_at : DATETIME(6)
+}
+
+entity "audit_archive_batch [V12]" as AAB #EEF2FF;line:4F46E5 {
+  * id : CHAR(36) <<PK>>
+  --
+  from_created_at : DATETIME(6)
+  to_created_at : DATETIME(6)
+  event_count : INT
+  first_chain_seq : BIGINT
+  last_chain_seq : BIGINT
+  batch_hash : CHAR(64)
+  retention_days : INT
+  created_by : CHAR(36) <<FK,nullable>>
+  created_at : DATETIME(6) <<IX>>
+  notes : VARCHAR(500)
 }
 
 entity "idempotency_record" as IR #EEF2FF;line:4F46E5 {
@@ -102,12 +128,14 @@ UA ||-[#4F46E5]-o{ UR
 UA ||-[#4F46E5]-o| CO
 CO .[#4F46E5]. COS : email_hash
 UA ||-[#4F46E5]-o{ AE : actor_id
+ACH .[#4F46E5]. AE : chain_seq / head
+UA ||-[#4F46E5]-o{ AAB : created_by
 UA ||-[#4F46E5]-o{ IR : actor_id
 AP ||-[#C2410C]-o{ NJ : transactional outbox
 
 note as N1
   notification_job đóng vai trò transactional outbox (UNIQUE trên appointment_id, appointment_version, event_type).
-  audit_event bảo vệ bằng trigger BEFORE UPDATE/DELETE; hệ thống dùng actor_type='SYSTEM' + actor_label.
+  audit_event & audit_archive_batch bảo vệ bằng trigger BEFORE UPDATE/DELETE; V12 thêm chuỗi băm HMAC-SHA256-CHAIN-V1 qua audit_chain_head.
   contact_otp_send_log chặn spam OTP qua email đích (cooldown 30s, tối đa 5 lượt / 3600s).
 end note
 

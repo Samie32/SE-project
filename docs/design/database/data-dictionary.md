@@ -1,10 +1,10 @@
-# Mô hình dữ liệu logic & Từ điển dữ liệu (MySQL 8.4 — V1..V11)
+# Mô hình dữ liệu logic & Từ điển dữ liệu (MySQL 8.4 — V1..V12)
 
-Mô hình dữ liệu thực tế gồm **24 bảng InnoDB** được quản lý tuần tự qua Flyway `V1` đến `V11`. Sơ đồ xem tại [erd.png](erd.png) và 3 góc nhìn [đặt lịch](erd-scheduling.png), [lâm sàng](erd-clinical.png), [hạ tầng](erd-infrastructure.png).
+Mô hình dữ liệu thực tế gồm **26 bảng InnoDB** được quản lý tuần tự qua Flyway `V1` đến `V12`. Sơ đồ xem tại [erd.png](erd.png) và 3 góc nhìn [đặt lịch](erd-scheduling.png), [lâm sàng](erd-clinical.png), [hạ tầng](erd-infrastructure.png).
 
-## Danh mục 24 thực thể và ràng buộc
+## Danh mục 26 thực thể và ràng buộc
 
-| Bảng (`V1..V11`) | Khóa và thuộc tính chính | Ràng buộc và phân hệ quản lý |
+| Bảng (`V1..V12`) | Khóa và thuộc tính chính | Ràng buộc và phân hệ quản lý |
 |---|---|---|
 | `user_account` (`V1,V4,V5,V8`) | `id` CHAR(36) PK, `issuer`, `subject`, `username`, `display_name`, `active`, `staff`, `email_encrypted`, `email_hash`, `phone_encrypted`, `phone_hash` | `UNIQUE(issuer, subject)`; `INDEX(email_hash)`, `INDEX(phone_hash)` (HMAC-SHA256 dẫn xuất riêng cho tra cứu chính xác); không lưu mật khẩu; `M01` |
 | `user_role` (`V1`) | `user_id` CHAR(36) PK/FK, `role` PK | `CHECK(role IN ('PATIENT','DOCTOR','RECEPTIONIST','ADMINISTRATOR','AUDITOR'))`; `M01` |
@@ -28,7 +28,9 @@ Mô hình dữ liệu thực tế gồm **24 bảng InnoDB** được quản lý
 | `telehealth_token` (`V2`) | `token_hash` CHAR(64) PK, `session_id` FK, `user_id` FK, `expires_at` | Lưu SHA-256 của `X-Room-Token` (TTL 300s); xóa tức thì khi `ENDED`/`CANCELLED`; `INDEX(expires_at)`; `M09` |
 | `telehealth_signal` (`V2`) | `id` BIGINT AUTO_INCREMENT PK, `session_id` FK, `sender_id` FK, `kind`, `payload_encrypted` MEDIUMBLOB, `created_at` | `kind IN ('OFFER','ANSWER','ICE')`; mã hóa AES-256-GCM nội dung SDP/ICE; xóa khi kết thúc phiên; `M09` |
 | `notification_job` (`V1,V7`) | `id` PK, `appointment_id` FK, `appointment_version`, `event_type`, `status`, `attempts`, `due_at`, `lease_until`, `lease_token`, `last_error`, `estimated_start_at` | Đóng vai trò transactional outbox; `UNIQUE(appointment_id, appointment_version, event_type)`; nhận job bằng `FOR UPDATE SKIP LOCKED`; `M06` |
-| `audit_event` (`V1,V2`) | `id` PK, `actor_id` FK nullable, `actor_type`, `actor_label`, `action`, `resource_id`, `result`, `correlation_id`, `created_at` | Trigger cấm `UPDATE` và `DELETE` (append-only); hệ thống dùng `actor_type='SYSTEM'` + `actor_label`; `INDEX(resource_id, created_at)`, `INDEX(created_at, id)`, `INDEX(actor_id, created_at)`; `M07` |
+| `audit_event` (`V1,V2,V12`) | `id` PK, `actor_id` FK nullable, `actor_type`, `actor_label`, `action`, `resource_id`, `result`, `correlation_id`, `created_at`, `chain_seq` BIGINT UK nullable, `prev_hash` CHAR(64) nullable, `event_hash` CHAR(64) nullable | Trigger cấm `UPDATE` và `DELETE` (append-only); hệ thống dùng `actor_type='SYSTEM'` + `actor_label`; chuỗi băm `HMAC-SHA256-CHAIN-V1` từ `V12`; các chỉ mục `V12`: `ix_audit_time_desc(created_at DESC, id DESC)`, `ix_audit_result_time`, `ix_audit_action_time`, `ix_audit_actor_type_time`, `ix_audit_correlation`; `M07` |
+| `audit_chain_head` (`V12`) | `id` TINYINT PK (`CHECK id=1`), `last_seq` BIGINT (`CHECK last_seq>=0`), `last_hash` CHAR(64), `updated_at` DATETIME(6) | Bản ghi đỉnh chuỗi đơn khóa bằng `SELECT ... FOR UPDATE` trong giao dịch ghi audit & niêm phong lưu trữ để cấp `chain_seq` liên tục không đứt đoạn khi rollback; `M07` |
+| `audit_archive_batch` (`V12`) | `id` CHAR(36) PK, `from_created_at`, `to_created_at`, `event_count` INT, `first_chain_seq` BIGINT, `last_chain_seq` BIGINT, `batch_hash` CHAR(64), `retention_days` INT, `created_by` FK, `created_at`, `notes` VARCHAR(500) | Trigger `audit_archive_no_update`/`audit_archive_no_delete` cấm sửa/xóa; lưu manifest niêm phong các lô kiểm toán theo chính sách `365/1.825` ngày (`APPEND_ONLY_NO_APP_DELETE`); `INDEX(created_at DESC, id)`; `M07` |
 | `idempotency_record` (`V1`) | Composite PK(`actor_id`, `operation`, `request_key`), `request_hash` CHAR(64), `response_json` JSON, `expires_at` | Trùng key + cùng hash trả response đã lưu trong 24h; khác hash trả `409`; `M04` |
 
 ## Toàn vẹn, quy ước thời gian và khóa đồng thời
@@ -36,7 +38,7 @@ Mô hình dữ liệu thực tế gồm **24 bảng InnoDB** được quản lý
 - **Chuẩn hóa & Snapshot có chủ đích:** Danh mục chuyên khoa tách 3NF qua `doctor_specialty`; vai trò tách qua `user_role`; các mục thuốc của đơn được mã hóa chung trong `prescription.items_encrypted` dưới dạng JSON BLOB để tránh lộ PHI dạng văn bản thuần trong bảng con. `appointment.start_at/end_at` chụp từ `slot` tại thời điểm đặt/đổi trong cùng giao dịch.
 - **Quy ước thời gian:** Mọi cột `DATETIME(6)` lưu UTC; JDBC bật `connectionTimeZone=UTC&forceConnectionTimeZoneToSession=true`; tầng ứng dụng quy đổi theo `Asia/Ho_Chi_Minh` khi hiển thị và xác định ngày phục vụ `queue_date` (`DATE`).
 - **Thứ tự khóa chống deadlock & tranh chấp:** Giao dịch đặt/đổi/tiến trình khóa `Doctor` theo ID tăng dần -> `Patient` -> `Appointment` -> tài nguyên con (`Encounter`, `QueueTicket`, `TelehealthSession`) ở mức cô lập `READ COMMITTED`.
-- **Chỉ mục tối ưu hiệu năng (`V10`–`V11`):** `ix_slot_start_at`, `ix_appointment_active_window` và `ix_time_off_window` giúp `GET /api/slots` dùng covering/index scan phẳng (3 truy vấn gọn), đưa `p95` tải 50 VU từ `4,52 s` xuống `7,81 ms`.
+- **Chỉ mục tối ưu hiệu năng (`V10`–`V12`):** `ix_slot_start_at`, `ix_appointment_active_window` và `ix_time_off_window` giúp `GET /api/slots` dùng covering/index scan phẳng (3 truy vấn gọn), đưa `p95` tải 50 VU từ `4,52 s` xuống `7,81 ms`; `V12` bổ sung 5 chỉ mục cho `audit_event` phục vụ lọc server-side và phân trang con trỏ, đồng thời kiểm chứng chuỗi băm `POST /api/audit-events/verify` dùng snapshot `REPEATABLE READ` không khóa ghi đồng thời.
 
 ## Ánh xạ kiểu dữ liệu MySQL
 

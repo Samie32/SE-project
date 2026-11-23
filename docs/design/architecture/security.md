@@ -26,14 +26,14 @@ Vai trò cấp cao không tự động có quyền lâm sàng. Backend kiểm tr
 | Cạnh tranh tạo lịch | Giao dịch, khóa và ràng buộc cơ sở dữ liệu | TC-08/09 |
 | Token bị dùng lại/sai người | Expiry, audience, session binding; revoke khi kết thúc | TC-23/24 |
 | Callback giả hoặc đến trễ | Chữ ký nhà cung cấp dịch vụ, event ID, kiểm tra trạng thái/version | TC-N06 |
-| Sửa nhật ký kiểm toán | Tài khoản ứng dụng chỉ có quyền INSERT; tài khoản tra cứu riêng; sao lưu và kiểm tra toàn vẹn | TC-18 |
-| Lộ backup/khóa | Mã hóa AES-256-GCM; tách khóa dẫn xuất riêng (`cliniccare:blind-index:v1`) cho HMAC blind index; giới hạn quyền restore | TC-N03/N07 |
+| Sửa nhật ký kiểm toán | Tài khoản ứng dụng chỉ INSERT; trigger cấm `UPDATE`/`DELETE` trên `audit_event` và `audit_archive_batch`; chuỗi băm mật mã `HMAC-SHA256-CHAIN-V1` (khóa dẫn xuất riêng `cliniccare:audit-chain:v1` + `audit_chain_head`) và kiểm chứng toàn vẹn `POST /api/audit-events/verify` trong snapshot `REPEATABLE READ` | TC-18, `AGENT-TC-037` |
+| Lộ backup/khóa | Mã hóa AES-256-GCM; tách khóa dẫn xuất riêng (`cliniccare:blind-index:v1`) cho HMAC blind index và (`cliniccare:audit-chain:v1`) cho chuỗi băm kiểm toán; giới hạn quyền restore | TC-N03/N07, `AGENT-TC-037` |
 | Audit hỏng | Ghi cùng transaction; từ chối trả dữ liệu nhạy cảm nếu không ghi được nhật ký | TC-17 |
 | Dò mật khẩu / giả mạo đổi email | Keycloak khóa tạm sau 5 lần sai (60–900 s, mở khóa khi đặt lại mật khẩu qua email); đổi email liên hệ yêu cầu OTP 6 chữ số (TTL 300 s, cooldown 30 s, tối đa 5 lần sai và 5 lượt/giờ/email đích) | `AGENT-TC-013`, `AGENT-TC-014` |
 | Clickjacking / XSS / hạ cấp HTTPS | Caddy/Nginx gắn HSTS (`max-age=31536000; includeSubDomains`), CSP (`frame-ancestors 'none'`, `object-src 'none'`), `X-Frame-Options: DENY`, `X-Content-Type-Options: nosniff` | `AGENT-TC-009`, `AGENT-TC-012` |
 | Lộ danh sách bệnh nhân khi hỗ trợ | Chỉ quản trị tra cứu chính xác UUID/email/SĐT qua blind index; cấm tìm theo tên (`400`), trả `409` khi trùng SĐT gia đình; chỉ trả `id`, `displayName`, `active` | TC-27 |
 
-Không lưu token và nội dung lâm sàng trong audit. Tài khoản ứng dụng chỉ INSERT nhật ký kiểm toán; vai trò kiểm toán chỉ đọc. Dữ liệu giả được giữ suốt đồ án, không có API xóa audit.
+Không lưu token và nội dung lâm sàng trong audit. Tài khoản ứng dụng chỉ INSERT nhật ký kiểm toán; vai trò kiểm toán chỉ đọc, xuất biên bản CSV UTF-8 có BOM chống CSV formula injection (`<= 5.000` dòng/lần, tự ghi `AUDIT_EXPORT`), kiểm chứng toàn vẹn chuỗi băm và niêm phong lô `audit_archive_batch` theo chính sách lưu trữ `365/1.825` ngày (`APPEND_ONLY_NO_APP_DELETE`), không có API xóa audit.
 Bệnh nhân xác nhận tham gia phiên từ xa; không ghi hình. Chức năng xuất hồ sơ và chứng nhận tuân thủ pháp lý nằm ngoài phạm vi đồ án.
 
 ## Audit hệ thống và quyền tham gia phiên

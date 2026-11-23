@@ -40,9 +40,9 @@ public class Audit {
     String actorType = actor == null ? "SYSTEM" : "USER";
     String actorLabel = actor == null ? "clinic-background-worker" : null;
     String correlationId = correlation == null ? Db.id() : correlation.toString();
-    Instant createdAt = AuditHashChain.normalizeTimestamp(clock.instant());
 
     var head = db.one("SELECT last_seq,last_hash FROM audit_chain_head WHERE id=1 FOR UPDATE");
+    Instant createdAt = AuditHashChain.normalizeTimestamp(clock.instant());
     long nextSeq = ((Number) head.get("lastSeq")).longValue() + 1;
     String prevHash = head.get("lastHash").toString();
     String eventHash =
