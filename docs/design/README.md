@@ -52,7 +52,7 @@ Thiết kế sử dụng **React 18 + TypeScript 5**, **Java 21 / Spring Boot 3.
 | sequence-diagrams | [prescription](sequence-diagrams/prescription.png) | UC-14 Nháp và phát hành đơn thuốc |
 | sequence-diagrams | [notifications](sequence-diagrams/notifications.png) | UC-15/16 Gửi thông báo bất đồng bộ qua `notification_job` |
 | sequence-diagrams | [patient-account-admin](sequence-diagrams/patient-account-admin.png) | UC-27 Tra cứu chính xác (`K_hmac`) & Khóa/Mở khóa tài khoản bệnh nhân |
-| sequence-diagrams | [schedule-and-slots](sequence-diagrams/schedule-and-slots.png) | M03 Giờ mở cửa, Ngày lễ, Lịch nghỉ & Tìm Slot tối ưu `NFR-01` (`7,81 ms`) |
+| sequence-diagrams | [schedule-and-slots](sequence-diagrams/schedule-and-slots.png) | M03 Giờ mở cửa, Ngày lễ, Lịch nghỉ & Tìm Slot tối ưu `NFR-01` (`7,02 ms`) |
 | sequence-diagrams | [staff-and-catalog](sequence-diagrams/staff-and-catalog.png) | M02 Cấp nhân sự Keycloak+MySQL & Ngừng nhận lịch bác sĩ an toàn (`RG-08/09`) |
 | sequence-diagrams | [telehealth](sequence-diagrams/telehealth.png) | UC-22/23/24 Phiên khám từ xa WebRTC (Signaling nội bộ + `coturn`) |
 | state-diagrams | [appointment](state-diagrams/appointment.png) | Vòng đời Lịch hẹn (`CONFIRMED -> CHECKED_IN -> IN_PROGRESS -> COMPLETED / CANCELLED / NO_SHOW`) |

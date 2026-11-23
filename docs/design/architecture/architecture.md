@@ -22,11 +22,11 @@ Một backend modular monolith Spring Boot (`HikariCP` pool tối đa 30 kết n
 |---|---|---|
 | M01 `auth` | `user_account`, `user_role`, `contact_otp`, `contact_otp_send_log` | OIDC PKCE + Google OAuth2; OTP 6 số đổi email; tra cứu `patient-accounts/lookup` qua blind index HMAC-SHA256 tách khóa; M07 audit |
 | M02 `catalog` | `doctor`, `specialty`, `doctor_specialty` | M01; kiểm tra lịch hẹn hiệu lực trước khi ngừng nhận lịch / vô hiệu hóa bác sĩ |
-| M03 `availability` | `clinic_hours`, `clinic_holiday`, `availability`, `time_off`, `slot` | M02; ưu tiên `clinic_holiday` trên `clinic_hours`; tối ưu index `V10`/`V11` giúp `GET /api/slots` đạt `p95 = 7,81 ms` |
+| M03 `availability` | `clinic_hours`, `clinic_holiday`, `availability`, `time_off`, `slot` | M02; ưu tiên `clinic_holiday` trên `clinic_hours`; tối ưu index `V10`/`V11` giúp `GET /api/slots` đạt `p95 = 7,02 ms` |
 | M04 `appointment` | `appointment`, `idempotency_record` | M01/M03/M07; khóa cố định `Doctor -> Patient`; sinh `notification_job` xác nhận & nhắc trước 30 phút |
 | M05 `clinical` | `encounter`, `medical_record`, `prescription` | M04/M01/M07; mã hóa AES-256-GCM; trigger MySQL khóa bất biến bản `FINAL`/`ISSUED`; bổ sung tạo version mới |
 | M06 `notification` | `notification_job` (kiêm transactional outbox) | Hàng đợi durable dùng `FOR UPDATE SKIP LOCKED` + lease 60s; `CONFIRMATION`, `REMINDER`, `DELAY_NOTICE`, `NO_SHOW_REBOOKING`; thử lại SMTP `+1/+5/+15` phút |
-| M07 `audit/security` | `audit_event` | Trigger append-only cấm `UPDATE`/`DELETE`; fail-closed hoàn tác giao dịch nếu ghi audit lỗi |
+| M07 `audit/security` | `audit_event`, `audit_chain_head`, `audit_archive_batch` | Trigger append-only cấm `UPDATE`/`DELETE`; fail-closed hoàn tác giao dịch nếu ghi audit lỗi; chuỗi băm HMAC-SHA256 & niêm phong lưu trữ (`V12`) |
 | M08 `workflow` | `queue_ticket` | M04/M01/M07; check-in trực tiếp `[-15p, +15p)`; FIFO dưới khóa `Doctor`; hàng rỗng trả `204` |
 | M09 `telehealth` | `telehealth_session`, `telehealth_token`, `telehealth_signal` | M04/M01/M07; signaling WebRTC nội bộ mã hóa AES-256-GCM; `X-Room-Token` SHA-256 TTL 300s; `coturn` STUN/TURN `:3478` |
 
