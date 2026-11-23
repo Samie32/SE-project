@@ -671,6 +671,67 @@ paths:
         required: false
         schema:
           type: string
+          maxLength: 128
+      - name: result
+        in: query
+        required: false
+        schema:
+          type: string
+          enum:
+          - SUCCESS
+          - DENIED
+          - FAILURE
+      - name: action
+        in: query
+        required: false
+        schema:
+          type: string
+          maxLength: 64
+      - name: category
+        in: query
+        required: false
+        schema:
+          type: string
+          enum:
+          - ACCESS_CONTROL
+          - CLINICAL
+          - APPOINTMENT
+          - TELEHEALTH
+          - CATALOG
+          - NOTIFICATION
+          - AUDIT
+      - name: actorType
+        in: query
+        required: false
+        schema:
+          type: string
+          enum:
+          - USER
+          - SYSTEM
+      - name: correlationId
+        in: query
+        required: false
+        schema:
+          type: string
+          format: uuid
+      - name: excludeReadNoise
+        in: query
+        required: false
+        schema:
+          type: boolean
+          default: false
+      - name: cursorCreatedAt
+        in: query
+        required: false
+        schema:
+          type: string
+          format: date-time
+      - name: cursorId
+        in: query
+        required: false
+        schema:
+          type: string
+          format: uuid
       - name: limit
         in: query
         required: false
@@ -716,8 +777,302 @@ paths:
         '503':
           $ref: '#/components/responses/Unavailable'
       summary: listAuditEvents
-      description: 'Quyền mục tiêu: AUDITOR. Xem integration-contract.md cho cửa sổ thời gian, giao dịch và phân
-        quyền tài nguyên.'
+      description: 'Quyền mục tiêu: AUDITOR. Hỗ trợ lọc server-side (result, action, category, actorType, correlationId, excludeReadNoise), nhãn tác nhân an toàn không lộ PII/PHI và phân trang con trỏ (cursorCreatedAt + cursorId) chống trôi trang khi AUDIT_SEARCH ghi thêm.'
+      x-requirements:
+      - FR-17
+      - FR-18
+      x-access: AUDITOR
+  /audit-events/summary:
+    get:
+      tags:
+      - M07
+      operationId: auditSummary
+      parameters:
+      - name: from
+        in: query
+        required: false
+        schema:
+          type: string
+          format: date-time
+      - name: to
+        in: query
+        required: false
+        schema:
+          type: string
+          format: date-time
+      - name: actorId
+        in: query
+        required: false
+        schema:
+          type: string
+          format: uuid
+      - name: resourceId
+        in: query
+        required: false
+        schema:
+          type: string
+          maxLength: 128
+      - name: result
+        in: query
+        required: false
+        schema:
+          type: string
+          enum:
+          - SUCCESS
+          - DENIED
+          - FAILURE
+      - name: action
+        in: query
+        required: false
+        schema:
+          type: string
+          maxLength: 64
+      - name: category
+        in: query
+        required: false
+        schema:
+          type: string
+          enum:
+          - ACCESS_CONTROL
+          - CLINICAL
+          - APPOINTMENT
+          - TELEHEALTH
+          - CATALOG
+          - NOTIFICATION
+          - AUDIT
+      - name: actorType
+        in: query
+        required: false
+        schema:
+          type: string
+          enum:
+          - USER
+          - SYSTEM
+      - name: correlationId
+        in: query
+        required: false
+        schema:
+          type: string
+          format: uuid
+      - name: excludeReadNoise
+        in: query
+        required: false
+        schema:
+          type: boolean
+          default: false
+      responses:
+        '200':
+          description: Tóm tắt chỉ số kiểm toán trong phạm vi lọc
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuditSummary'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '503':
+          $ref: '#/components/responses/Unavailable'
+      summary: Thống kê tóm tắt nhật ký kiểm toán
+      description: 'Quyền mục tiêu: AUDITOR. Tổng hợp số lượng sự kiện, DENIED, phân quyền/tài khoản và chỉnh sửa bệnh án (RECORD_AMENDED) theo phạm vi lọc.'
+      x-requirements:
+      - FR-18
+      x-access: AUDITOR
+  /audit-events/export:
+    get:
+      tags:
+      - M07
+      operationId: exportAuditEvents
+      parameters:
+      - name: from
+        in: query
+        required: false
+        schema:
+          type: string
+          format: date-time
+      - name: to
+        in: query
+        required: false
+        schema:
+          type: string
+          format: date-time
+      - name: actorId
+        in: query
+        required: false
+        schema:
+          type: string
+          format: uuid
+      - name: resourceId
+        in: query
+        required: false
+        schema:
+          type: string
+          maxLength: 128
+      - name: result
+        in: query
+        required: false
+        schema:
+          type: string
+          enum:
+          - SUCCESS
+          - DENIED
+          - FAILURE
+      - name: action
+        in: query
+        required: false
+        schema:
+          type: string
+          maxLength: 64
+      - name: category
+        in: query
+        required: false
+        schema:
+          type: string
+          enum:
+          - ACCESS_CONTROL
+          - CLINICAL
+          - APPOINTMENT
+          - TELEHEALTH
+          - CATALOG
+          - NOTIFICATION
+          - AUDIT
+      - name: actorType
+        in: query
+        required: false
+        schema:
+          type: string
+          enum:
+          - USER
+          - SYSTEM
+      - name: correlationId
+        in: query
+        required: false
+        schema:
+          type: string
+          format: uuid
+      - name: excludeReadNoise
+        in: query
+        required: false
+        schema:
+          type: boolean
+          default: false
+      - name: maxRows
+        in: query
+        required: false
+        schema:
+          type: integer
+          minimum: 1
+          maximum: 5000
+      responses:
+        '200':
+          description: Biên bản CSV UTF-8 (kèm BOM, chống CSV injection và checksum SHA-256)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuditExportResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '503':
+          $ref: '#/components/responses/Unavailable'
+      summary: Xuất biên bản kiểm toán CSV UTF-8
+      description: 'Quyền mục tiêu: AUDITOR. Sinh CSV UTF-8 có BOM, trung hòa CSV injection, giới hạn an toàn mặc định 5.000 dòng và tự ghi sự kiện AUDIT_EXPORT.'
+      x-requirements:
+      - FR-17
+      - FR-18
+      x-access: AUDITOR
+  /audit-events/verify:
+    post:
+      tags:
+      - M07
+      operationId: verifyAuditIntegrity
+      parameters:
+      - name: maxEvents
+        in: query
+        required: false
+        schema:
+          type: integer
+          minimum: 1
+          maximum: 50000
+      responses:
+        '200':
+          description: Báo cáo kiểm chứng toàn vẹn chuỗi băm HMAC-SHA256
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuditIntegrityReport'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '503':
+          $ref: '#/components/responses/Unavailable'
+      summary: Kiểm chứng toàn vẹn chuỗi băm kiểm toán
+      description: 'Quyền mục tiêu: AUDITOR. Rà soát chuỗi chain_seq, prev_hash, event_hash (HMAC-SHA256-CHAIN-V1) và đối chiếu audit_chain_head; ghi nhận AUDIT_INTEGRITY_VERIFIED.'
+      x-requirements:
+      - FR-17
+      - FR-18
+      x-access: AUDITOR
+  /audit-events/retention:
+    get:
+      tags:
+      - M07
+      operationId: auditRetentionStatus
+      responses:
+        '200':
+          description: Trạng thái chính sách lưu trữ và các lô đã niêm phong
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuditRetentionStatus'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '503':
+          $ref: '#/components/responses/Unavailable'
+      summary: Đọc chính sách lưu trữ và trạng thái niêm phong kiểm toán
+      description: 'Quyền mục tiêu: AUDITOR. Trả chính sách hot/archive retention, số bản ghi đủ điều kiện lưu trữ và danh sách các lô audit_archive_batch gần nhất.'
+      x-requirements:
+      - FR-18
+      x-access: AUDITOR
+  /audit-events/archive:
+    post:
+      tags:
+      - M07
+      operationId: createAuditArchiveBatch
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ArchiveAuditRequest'
+      responses:
+        '200':
+          description: Đã tạo lô lưu trữ kiểm toán bất biến
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuditArchiveBatch'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '503':
+          $ref: '#/components/responses/Unavailable'
+      summary: Niêm phong lô lưu trữ nhật ký kiểm toán
+      description: 'Quyền mục tiêu: AUDITOR. Tính mã băm batch_hash cho các sự kiện chưa niêm phong trước mốc thời gian chỉ định, ghi bản ghi bất biến vào audit_archive_batch và ghi AUDIT_ARCHIVE_CREATED (không xóa audit_event).'
       x-requirements:
       - FR-17
       - FR-18
@@ -3862,6 +4217,19 @@ components:
         createdAt:
           type: string
           format: date-time
+        chainSeq:
+          type:
+          - integer
+          - 'null'
+          minimum: 1
+        prevHash:
+          type:
+          - string
+          - 'null'
+        eventHash:
+          type:
+          - string
+          - 'null'
       required:
       - id
       - actorId
@@ -3882,7 +4250,311 @@ components:
         result: SUCCESS
         correlationId: 00000000-0000-4000-8000-000000000002
         createdAt: '2030-01-08T02:00:00Z'
-      description: createdAt là tên chuẩn, không có timestamp. DENIED được ghi khi người ngoài bị từ chối vào phòng khám từ xa.
+        chainSeq: 1
+        prevHash: '0000000000000000000000000000000000000000000000000000000000000000'
+        eventHash: 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa'
+      description: createdAt là tên chuẩn, không có timestamp. DENIED được ghi khi người ngoài bị từ chối vào phòng khám từ xa; chainSeq/prevHash/eventHash bảo vệ toàn vẹn bằng HMAC-SHA256-CHAIN-V1 từ migration V12.
+    AuditSummary:
+      type: object
+      properties:
+        totalEvents:
+          type: integer
+          minimum: 0
+        deniedEvents:
+          type: integer
+          minimum: 0
+        failureEvents:
+          type: integer
+          minimum: 0
+        accessControlEvents:
+          type: integer
+          minimum: 0
+        recordAmendedEvents:
+          type: integer
+          minimum: 0
+        systemEvents:
+          type: integer
+          minimum: 0
+        chainedEvents:
+          type: integer
+          minimum: 0
+        legacyUnchainedEvents:
+          type: integer
+          minimum: 0
+        latestEventAt:
+          type:
+          - string
+          - 'null'
+          format: date-time
+      required:
+      - totalEvents
+      - deniedEvents
+      - failureEvents
+      - accessControlEvents
+      - recordAmendedEvents
+      - systemEvents
+      - chainedEvents
+      - legacyUnchainedEvents
+      - latestEventAt
+      example:
+        totalEvents: 48
+        deniedEvents: 2
+        failureEvents: 0
+        accessControlEvents: 6
+        recordAmendedEvents: 1
+        systemEvents: 5
+        chainedEvents: 48
+        legacyUnchainedEvents: 0
+        latestEventAt: '2030-01-08T02:00:00Z'
+    AuditExportResponse:
+      type: object
+      properties:
+        filename:
+          type: string
+        contentType:
+          type: string
+        exportedAt:
+          type: string
+          format: date-time
+        rowCount:
+          type: integer
+          minimum: 0
+        maxRows:
+          type: integer
+          minimum: 1
+        truncated:
+          type: boolean
+        contentSha256:
+          type: string
+          minLength: 64
+          maxLength: 64
+        csv:
+          type: string
+      required:
+      - filename
+      - contentType
+      - exportedAt
+      - rowCount
+      - maxRows
+      - truncated
+      - contentSha256
+      - csv
+      example:
+        filename: cliniccare-audit-20300108-020000.csv
+        contentType: text/csv;charset=utf-8
+        exportedAt: '2030-01-08T02:00:00Z'
+        rowCount: 1
+        maxRows: 5000
+        truncated: false
+        contentSha256: 'bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb'
+        csv: "\uFEFFSTT chuỗi,Thời điểm (UTC)\r\n1,2030-01-08T02:00:00Z\r\n"
+    AuditIntegrityReport:
+      type: object
+      properties:
+        status:
+          type: string
+          enum:
+          - VERIFIED
+          - TAMPERED
+          - LEGACY_ONLY
+        algorithm:
+          type: string
+        verifiedAt:
+          type: string
+          format: date-time
+        checkedCount:
+          type: integer
+          minimum: 0
+        totalChainedCount:
+          type: integer
+          minimum: 0
+        legacyUnchainedCount:
+          type: integer
+          minimum: 0
+        truncated:
+          type: boolean
+        headSeq:
+          type: integer
+          minimum: 0
+        headHash:
+          type: string
+          minLength: 64
+          maxLength: 64
+        firstBrokenSeq:
+          type:
+          - integer
+          - 'null'
+        firstBrokenEventId:
+          type:
+          - string
+          - 'null'
+        mismatchReason:
+          type:
+          - string
+          - 'null'
+      required:
+      - status
+      - algorithm
+      - verifiedAt
+      - checkedCount
+      - totalChainedCount
+      - legacyUnchainedCount
+      - truncated
+      - headSeq
+      - headHash
+      example:
+        status: VERIFIED
+        algorithm: HMAC-SHA256-CHAIN-V1
+        verifiedAt: '2030-01-08T02:05:00Z'
+        checkedCount: 48
+        totalChainedCount: 48
+        legacyUnchainedCount: 0
+        truncated: false
+        headSeq: 48
+        headHash: 'cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc'
+        firstBrokenSeq: null
+        firstBrokenEventId: null
+        mismatchReason: null
+    ArchiveAuditRequest:
+      type: object
+      properties:
+        before:
+          type:
+          - string
+          - 'null'
+          format: date-time
+        notes:
+          type:
+          - string
+          - 'null'
+          maxLength: 500
+      example:
+        before: '2030-01-08T00:00:00Z'
+        notes: Niêm phong lô kiểm toán tháng 01/2030
+    AuditArchiveBatch:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        fromCreatedAt:
+          type: string
+          format: date-time
+        toCreatedAt:
+          type: string
+          format: date-time
+        eventCount:
+          type: integer
+          minimum: 1
+        firstChainSeq:
+          type:
+          - integer
+          - 'null'
+        lastChainSeq:
+          type:
+          - integer
+          - 'null'
+        batchHash:
+          type: string
+          minLength: 64
+          maxLength: 64
+        retentionDays:
+          type: integer
+          minimum: 1
+        createdBy:
+          type:
+          - string
+          - 'null'
+          format: uuid
+        createdAt:
+          type: string
+          format: date-time
+        notes:
+          type:
+          - string
+          - 'null'
+      required:
+      - id
+      - fromCreatedAt
+      - toCreatedAt
+      - eventCount
+      - batchHash
+      - retentionDays
+      - createdAt
+      example:
+        id: 00000000-0000-4000-8000-000000000099
+        fromCreatedAt: '2029-12-01T00:00:00Z'
+        toCreatedAt: '2030-01-01T00:00:00Z'
+        eventCount: 120
+        firstChainSeq: 1
+        lastChainSeq: 120
+        batchHash: 'dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd'
+        retentionDays: 1825
+        createdBy: 00000000-0000-4000-8000-000000000006
+        createdAt: '2030-01-08T02:10:00Z'
+        notes: Niêm phong kỳ tháng 12/2029
+    AuditRetentionStatus:
+      type: object
+      properties:
+        hotRetentionDays:
+          type: integer
+          minimum: 1
+        archiveRetentionDays:
+          type: integer
+          minimum: 1
+        exportMaxRows:
+          type: integer
+          minimum: 1
+        deletionPolicy:
+          type: string
+        totalEvents:
+          type: integer
+          minimum: 0
+        oldestEventAt:
+          type:
+          - string
+          - 'null'
+          format: date-time
+        newestEventAt:
+          type:
+          - string
+          - 'null'
+          format: date-time
+        eligibleForArchiveCount:
+          type: integer
+          minimum: 0
+        archiveCutoffAt:
+          type: string
+          format: date-time
+        archiveBatchCount:
+          type: integer
+          minimum: 0
+        recentBatches:
+          type: array
+          items:
+            $ref: '#/components/schemas/AuditArchiveBatch'
+      required:
+      - hotRetentionDays
+      - archiveRetentionDays
+      - exportMaxRows
+      - deletionPolicy
+      - totalEvents
+      - eligibleForArchiveCount
+      - archiveCutoffAt
+      - archiveBatchCount
+      - recentBatches
+      example:
+        hotRetentionDays: 365
+        archiveRetentionDays: 1825
+        exportMaxRows: 5000
+        deletionPolicy: APPEND_ONLY_NO_APP_DELETE
+        totalEvents: 48
+        oldestEventAt: '2029-12-01T00:00:00Z'
+        newestEventAt: '2030-01-08T02:00:00Z'
+        eligibleForArchiveCount: 0
+        archiveCutoffAt: '2029-01-08T02:00:00Z'
+        archiveBatchCount: 0
+        recentBatches: []
     ProblemDetail:
       type: object
       properties:

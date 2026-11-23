@@ -1,138 +1,1308 @@
-import { useState } from "react";
-import { RotateCcw, Search } from "lucide-react";
-import { listAuditEvents } from "@/api/operations";
+import { useMemo, useState } from "react";
+import {
+  Activity,
+  Archive,
+  Check,
+  Copy,
+  Download,
+  FilePenLine,
+  Filter,
+  Lock,
+  RefreshCw,
+  RotateCcw,
+  Search,
+  ShieldAlert,
+  ShieldCheck,
+  UserCog,
+  X,
+} from "lucide-react";
+import {
+  createAuditArchiveBatch,
+  exportAuditEvents,
+  getAuditRetention,
+  getAuditSummary,
+  listAuditEvents,
+  verifyAuditIntegrity,
+} from "@/api/operations";
+import {
+  AUDIT_ACTION_LABELS,
+  AUDIT_CATEGORY_OPTIONS,
+  AUDIT_RESULT_LABEL,
+  AUDIT_RESULT_TONE,
+  DELETION_POLICY_VI,
+  INTEGRITY_REASON_VI,
+  INTEGRITY_STATUS_LABEL,
+  auditActionLabel,
+  auditResourceContext,
+  formatCompactId,
+  isHighRiskAuditAction,
+  resolveAuditActionFilter,
+} from "@/core/audit-labels";
+import { errorMessage } from "@/core/client";
 import { config } from "@/core/config";
-import { useAsync } from "@/core/useAsync";
-import { addDays, formatDateTimeSec, localToIso } from "@/core/datetime";
+import { addDays, formatDateTimeSec, localToIso, todayKey } from "@/core/datetime";
 import { UUID_RE } from "@/core/labels";
-import type { AuditEvent } from "@/core/types";
-import { AsyncBlock, Modal, Notice, PageHead, Panel, Pager, PendingBackend, Pill } from "@/ui";
+import type {
+  AuditActionCategory,
+  AuditEvent,
+  AuditFilterParams,
+  AuditIntegrityReport,
+  AuditRetentionStatus,
+} from "@/core/types";
+import { useAsync } from "@/core/useAsync";
+import { AsyncBlock, Metric, Modal, Notice, PageHead, Panel, PendingBackend, Pill, useToast } from "@/ui";
 
 const SIZE = 20;
-const RESULT_LABEL: Record<string, string> = { SUCCESS: "Thành công", DENIED: "Bị từ chối", FAILURE: "Thất bại" };
-const RESULT_TONE: Record<string, "ok" | "bad" | "wait"> = { SUCCESS: "ok", DENIED: "wait", FAILURE: "bad" };
-const actorText = (e: AuditEvent) => (e.actorId ? e.actorId : "SYSTEM");
-export function AuditPage() {
-  const [form, setForm] = useState({ actorId: "", resourceId: "", from: "", to: "" });
-  const [applied, setApplied] = useState(form);
-  const [page, setPage] = useState(0);
-  const [result, setResult] = useState("");
-  const [action, setAction] = useState("");
-  const [detail, setDetail] = useState<AuditEvent | null>(null);
-  const [errs, setErrs] = useState<{ actorId?: string; range?: string }>({});
 
-  const q = useAsync(async () => {
+type TimePreset = "ALL" | "TODAY" | "24H" | "7D" | "30D" | "CUSTOM";
+
+interface AuditFormState {
+  actorId: string;
+  resourceId: string;
+  correlationId: string;
+  from: string;
+  to: string;
+  fromIsoOverride: string;
+  result: string;
+  action: string;
+  category: AuditActionCategory | "";
+  actorType: "USER" | "SYSTEM" | "";
+  excludeReadNoise: boolean;
+}
+
+interface AuditCursor {
+  createdAt: string;
+  id: string;
+}
+
+const EMPTY_FORM: AuditFormState = {
+  actorId: "",
+  resourceId: "",
+  correlationId: "",
+  from: "",
+  to: "",
+  fromIsoOverride: "",
+  result: "",
+  action: "",
+  category: "",
+  actorType: "",
+  excludeReadNoise: false,
+};
+
+function buildApiFilters(state: AuditFormState): AuditFilterParams {
+  return {
+    actorId: state.actorId || undefined,
+    resourceId: state.resourceId || undefined,
+    correlationId: state.correlationId || undefined,
+    from: state.fromIsoOverride || (state.from ? localToIso(state.from, "00:00") : undefined),
+    to: state.to ? localToIso(addDays(state.to, 1), "00:00") : undefined,
+    result: state.result || undefined,
+    action: resolveAuditActionFilter(state.action),
+    category: state.category || undefined,
+    actorType: state.actorType || undefined,
+    excludeReadNoise: state.excludeReadNoise || undefined,
+  };
+}
+
+function buildSummaryBaseFilters(state: AuditFormState): AuditFilterParams {
+  return {
+    actorId: state.actorId || undefined,
+    resourceId: state.resourceId || undefined,
+    correlationId: state.correlationId || undefined,
+    from: state.fromIsoOverride || (state.from ? localToIso(state.from, "00:00") : undefined),
+    to: state.to ? localToIso(addDays(state.to, 1), "00:00") : undefined,
+    actorType: state.actorType || undefined,
+    excludeReadNoise: state.excludeReadNoise || undefined,
+  };
+}
+
+function downloadCsvFile(filename: string, csv: string) {
+  const payload = csv.startsWith("\uFEFF") ? csv : "\uFEFF" + csv;
+  const blob = new Blob([payload], { type: "text/csv;charset=utf-8;" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
+export function AuditPage() {
+  const toast = useToast();
+  const [form, setForm] = useState<AuditFormState>(EMPTY_FORM);
+  const [applied, setApplied] = useState<AuditFormState>(EMPTY_FORM);
+  const [preset, setPreset] = useState<TimePreset>("ALL");
+  const [cursors, setCursors] = useState<(AuditCursor | null)[]>([null]);
+  const [page, setPage] = useState(0);
+  const [reloadTick, setReloadTick] = useState(0);
+
+  const [detail, setDetail] = useState<AuditEvent | null>(null);
+  const [copiedKey, setCopiedKey] = useState<string | null>(null);
+  const [errs, setErrs] = useState<{ actorId?: string; correlationId?: string; range?: string }>({});
+
+  const [exporting, setExporting] = useState(false);
+  const [verifying, setVerifying] = useState(false);
+  const [integrity, setIntegrity] = useState<AuditIntegrityReport | null>(null);
+  const [retentionOpen, setRetentionOpen] = useState(false);
+
+  const currentCursor = cursors[page] ?? null;
+  const apiFilters = useMemo(() => buildApiFilters(applied), [applied]);
+  const summaryFilters = useMemo(() => buildSummaryBaseFilters(applied), [applied]);
+
+  const listQuery = useAsync(async () => {
     if (!config.backend.audit) return [];
     return listAuditEvents({
-      limit: SIZE + 1, offset: page * SIZE, actorId: applied.actorId || undefined, resourceId: applied.resourceId || undefined,
-      from: applied.from ? localToIso(applied.from, "00:00") : undefined, to: applied.to ? localToIso(addDays(applied.to, 1), "00:00") : undefined,
+      ...apiFilters,
+      limit: SIZE + 1,
+      offset: currentCursor ? undefined : 0,
+      cursorCreatedAt: currentCursor?.createdAt,
+      cursorId: currentCursor?.id,
     });
-  }, [applied, page]);
-  const rows = (q.data ?? []).slice(0, SIZE);
-  const pageRows = rows.filter(
-    (e) =>
-      (!result || e.result === result) &&
-      (!action.trim() || e.action.toLowerCase().includes(action.trim().toLowerCase())),
-  );
-  const hasNext = (q.data?.length ?? 0) > SIZE;
+  }, [apiFilters, currentCursor, reloadTick]);
+
+  const summaryQuery = useAsync(async () => {
+    if (!config.backend.audit) return null;
+    return getAuditSummary(summaryFilters);
+  }, [summaryFilters, reloadTick]);
+
+  const rawRows = listQuery.data ?? [];
+  const rows = rawRows.slice(0, SIZE);
+  const hasNext = rawRows.length > SIZE;
+  const summary = summaryQuery.data;
+
+  const commitFilters = (next: AuditFormState, nextPreset?: TimePreset) => {
+    setForm(next);
+    setApplied(next);
+    if (nextPreset !== undefined) setPreset(nextPreset);
+    setCursors([null]);
+    setPage(0);
+    setErrs({});
+  };
 
   const apply = () => {
     const e: typeof errs = {};
-    if (form.actorId && !UUID_RE.test(form.actorId.trim())) e.actorId = "Mã tác nhân phải là UUID.";
-    if (form.from && form.to && form.from > form.to) e.range = "Ngày bắt đầu phải trước ngày kết thúc.";
+    const actorTrim = form.actorId.trim();
+    const corrTrim = form.correlationId.trim();
+    if (actorTrim && !UUID_RE.test(actorTrim)) e.actorId = "Mã tác nhân phải là UUID hợp lệ.";
+    if (corrTrim && !UUID_RE.test(corrTrim)) e.correlationId = "Correlation ID phải là UUID hợp lệ.";
+    if (form.from && form.to && form.from > form.to) e.range = "Ngày bắt đầu phải trước hoặc bằng ngày kết thúc.";
     setErrs(e);
     if (Object.keys(e).length) return;
-    setPage(0);
-    setApplied({ ...form, actorId: form.actorId.trim(), resourceId: form.resourceId.trim() });
+    commitFilters({
+      ...form,
+      actorId: actorTrim,
+      resourceId: form.resourceId.trim(),
+      correlationId: corrTrim,
+      action: form.action.trim(),
+    });
   };
+
   const reset = () => {
-    const empty = { actorId: "", resourceId: "", from: "", to: "" };
-    setForm(empty);
-    setApplied(empty);
-    setResult("");
-    setAction("");
-    setErrs({});
-    setPage(0);
+    commitFilters(EMPTY_FORM, "ALL");
   };
-  const hasFilter = Boolean(
-    form.actorId || form.resourceId || form.from || form.to || result || action || applied.actorId || applied.resourceId || applied.from || applied.to,
+
+  const applyTimePreset = (nextPreset: TimePreset) => {
+    const today = todayKey();
+    let patch: Partial<AuditFormState>;
+    if (nextPreset === "ALL") {
+      patch = { from: "", to: "", fromIsoOverride: "" };
+    } else if (nextPreset === "TODAY") {
+      patch = { from: today, to: today, fromIsoOverride: "" };
+    } else if (nextPreset === "24H") {
+      patch = { from: "", to: "", fromIsoOverride: new Date(Date.now() - 86_400_000).toISOString() };
+    } else if (nextPreset === "7D") {
+      patch = { from: addDays(today, -6), to: today, fromIsoOverride: "" };
+    } else {
+      patch = { from: addDays(today, -29), to: today, fromIsoOverride: "" };
+    }
+    commitFilters({ ...applied, ...patch }, nextPreset);
+  };
+
+  const toggleNoise = (checked: boolean) => {
+    commitFilters({ ...applied, excludeReadNoise: checked });
+  };
+
+  const toggleSummaryFilter = (kind: "ALL" | "DENIED" | "ACCESS_CONTROL" | "RECORD_AMENDED") => {
+    if (kind === "ALL") {
+      commitFilters({ ...applied, result: "", category: "", action: "" });
+      return;
+    }
+    if (kind === "DENIED") {
+      const nextResult = applied.result === "DENIED" ? "" : "DENIED";
+      commitFilters({ ...applied, result: nextResult, category: "", action: "" });
+      return;
+    }
+    if (kind === "ACCESS_CONTROL") {
+      const nextCat = applied.category === "ACCESS_CONTROL" ? "" : "ACCESS_CONTROL";
+      commitFilters({ ...applied, result: "", category: nextCat, action: "" });
+      return;
+    }
+    const nextAction = applied.action === "RECORD_AMENDED" ? "" : "RECORD_AMENDED";
+    commitFilters({ ...applied, result: "", category: "", action: nextAction });
+  };
+
+  const pivotActor = (e: AuditEvent) => {
+    if (e.actorType === "SYSTEM" || !e.actorId) {
+      commitFilters({ ...applied, actorType: "SYSTEM", actorId: "" });
+      toast.success("Đã lọc các sự kiện do Hệ thống thực hiện.");
+      return;
+    }
+    commitFilters({ ...applied, actorId: e.actorId, actorType: "" });
+    toast.success(`Đang truy vết tác nhân ${e.actorLabel || formatCompactId(e.actorId)}.`);
+  };
+
+  const pivotResource = (resourceId: string) => {
+    commitFilters({ ...applied, resourceId });
+    toast.success(`Đang truy vết đối tượng ${formatCompactId(resourceId)}.`);
+  };
+
+  const pivotCorrelation = (correlationId: string) => {
+    commitFilters({ ...applied, correlationId });
+    toast.success(`Đang truy vết Correlation ${correlationId.slice(0, 8)}.`);
+  };
+
+  const goNext = () => {
+    if (!hasNext || rows.length === 0) return;
+    const last = rows[rows.length - 1];
+    const nextCursor: AuditCursor = { createdAt: last.createdAt, id: last.id };
+    setCursors((prev) => {
+      const copy = prev.slice(0, page + 1);
+      copy.push(nextCursor);
+      return copy;
+    });
+    setPage((p) => p + 1);
+  };
+
+  const goPrev = () => {
+    if (page <= 0) return;
+    setPage((p) => p - 1);
+  };
+
+  const goFirst = () => {
+    setCursors([null]);
+    setPage(0);
+    setReloadTick((t) => t + 1);
+  };
+
+  const handleRefresh = () => {
+    setReloadTick((t) => t + 1);
+  };
+
+  const handleExport = async () => {
+    if (!config.backend.audit || exporting) return;
+    setExporting(true);
+    try {
+      const res = await exportAuditEvents(apiFilters);
+      downloadCsvFile(res.filename, res.csv);
+      toast.success(
+        res.truncated
+          ? `Đã xuất ${res.rowCount.toLocaleString("vi-VN")} dòng (đạt giới hạn an toàn ${res.maxRows.toLocaleString("vi-VN")} dòng). SHA-256: ${res.contentSha256.slice(0, 12)}…`
+          : `Đã xuất ${res.rowCount.toLocaleString("vi-VN")} sự kiện kiểm toán (SHA-256: ${res.contentSha256.slice(0, 12)}…).`,
+      );
+      setReloadTick((t) => t + 1);
+    } catch (e) {
+      toast.error(errorMessage(e));
+    } finally {
+      setExporting(false);
+    }
+  };
+
+  const handleVerify = async () => {
+    if (!config.backend.audit || verifying) return;
+    setVerifying(true);
+    try {
+      const report = await verifyAuditIntegrity();
+      setIntegrity(report);
+      if (report.status === "VERIFIED") {
+        toast.success(
+          `Chuỗi kiểm toán nguyên vẹn: đã xác minh ${report.checkedCount.toLocaleString("vi-VN")} sự kiện nối chuỗi.`,
+        );
+      } else if (report.status === "LEGACY_ONLY") {
+        toast.success("Chưa phát sinh sự kiện nối chuỗi mới; toàn bộ dữ liệu hiện tại thuộc giai đoạn trước V12.");
+      } else {
+        toast.error(
+          `Phát hiện bất thường chuỗi băm tại #${report.firstBrokenSeq ?? "?"}: ${INTEGRITY_REASON_VI[report.mismatchReason ?? ""] ?? report.mismatchReason}`,
+        );
+      }
+      setReloadTick((t) => t + 1);
+    } catch (e) {
+      toast.error(errorMessage(e));
+    } finally {
+      setVerifying(false);
+    }
+  };
+
+  const copyValue = async (key: string, value: string, label: string) => {
+    try {
+      await navigator.clipboard.writeText(value);
+      setCopiedKey(key);
+      toast.success(`Đã sao chép ${label}.`);
+      window.setTimeout(() => setCopiedKey((cur) => (cur === key ? null : cur)), 2000);
+    } catch {
+      toast.error("Không thể sao chép tự động.");
+    }
+  };
+
+  const hasActiveFilter = Boolean(
+    applied.actorId ||
+      applied.resourceId ||
+      applied.correlationId ||
+      applied.from ||
+      applied.to ||
+      applied.fromIsoOverride ||
+      applied.result ||
+      applied.action ||
+      applied.category ||
+      applied.actorType ||
+      applied.excludeReadNoise,
   );
+  const hasDraftOrActive = Boolean(
+    hasActiveFilter ||
+      form.actorId ||
+      form.resourceId ||
+      form.correlationId ||
+      form.from ||
+      form.to ||
+      form.result ||
+      form.action ||
+      form.category ||
+      form.actorType ||
+      form.excludeReadNoise,
+  );
+
+  const activeChips = useMemo(() => {
+    const list: { key: string; label: string; clear: () => void }[] = [];
+    if (applied.actorId) {
+      list.push({
+        key: "actorId",
+        label: `Tác nhân: ${formatCompactId(applied.actorId)}`,
+        clear: () => commitFilters({ ...applied, actorId: "" }),
+      });
+    }
+    if (applied.actorType) {
+      list.push({
+        key: "actorType",
+        label: `Loại: ${applied.actorType === "SYSTEM" ? "Hệ thống" : "Người dùng"}`,
+        clear: () => commitFilters({ ...applied, actorType: "" }),
+      });
+    }
+    if (applied.resourceId) {
+      list.push({
+        key: "resourceId",
+        label: `Đối tượng: ${formatCompactId(applied.resourceId)}`,
+        clear: () => commitFilters({ ...applied, resourceId: "" }),
+      });
+    }
+    if (applied.correlationId) {
+      list.push({
+        key: "correlationId",
+        label: `Correlation: ${applied.correlationId.slice(0, 8)}`,
+        clear: () => commitFilters({ ...applied, correlationId: "" }),
+      });
+    }
+    if (applied.category) {
+      const catLabel = AUDIT_CATEGORY_OPTIONS.find((c) => c.id === applied.category)?.label ?? applied.category;
+      list.push({
+        key: "category",
+        label: `Nhóm: ${catLabel}`,
+        clear: () => commitFilters({ ...applied, category: "" }),
+      });
+    }
+    if (applied.action) {
+      list.push({
+        key: "action",
+        label: `Hành động: ${auditActionLabel(applied.action)}`,
+        clear: () => commitFilters({ ...applied, action: "" }),
+      });
+    }
+    if (applied.result) {
+      list.push({
+        key: "result",
+        label: `Kết quả: ${AUDIT_RESULT_LABEL[applied.result] ?? applied.result}`,
+        clear: () => commitFilters({ ...applied, result: "" }),
+      });
+    }
+    return list;
+  }, [applied]);
+
+  const summaryAllActive = !applied.result && !applied.category && !applied.action;
+  const summaryDeniedActive = applied.result === "DENIED" && !applied.category && !applied.action;
+  const summaryAccessActive = applied.category === "ACCESS_CONTROL" && !applied.result && !applied.action;
+  const summaryAmendActive = applied.action === "RECORD_AMENDED" && !applied.result && !applied.category;
 
   return (
     <>
-      <PageHead eyebrow="Kiểm toán" title="Nhật ký kiểm toán" text="Chỉ đọc, không thể sửa hoặc xóa. Không chứa token hay nội dung hồ sơ." />
+      <PageHead
+        eyebrow="Kiểm toán"
+        title="Nhật ký kiểm toán"
+        text="Chỉ đọc (append-only), bảo vệ chuỗi băm HMAC-SHA256. Không chứa token, mật khẩu hay nội dung bệnh án."
+        actions={
+          <>
+            <button
+              type="button"
+              className="btn sm"
+              onClick={() => void handleVerify()}
+              disabled={!config.backend.audit || verifying}
+            >
+              <ShieldCheck size={15} aria-hidden /> {verifying ? "Đang kiểm chứng…" : "Kiểm chứng toàn vẹn"}
+            </button>
+            <button
+              type="button"
+              className="btn sm"
+              onClick={() => setRetentionOpen(true)}
+              disabled={!config.backend.audit}
+            >
+              <Archive size={15} aria-hidden /> Chính sách lưu trữ
+            </button>
+            <button
+              type="button"
+              className="btn sm"
+              onClick={() => void handleExport()}
+              disabled={!config.backend.audit || exporting}
+            >
+              <Download size={15} aria-hidden /> {exporting ? "Đang xuất…" : "Xuất CSV"}
+            </button>
+            <button
+              type="button"
+              className="btn sm"
+              onClick={handleRefresh}
+              disabled={!config.backend.audit || listQuery.loading}
+            >
+              <RefreshCw size={15} aria-hidden /> Làm mới
+            </button>
+          </>
+        }
+      />
       <PendingBackend feature="audit" />
-      <Panel className="audit-panel" title="Sự kiện (mới nhất trước)">
+
+      {config.backend.audit && (
+        <div className="metrics audit-metrics" role="group" aria-label="Tóm tắt kiểm toán">
+          <button
+            type="button"
+            className={"metric-btn" + (summaryAllActive ? " is-active" : "")}
+            aria-pressed={summaryAllActive}
+            onClick={() => toggleSummaryFilter("ALL")}
+          >
+            <Metric
+              label="Tổng sự kiện"
+              value={summary ? summary.totalEvents.toLocaleString("vi-VN") : "—"}
+              hint={
+                summary
+                  ? `${summary.chainedEvents.toLocaleString("vi-VN")} đã nối chuỗi băm`
+                  : "Đang tổng hợp…"
+              }
+              icon={<Activity size={18} aria-hidden />}
+            />
+          </button>
+          <button
+            type="button"
+            className={"metric-btn" + (summaryDeniedActive ? " is-active" : "")}
+            aria-pressed={summaryDeniedActive}
+            onClick={() => toggleSummaryFilter("DENIED")}
+          >
+            <Metric
+              label="Bị từ chối (DENIED)"
+              value={summary ? summary.deniedEvents.toLocaleString("vi-VN") : "—"}
+              hint="Bấm để lọc truy cập bị chặn"
+              tone={summary && summary.deniedEvents > 0 ? "red" : "amber"}
+              icon={<ShieldAlert size={18} aria-hidden />}
+            />
+          </button>
+          <button
+            type="button"
+            className={"metric-btn" + (summaryAccessActive ? " is-active" : "")}
+            aria-pressed={summaryAccessActive}
+            onClick={() => toggleSummaryFilter("ACCESS_CONTROL")}
+          >
+            <Metric
+              label="Phân quyền & Tài khoản"
+              value={summary ? summary.accessControlEvents.toLocaleString("vi-VN") : "—"}
+              hint="Đổi quyền, nhân sự, khóa/mở BN"
+              tone="purple"
+              icon={<UserCog size={18} aria-hidden />}
+            />
+          </button>
+          <button
+            type="button"
+            className={"metric-btn" + (summaryAmendActive ? " is-active" : "")}
+            aria-pressed={summaryAmendActive}
+            onClick={() => toggleSummaryFilter("RECORD_AMENDED")}
+          >
+            <Metric
+              label="Sửa đổi bệnh án"
+              value={summary ? summary.recordAmendedEvents.toLocaleString("vi-VN") : "—"}
+              hint="Bản đính chính RECORD_AMENDED"
+              tone="amber"
+              icon={<FilePenLine size={18} aria-hidden />}
+            />
+          </button>
+        </div>
+      )}
+
+      {integrity && (
+        <div style={{ marginBottom: 14 }}>
+          <Notice
+            tone={
+              integrity.status === "VERIFIED"
+                ? "ok"
+                : integrity.status === "TAMPERED"
+                  ? "error"
+                  : "info"
+            }
+            actions={
+              <button
+                type="button"
+                className="btn sm"
+                onClick={() => setIntegrity(null)}
+                aria-label="Đóng kết quả kiểm chứng"
+              >
+                <X size={14} aria-hidden /> Đóng
+              </button>
+            }
+          >
+            <div className="audit-integrity-line">
+              <Pill tone={INTEGRITY_STATUS_LABEL[integrity.status]?.tone ?? "info"}>
+                {INTEGRITY_STATUS_LABEL[integrity.status]?.label ?? integrity.status}
+              </Pill>
+              <span>
+                Thuật toán <code>{integrity.algorithm}</code> · Đã kiểm chứng{" "}
+                <b>{integrity.checkedCount.toLocaleString("vi-VN")}</b> /{" "}
+                {integrity.totalChainedCount.toLocaleString("vi-VN")} sự kiện nối chuỗi
+                {integrity.legacyUnchainedCount > 0 && (
+                  <> · {integrity.legacyUnchainedCount.toLocaleString("vi-VN")} bản ghi lịch sử trước V12</>
+                )}
+                {integrity.headSeq > 0 && (
+                  <>
+                    {" "}
+                    · Đỉnh chuỗi <code>#{integrity.headSeq}</code> (<code>{integrity.headHash.slice(0, 12)}…</code>)
+                  </>
+                )}
+                {" · "}Lúc {formatDateTimeSec(integrity.verifiedAt)}.
+              </span>
+            </div>
+            {integrity.mismatchReason && (
+              <div style={{ marginTop: 6 }}>
+                <b>Chi tiết bất thường:</b>{" "}
+                {INTEGRITY_REASON_VI[integrity.mismatchReason] ?? integrity.mismatchReason}{" "}
+                {integrity.firstBrokenSeq != null && <>Tại số thứ tự chuỗi <code>#{integrity.firstBrokenSeq}</code>. </>}
+                {integrity.firstBrokenEventId && <>Mã sự kiện: <code>{integrity.firstBrokenEventId}</code>.</>}
+              </div>
+            )}
+          </Notice>
+        </div>
+      )}
+
+      <Panel
+        className="audit-panel"
+        title="Sự kiện kiểm toán (mới nhất trước)"
+        subtitle="Bấm trực tiếp vào Tác nhân, Đối tượng hoặc Correlation để truy vết nhanh. UUID đầy đủ nằm trong Chi tiết và file CSV."
+      >
+        <div className="audit-toolbar">
+          <div className="seg" role="group" aria-label="Chọn nhanh mốc thời gian">
+            {(
+              [
+                ["ALL", "Tất cả"],
+                ["TODAY", "Hôm nay"],
+                ["24H", "24 giờ"],
+                ["7D", "7 ngày"],
+                ["30D", "30 ngày"],
+              ] as [TimePreset, string][]
+            ).map(([id, label]) => (
+              <button
+                key={id}
+                type="button"
+                aria-pressed={preset === id}
+                className={preset === id ? "on" : ""}
+                onClick={() => applyTimePreset(id)}
+                disabled={!config.backend.audit}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+
+          <label className="audit-noise-toggle">
+            <input
+              type="checkbox"
+              checked={applied.excludeReadNoise}
+              onChange={(e) => toggleNoise(e.target.checked)}
+              disabled={!config.backend.audit}
+            />
+            <span>Ẩn sự kiện đọc thông thường (giữ lại đọc bệnh án &amp; đơn thuốc)</span>
+          </label>
+        </div>
+
         <form
-          className="audit-filters"
+          className="audit-filter-stack"
           onSubmit={(e) => {
             e.preventDefault();
             apply();
           }}
         >
-          <input
-            className="field grow"
-            aria-label="Mã tác nhân (UUID)"
-            placeholder="Mã tác nhân (UUID)…"
-            value={form.actorId}
-            onChange={(e) => setForm({ ...form, actorId: e.target.value })}
-          />
-          <input
-            className="field grow"
-            aria-label="Mã đối tượng"
-            placeholder="Mã đối tượng…"
-            value={form.resourceId}
-            onChange={(e) => setForm({ ...form, resourceId: e.target.value })}
-          />
-          <label className="audit-date">
-            <span>Từ</span>
-            <input className="field" aria-label="Từ ngày" type="date" value={form.from} onChange={(e) => setForm({ ...form, from: e.target.value })} />
-          </label>
-          <label className="audit-date">
-            <span>Đến</span>
-            <input className="field" aria-label="Đến ngày" type="date" value={form.to} onChange={(e) => setForm({ ...form, to: e.target.value })} />
-          </label>
-          <select className="field" aria-label="Kết quả (lọc trong trang đang xem)" value={result} onChange={(e) => setResult(e.target.value)}>
-            <option value="">Mọi kết quả</option>
-            <option value="SUCCESS">Thành công</option>
-            <option value="DENIED">Bị từ chối</option>
-            <option value="FAILURE">Thất bại</option>
-          </select>
-          <input className="field grow" aria-label="Hành động (lọc trong trang đang xem)" placeholder="Hành động, VD: CREATED…" value={action} onChange={(e) => setAction(e.target.value)} />
-          <button className="btn sm primary" type="submit" disabled={!config.backend.audit}>
-            <Search size={14} aria-hidden /> Lọc
-          </button>
-          {hasFilter && (
-            <button className="btn sm" type="button" onClick={reset} title="Xóa bộ lọc">
-              <RotateCcw size={14} aria-hidden /> Đặt lại
+          <div className="audit-filters">
+            <input
+              className="field audit-action-input"
+              aria-label="Hành động (tiếng Việt hoặc mã)"
+              placeholder="Hành động (VN hoặc mã, VD: bệnh án, CREATED)…"
+              list="audit-action-datalist"
+              value={form.action}
+              onChange={(e) => setForm({ ...form, action: e.target.value })}
+            />
+            <datalist id="audit-action-datalist">
+              {Object.entries(AUDIT_ACTION_LABELS).map(([code, label]) => (
+                <option key={code} value={`${label} (${code})`} />
+              ))}
+            </datalist>
+
+            <select
+              className="field"
+              aria-label="Nhóm hành động"
+              value={form.category}
+              onChange={(e) => setForm({ ...form, category: e.target.value as AuditActionCategory | "" })}
+            >
+              <option value="">Mọi nhóm</option>
+              {AUDIT_CATEGORY_OPTIONS.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.label}
+                </option>
+              ))}
+            </select>
+
+            <select
+              className="field"
+              aria-label="Kết quả"
+              value={form.result}
+              onChange={(e) => setForm({ ...form, result: e.target.value })}
+            >
+              <option value="">Mọi kết quả</option>
+              <option value="SUCCESS">Thành công</option>
+              <option value="DENIED">Bị từ chối</option>
+              <option value="FAILURE">Thất bại</option>
+            </select>
+
+            <select
+              className="field"
+              aria-label="Loại tác nhân"
+              value={form.actorType}
+              onChange={(e) => setForm({ ...form, actorType: e.target.value as "USER" | "SYSTEM" | "" })}
+            >
+              <option value="">Mọi tác nhân</option>
+              <option value="USER">Người dùng</option>
+              <option value="SYSTEM">Hệ thống</option>
+            </select>
+
+            <label className="audit-date">
+              <span>Từ</span>
+              <input
+                className="field"
+                aria-label="Từ ngày"
+                type="date"
+                value={form.from}
+                onChange={(e) => {
+                  setPreset("CUSTOM");
+                  setForm({ ...form, from: e.target.value, fromIsoOverride: "" });
+                }}
+              />
+            </label>
+            <label className="audit-date">
+              <span>Đến</span>
+              <input
+                className="field"
+                aria-label="Đến ngày"
+                type="date"
+                value={form.to}
+                onChange={(e) => {
+                  setPreset("CUSTOM");
+                  setForm({ ...form, to: e.target.value, fromIsoOverride: "" });
+                }}
+              />
+            </label>
+
+            <button className="btn sm primary" type="submit" disabled={!config.backend.audit}>
+              <Search size={14} aria-hidden /> Lọc
             </button>
-          )}
+            {hasDraftOrActive && (
+              <button className="btn sm" type="button" onClick={reset} title="Xóa toàn bộ bộ lọc">
+                <RotateCcw size={14} aria-hidden /> Đặt lại
+              </button>
+            )}
+          </div>
+
+          <div className="audit-id-filters">
+            <input
+              className="field"
+              aria-label="Mã tác nhân (UUID)"
+              placeholder="Mã tác nhân (UUID 36 ký tự)…"
+              value={form.actorId}
+              onChange={(e) => setForm({ ...form, actorId: e.target.value })}
+            />
+            <input
+              className="field"
+              aria-label="Mã đối tượng"
+              placeholder="Mã đối tượng (UUID hoặc tài nguyên)…"
+              value={form.resourceId}
+              onChange={(e) => setForm({ ...form, resourceId: e.target.value })}
+            />
+            <input
+              className="field"
+              aria-label="Correlation ID (UUID)"
+              placeholder="Correlation ID (UUID)…"
+              value={form.correlationId}
+              onChange={(e) => setForm({ ...form, correlationId: e.target.value })}
+            />
+          </div>
         </form>
-        {(errs.actorId || errs.range) && <Notice tone="error">{errs.actorId || errs.range}</Notice>}
-        <AsyncBlock loading={q.loading && config.backend.audit} error={q.error} onRetry={q.reload} empty={config.backend.audit && pageRows.length === 0} emptyTitle="Không có sự kiện phù hợp">
-          <div className="tablewrap table-scroll" tabIndex={0} role="region" aria-label="Bảng sự kiện kiểm toán"><table>
-            <thead><tr><th>Thời gian</th><th>Hành động</th><th>Tác nhân</th><th>Đối tượng</th><th>Kết quả</th><th>Correlation</th><th><span className="sr-only">Chi tiết</span></th></tr></thead>
-            <tbody>{pageRows.map((e) => (
-              <tr key={e.id}><td className="nowrap">{formatDateTimeSec(e.createdAt)}</td><td><b>{e.action}</b></td><td className="mono" title={e.actorId ?? undefined}>{actorText(e)}</td><td className="mono">{e.resourceId}</td>
-                <td><Pill tone={RESULT_TONE[e.result] ?? "info"}>{RESULT_LABEL[e.result] ?? e.result}</Pill></td><td className="mono" title={e.correlationId}>{e.correlationId.slice(0, 8)}</td><td><button className="btn sm" onClick={() => setDetail(e)} aria-label={`Xem chi tiết sự kiện ${e.action}`}>Chi tiết</button></td></tr>
-            ))}</tbody>
-          </table></div>
-          <Pager page={page} pageCount={hasNext ? page + 2 : page + 1} total={rows.length + page * SIZE + (hasNext ? 1 : 0)} onPage={setPage} />
+
+        {activeChips.length > 0 && (
+          <div className="audit-active-chips" aria-label="Bộ lọc đang áp dụng">
+            <span className="muted" style={{ fontSize: 12.5 }}>
+              <Filter size={12} aria-hidden style={{ verticalAlign: "-1px" }} /> Đang lọc:
+            </span>
+            {activeChips.map((chip) => (
+              <button
+                key={chip.key}
+                type="button"
+                className="audit-chip"
+                onClick={chip.clear}
+                title="Bấm để bỏ điều kiện này"
+              >
+                <span>{chip.label}</span>
+                <X size={12} aria-hidden />
+              </button>
+            ))}
+          </div>
+        )}
+
+        {(errs.actorId || errs.correlationId || errs.range) && (
+          <div style={{ marginBottom: 10 }}>
+            <Notice tone="error">{errs.actorId || errs.correlationId || errs.range}</Notice>
+          </div>
+        )}
+
+        <AsyncBlock
+          loading={listQuery.loading && config.backend.audit}
+          error={listQuery.error}
+          onRetry={handleRefresh}
+          empty={config.backend.audit && rows.length === 0}
+          emptyTitle="Không có sự kiện phù hợp"
+          emptyText={
+            hasActiveFilter
+              ? "Thử nới rộng khoảng thời gian, bỏ ẩn sự kiện đọc hoặc đặt lại bộ lọc."
+              : "Chưa ghi nhận sự kiện kiểm toán nào."
+          }
+        >
+          <div className="tablewrap table-scroll" tabIndex={0} role="region" aria-label="Bảng sự kiện kiểm toán">
+            <table className="audit-table">
+              <thead>
+                <tr>
+                  <th>Thời gian</th>
+                  <th>Hành động</th>
+                  <th>Tác nhân</th>
+                  <th>Đối tượng</th>
+                  <th>Kết quả</th>
+                  <th>Correlation</th>
+                  <th>
+                    <span className="sr-only">Chi tiết</span>
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                {rows.map((e) => {
+                  const isSystem = e.actorType === "SYSTEM" || !e.actorId;
+                  const highRisk = isHighRiskAuditAction(e.action, e.result);
+                  const resCtx = auditResourceContext(e.action, e.resourceId, e.actorId);
+                  const isSelf = Boolean(e.actorId && e.resourceId === e.actorId);
+                  return (
+                    <tr key={e.id} className={e.result === "DENIED" ? "audit-row-warn" : undefined}>
+                      <td className="nowrap">
+                        <div>{formatDateTimeSec(e.createdAt)}</div>
+                        {e.chainSeq != null && (
+                          <div className="audit-sub mono" title={`Chuỗi băm #${e.chainSeq}`}>
+                            <Lock size={10} aria-hidden /> #{e.chainSeq}
+                          </div>
+                        )}
+                      </td>
+                      <td>
+                        <div className={"audit-action-name" + (highRisk ? " is-high" : "")}>
+                          {auditActionLabel(e.action, e.result)}
+                        </div>
+                        <div className="audit-sub mono">{e.action}</div>
+                      </td>
+                      <td>
+                        <button
+                          type="button"
+                          className="audit-pivot"
+                          onClick={() => pivotActor(e)}
+                          title={
+                            isSystem
+                              ? `Bấm để lọc tác nhân Hệ thống (${e.actorLabel ?? "clinic-background-worker"})`
+                              : `Bấm để truy vết tác nhân · UUID: ${e.actorId}`
+                          }
+                          aria-label={
+                            isSystem
+                              ? "Lọc theo tác nhân Hệ thống"
+                              : `Truy vết tác nhân ${e.actorLabel ?? e.actorId}`
+                          }
+                        >
+                          <span className="audit-actor-top">
+                            {isSystem ? (
+                              <span className="audit-ctx-tag is-system">Hệ thống</span>
+                            ) : (
+                              <strong>{e.actorLabel || "Người dùng"}</strong>
+                            )}
+                          </span>
+                          <span className="audit-sub mono">
+                            {isSystem ? e.actorLabel || "clinic-background-worker" : formatCompactId(e.actorId)}
+                          </span>
+                        </button>
+                      </td>
+                      <td>
+                        <button
+                          type="button"
+                          className="audit-pivot"
+                          onClick={() => pivotResource(e.resourceId)}
+                          title={`Bấm để truy vết đối tượng · Mã đầy đủ: ${e.resourceId}`}
+                          aria-label={`Truy vết đối tượng ${resCtx} ${e.resourceId}`}
+                        >
+                          <span className={"audit-ctx-tag" + (isSelf ? " is-self" : "")}>{resCtx}</span>
+                          <span className="audit-sub mono">{formatCompactId(e.resourceId)}</span>
+                        </button>
+                      </td>
+                      <td className="nowrap">
+                        <Pill tone={AUDIT_RESULT_TONE[e.result] ?? "info"}>
+                          {AUDIT_RESULT_LABEL[e.result] ?? e.result}
+                        </Pill>
+                      </td>
+                      <td className="nowrap">
+                        <button
+                          type="button"
+                          className="audit-corr-btn mono"
+                          onClick={() => pivotCorrelation(e.correlationId)}
+                          title={`Bấm để truy vết Correlation ID đầy đủ: ${e.correlationId}`}
+                          aria-label={`Truy vết Correlation ID ${e.correlationId.slice(0, 8)}`}
+                        >
+                          {e.correlationId.slice(0, 8)}
+                        </button>
+                      </td>
+                      <td className="nowrap">
+                        <button
+                          type="button"
+                          className="btn sm"
+                          onClick={() => setDetail(e)}
+                          aria-label={`Xem chi tiết sự kiện ${auditActionLabel(e.action, e.result)}`}
+                        >
+                          Chi tiết
+                        </button>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+
+          <div className="row between wrap" style={{ marginTop: 14, gap: 10 }}>
+            <span className="muted">
+              Hiển thị {rows.length} sự kiện · Trang {page + 1}
+              {summary && summaryAllActive ? ` · Tổng ${summary.totalEvents.toLocaleString("vi-VN")} sự kiện` : ""}
+              {" · Phân trang con trỏ (ổn định khi tra cứu)"}
+            </span>
+            <div className="row" style={{ gap: 8 }}>
+              {page > 0 && (
+                <button type="button" className="btn sm" onClick={goFirst}>
+                  Trang đầu
+                </button>
+              )}
+              <button type="button" className="btn sm" disabled={page <= 0} onClick={goPrev}>
+                ← Trước
+              </button>
+              <button type="button" className="btn sm" disabled={!hasNext} onClick={goNext}>
+                Sau →
+              </button>
+            </div>
+          </div>
         </AsyncBlock>
       </Panel>
+
       {detail && (
-        <Modal title="Chi tiết sự kiện kiểm toán" onClose={() => setDetail(null)}>
-          <dl className="detail">
-            <div><dt>Thời gian</dt><dd>{formatDateTimeSec(detail.createdAt)}</dd></div>
-            <div><dt>Hành động</dt><dd><b>{detail.action}</b></dd></div>
-            <div><dt>Kết quả</dt><dd><Pill tone={RESULT_TONE[detail.result] ?? "info"}>{RESULT_LABEL[detail.result] ?? detail.result}</Pill></dd></div>
-            <div><dt>Tác nhân</dt><dd className="mono wrap-anywhere">{actorText(detail)}</dd></div>
-            <div><dt>Đối tượng</dt><dd className="mono wrap-anywhere">{detail.resourceId}</dd></div>
-            <div><dt>Correlation ID</dt><dd className="mono wrap-anywhere">{detail.correlationId}</dd></div>
+        <Modal
+          title="Chi tiết sự kiện kiểm toán"
+          wide
+          onClose={() => setDetail(null)}
+          footer={
+            <button type="button" className="btn" onClick={() => setDetail(null)}>
+              Đóng
+            </button>
+          }
+        >
+          <dl className="detail audit-detail-list">
+            <div>
+              <dt>Thời gian</dt>
+              <dd>
+                <div>{formatDateTimeSec(detail.createdAt)} (Asia/Ho_Chi_Minh)</div>
+                <div className="muted mono" style={{ fontSize: 12 }}>
+                  UTC: {detail.createdAt}
+                </div>
+              </dd>
+            </div>
+            <div>
+              <dt>Hành động</dt>
+              <dd>
+                <div>
+                  <b>{auditActionLabel(detail.action, detail.result)}</b>
+                </div>
+                <div className="muted mono" style={{ fontSize: 12 }}>
+                  Mã chuẩn: {detail.action}
+                </div>
+              </dd>
+            </div>
+            <div>
+              <dt>Kết quả</dt>
+              <dd>
+                <Pill tone={AUDIT_RESULT_TONE[detail.result] ?? "info"}>
+                  {AUDIT_RESULT_LABEL[detail.result] ?? detail.result}
+                </Pill>
+              </dd>
+            </div>
+            <div>
+              <dt>Mã sự kiện</dt>
+              <dd className="audit-copy-row">
+                <span className="mono wrap-anywhere">{detail.id}</span>
+                <button
+                  type="button"
+                  className="btn sm"
+                  onClick={() => void copyValue("eventId", detail.id, "mã sự kiện")}
+                >
+                  {copiedKey === "eventId" ? <Check size={13} aria-hidden /> : <Copy size={13} aria-hidden />}
+                  {copiedKey === "eventId" ? "Đã chép" : "Sao chép"}
+                </button>
+              </dd>
+            </div>
+            <div>
+              <dt>Tác nhân</dt>
+              <dd>
+                <div style={{ marginBottom: 4 }}>
+                  <Pill tone={detail.actorType === "SYSTEM" || !detail.actorId ? "info" : ""}>
+                    {detail.actorType === "SYSTEM" || !detail.actorId ? "Hệ thống" : "Người dùng"}
+                  </Pill>{" "}
+                  <b>{detail.actorLabel || (detail.actorId ? "—" : "clinic-background-worker")}</b>
+                </div>
+                {detail.actorId && (
+                  <div className="audit-copy-row">
+                    <span className="mono wrap-anywhere">{detail.actorId}</span>
+                    <button
+                      type="button"
+                      className="btn sm"
+                      onClick={() => void copyValue("actorId", detail.actorId!, "mã tác nhân")}
+                    >
+                      {copiedKey === "actorId" ? <Check size={13} aria-hidden /> : <Copy size={13} aria-hidden />}
+                      {copiedKey === "actorId" ? "Đã chép" : "Sao chép"}
+                    </button>
+                    <button
+                      type="button"
+                      className="btn sm soft"
+                      onClick={() => {
+                        pivotActor(detail);
+                        setDetail(null);
+                      }}
+                    >
+                      Truy vết
+                    </button>
+                  </div>
+                )}
+              </dd>
+            </div>
+            <div>
+              <dt>Đối tượng</dt>
+              <dd>
+                <div style={{ marginBottom: 4 }}>
+                  <span className="audit-ctx-tag">
+                    {auditResourceContext(detail.action, detail.resourceId, detail.actorId)}
+                  </span>
+                </div>
+                <div className="audit-copy-row">
+                  <span className="mono wrap-anywhere">{detail.resourceId}</span>
+                  <button
+                    type="button"
+                    className="btn sm"
+                    onClick={() => void copyValue("resourceId", detail.resourceId, "mã đối tượng")}
+                  >
+                    {copiedKey === "resourceId" ? <Check size={13} aria-hidden /> : <Copy size={13} aria-hidden />}
+                    {copiedKey === "resourceId" ? "Đã chép" : "Sao chép"}
+                  </button>
+                  <button
+                    type="button"
+                    className="btn sm soft"
+                    onClick={() => {
+                      pivotResource(detail.resourceId);
+                      setDetail(null);
+                    }}
+                  >
+                    Truy vết
+                  </button>
+                </div>
+              </dd>
+            </div>
+            <div>
+              <dt>Correlation ID</dt>
+              <dd className="audit-copy-row">
+                <span className="mono wrap-anywhere">{detail.correlationId}</span>
+                <button
+                  type="button"
+                  className="btn sm"
+                  onClick={() => void copyValue("corrId", detail.correlationId, "Correlation ID")}
+                >
+                  {copiedKey === "corrId" ? <Check size={13} aria-hidden /> : <Copy size={13} aria-hidden />}
+                  {copiedKey === "corrId" ? "Đã chép" : "Sao chép"}
+                </button>
+                <button
+                  type="button"
+                  className="btn sm soft"
+                  onClick={() => {
+                    pivotCorrelation(detail.correlationId);
+                    setDetail(null);
+                  }}
+                >
+                  Truy vết
+                </button>
+              </dd>
+            </div>
+            <div>
+              <dt>Chuỗi băm toàn vẹn</dt>
+              <dd>
+                {detail.chainSeq != null && detail.eventHash ? (
+                  <div className="stack" style={{ gap: 6 }}>
+                    <div>
+                      <Pill tone="ok">STT chuỗi #{detail.chainSeq}</Pill>{" "}
+                      <span className="muted" style={{ fontSize: 12.5 }}>
+                        HMAC-SHA256-CHAIN-V1
+                      </span>
+                    </div>
+                    <div className="audit-copy-row">
+                      <span className="muted" style={{ fontSize: 12 }}>
+                        event_hash:
+                      </span>
+                      <span className="mono wrap-anywhere" style={{ fontSize: 12 }}>
+                        {detail.eventHash}
+                      </span>
+                      <button
+                        type="button"
+                        className="btn sm"
+                        onClick={() => void copyValue("eventHash", detail.eventHash!, "mã băm sự kiện")}
+                      >
+                        {copiedKey === "eventHash" ? <Check size={13} aria-hidden /> : <Copy size={13} aria-hidden />}
+                        {copiedKey === "eventHash" ? "Đã chép" : "Sao chép"}
+                      </button>
+                    </div>
+                    {detail.prevHash && (
+                      <div className="audit-copy-row">
+                        <span className="muted" style={{ fontSize: 12 }}>
+                          prev_hash:
+                        </span>
+                        <span className="mono wrap-anywhere" style={{ fontSize: 12 }}>
+                          {detail.prevHash}
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  <span className="muted">Bản ghi lịch sử phát sinh trước khi kích hoạt chuỗi băm (V12).</span>
+                )}
+              </dd>
+            </div>
           </dl>
         </Modal>
+      )}
+
+      {retentionOpen && (
+        <RetentionModal
+          onClose={() => setRetentionOpen(false)}
+          onArchived={() => setReloadTick((t) => t + 1)}
+        />
       )}
     </>
   );
 }
 
+function RetentionModal({ onClose, onArchived }: { onClose: () => void; onArchived: () => void }) {
+  const toast = useToast();
+  const q = useAsync(getAuditRetention, []);
+  const [beforeDate, setBeforeDate] = useState(todayKey());
+  const [notes, setNotes] = useState("");
+  const [sealing, setSealing] = useState(false);
+  const [sealErr, setSealErr] = useState("");
+
+  const data: AuditRetentionStatus | null = q.data ?? null;
+
+  const handleSeal = async () => {
+    setSealing(true);
+    setSealErr("");
+    try {
+      const beforeIso = beforeDate ? localToIso(beforeDate, "00:00") : undefined;
+      const batch = await createAuditArchiveBatch({
+        before: beforeIso,
+        notes: notes.trim() || undefined,
+      });
+      toast.success(
+        `Đã niêm phong lô ${batch.eventCount.toLocaleString("vi-VN")} sự kiện (batch_hash: ${batch.batchHash.slice(0, 12)}…).`,
+      );
+      setNotes("");
+      q.reload();
+      onArchived();
+    } catch (e) {
+      setSealErr(errorMessage(e));
+    } finally {
+      setSealing(false);
+    }
+  };
+
+  return (
+    <Modal
+      title="Chính sách lưu trữ & Niêm phong kiểm toán"
+      wide
+      onClose={onClose}
+      footer={
+        <button type="button" className="btn" onClick={onClose}>
+          Đóng
+        </button>
+      }
+    >
+      <AsyncBlock loading={q.loading} error={q.error} onRetry={q.reload}>
+        {data && (
+          <div className="stack" style={{ gap: 14 }}>
+            <Notice tone="info">
+              <b>Chính sách lưu trữ áp dụng:</b>{" "}
+              {DELETION_POLICY_VI[data.deletionPolicy] ?? data.deletionPolicy}
+            </Notice>
+
+            <dl className="detail">
+              <div>
+                <dt>Lưu trữ trực tuyến (Hot)</dt>
+                <dd>
+                  <b>{data.hotRetentionDays} ngày</b> (mốc cắt lưu trữ hiện hành: {formatDateTimeSec(data.archiveCutoffAt)})
+                </dd>
+              </div>
+              <div>
+                <dt>Lưu trữ dài hạn (Archive)</dt>
+                <dd>
+                  <b>{data.archiveRetentionDays.toLocaleString("vi-VN")} ngày</b> (~
+                  {Math.round(data.archiveRetentionDays / 365)} năm) · Giới hạn xuất CSV:{" "}
+                  <b>{data.exportMaxRows.toLocaleString("vi-VN")} dòng/lần</b>
+                </dd>
+              </div>
+              <div>
+                <dt>Phạm vi dữ liệu hiện có</dt>
+                <dd>
+                  <b>{data.totalEvents.toLocaleString("vi-VN")} sự kiện</b>
+                  {data.oldestEventAt && data.newestEventAt && (
+                    <>
+                      {" "}
+                      · Từ {formatDateTimeSec(data.oldestEventAt)} đến {formatDateTimeSec(data.newestEventAt)}
+                    </>
+                  )}
+                </dd>
+              </div>
+              <div>
+                <dt>Đủ điều kiện đóng gói lưu trữ</dt>
+                <dd>
+                  <Pill tone={data.eligibleForArchiveCount > 0 ? "wait" : "ok"}>
+                    {data.eligibleForArchiveCount.toLocaleString("vi-VN")} sự kiện quá hạn {data.hotRetentionDays} ngày chưa niêm phong
+                  </Pill>
+                </dd>
+              </div>
+            </dl>
+
+            <div className="audit-archive-box">
+              <h3 style={{ margin: "0 0 8px", fontSize: 15 }}>Niêm phong lô lưu trữ kiểm toán</h3>
+              <p className="muted" style={{ margin: "0 0 10px", fontSize: 13 }}>
+                Tạo bản ghi <code>audit_archive_batch</code> bất biến kèm mã băm <code>batch_hash</code> cho toàn bộ sự kiện chưa niêm phong trước mốc ngày đã chọn (không xóa dữ liệu trong <code>audit_event</code>).
+              </p>
+              <div className="audit-archive-form">
+                <label className="audit-date">
+                  <span>Trước 00:00 ngày</span>
+                  <input
+                    className="field"
+                    type="date"
+                    aria-label="Mốc ngày niêm phong"
+                    max={todayKey()}
+                    value={beforeDate}
+                    onChange={(e) => setBeforeDate(e.target.value)}
+                  />
+                </label>
+                <input
+                  className="field grow"
+                  aria-label="Ghi chú lô lưu trữ"
+                  placeholder="Ghi chú kỳ lưu trữ (VD: Chốt kỳ kiểm toán tháng 11/2026)…"
+                  maxLength={500}
+                  value={notes}
+                  onChange={(e) => setNotes(e.target.value)}
+                />
+                <button
+                  type="button"
+                  className="btn sm primary"
+                  disabled={sealing}
+                  onClick={() => void handleSeal()}
+                >
+                  <Archive size={14} aria-hidden /> {sealing ? "Đang niêm phong…" : "Niêm phong lô"}
+                </button>
+              </div>
+              {sealErr && (
+                <div style={{ marginTop: 8 }}>
+                  <Notice tone="error">{sealErr}</Notice>
+                </div>
+              )}
+            </div>
+
+            <div>
+              <h3 style={{ margin: "0 0 8px", fontSize: 15 }}>
+                Các lô đã niêm phong gần đây ({data.archiveBatchCount})
+              </h3>
+              {data.recentBatches.length === 0 ? (
+                <p className="muted" style={{ margin: 0, fontSize: 13.5 }}>
+                  Chưa có lô lưu trữ nào được niêm phong.
+                </p>
+              ) : (
+                <div className="tablewrap">
+                  <table>
+                    <thead>
+                      <tr>
+                        <th>Thời điểm niêm phong</th>
+                        <th>Khoảng dữ liệu</th>
+                        <th>Số sự kiện</th>
+                        <th>Chuỗi #</th>
+                        <th>Mã băm lô</th>
+                        <th>Ghi chú</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {data.recentBatches.map((b) => (
+                        <tr key={b.id}>
+                          <td className="nowrap">{formatDateTimeSec(b.createdAt)}</td>
+                          <td className="nowrap">
+                            {formatDateTimeSec(b.fromCreatedAt)} → {formatDateTimeSec(b.toCreatedAt)}
+                          </td>
+                          <td className="nowrap">{b.eventCount.toLocaleString("vi-VN")}</td>
+                          <td className="mono nowrap">
+                            {b.firstChainSeq != null && b.lastChainSeq != null
+                              ? `#${b.firstChainSeq}–#${b.lastChainSeq}`
+                              : "Lịch sử"}
+                          </td>
+                          <td className="mono nowrap" title={b.batchHash}>
+                            {b.batchHash.slice(0, 12)}…
+                          </td>
+                          <td>{b.notes ?? "—"}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+      </AsyncBlock>
+    </Modal>
+  );
+}

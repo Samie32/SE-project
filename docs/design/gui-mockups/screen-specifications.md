@@ -30,7 +30,7 @@ Ký hiệu: `●` Toàn quyền theo vai trò · `○` Theo quyền sở hữu /
 | **`SCR-20`** | `/admin/schedules` | Điều phối lịch làm việc & lịch nghỉ bác sĩ toàn phòng khám | — | — | — | ● | — | `M03` · `FR-05`, `FR-06` · `UC-05`, `UC-06` |
 | **`SCR-21`** | `/admin/clinic-hours` | Cấu hình Giờ hoạt động 7 ngày & Ngày nghỉ lễ ưu tiên $H_{\text{eff}}(D)$ | — | — | — | ● | — | `M03` · `FR-05` · `UC-05` |
 | **`SCR-22`** | `/admin/patient-accounts` | Tra cứu chính xác tài khoản bệnh nhân (Blind Index HMAC) & Khóa/Mở khóa | — | — | — | ● | — | `M01`, `M07` · `FR-27`, `FR-17` · `UC-27`, `UC-17` |
-| **`SCR-23`** | `/audit` | Nhật ký kiểm toán hệ thống (Append-only, lọc phân trang, `X-Request-Id`) | — | — | — | — | ● | `M07` · `FR-17`, `FR-18` · `UC-17`, `UC-18` |
+| **`SCR-23`** | `/audit` | Nhật ký kiểm toán hệ thống (Append-only, chuỗi băm HMAC-SHA256, lọc server-side, xuất CSV & lưu trữ) | — | — | — | — | ● | `M07` · `FR-17`, `FR-18` · `UC-17`, `UC-18` |
 
 ---
 
@@ -62,7 +62,7 @@ Ký hiệu: `●` Toàn quyền theo vai trò · `○` Theo quyền sở hữu /
 | **`SCR-20`** | Lịch làm việc bác sĩ (`admin/Schedules.tsx`) | Panel bộ lọc 2 hàng (`.schedules-filters`: hàng 1 select `Chuyên khoa` + select `BS. … — Chuyên khoa`; hàng 2 select `Ca` + select `Hình thức`), phía dưới nhúng nguyên khối `ScheduleManager` (`Lịch làm việc theo tuần` / `Tháng` cùng các modal `Chi tiết {ngày}`, `Đăng ký ca làm việc`, `Chi tiết ca làm việc`, `Thêm thời gian nghỉ`, `Xóa ca làm việc?` giống `SCR-09`). | Áp dụng cùng quy tắc kiểm tra chồng lấp và bảo vệ lịch hẹn đang có (`BR-05`). |
 | **`SCR-21`** | Giờ hoạt động & Ngày nghỉ lễ (`admin/ClinicHours.tsx`) | Panel 1 `Lịch hoạt động hằng tuần` (`Mở 6/7 ngày · Tổng 54 giờ/tuần`, `Pill ok` `Đang áp dụng` hoặc `Pill wait` `Chưa lưu` khi chỉnh sửa, 7 thẻ `.clinic-day-card` `Thứ Hai..Chủ nhật` với công tắc `.clinic-switch` `Hoạt động`/`Nghỉ` + `Mở cửa`/`Đóng cửa`, nút **Lưu giờ hoạt động** và **Bỏ thay đổi**). Panel 2 `Ngày nghỉ lễ & lịch đặc biệt` (`Pill` `0 ngày`, nút **Thiết lập ngày lễ** ↔ **Thu gọn** mở `.clinic-holiday-form`: `Từ ngày`, `Đến ngày`, `Tên dịp lễ`, select `Nghỉ cả ngày` / `Giờ đặc biệt`, nút **+ Thêm**). | Giờ đóng cửa $\le$ giờ mở cửa báo lỗi tại chỗ (`Giờ đóng cửa phải sau giờ mở cửa.`); sửa giờ hoặc thêm ngày lễ làm ảnh hưởng lịch hẹn đang có bị chặn `409` (`BR-05`). |
 | **`SCR-22`** | Tài khoản bệnh nhân (`admin/PatientAccounts.tsx`) | Panel 1 `Tra cứu tài khoản` (ô `Mã tài khoản, email hoặc số điện thoại` + nút **Tra cứu** qua blind index tách khóa `K_hmac`); khi khớp chính xác hiện Panel 2 `Kết quả tra cứu` (`Tên hiển thị`, `Mã tài khoản`, `Trạng thái: [Pill ok: Đang hoạt động]` / `[Pill wait: Đã khóa]`, nút **Khóa tài khoản** / **Mở khóa tài khoản** mở `DLG-05`). | Nhập tên người hoặc sai định dạng → báo lỗi tại chỗ; không tìm thấy → `404`; trùng SĐT gia đình ($\ge 2$ tài khoản) → `409` yêu cầu nhập UUID (`BR-19`). |
-| **`SCR-23`** | Nhật ký kiểm toán (`staff/Audit.tsx`) | Chỉ dành cho `AUDITOR`; `.head` (`KIỂM TOÁN`, mô tả chỉ đọc); Panel `Sự kiện (mới nhất trước)` với `.audit-filters` (`Mã tác nhân (UUID)…`, `Mã đối tượng…`, `Từ`, `Đến`, select `Mọi kết quả`, `Hành động, VD: CREATED…`, nút **Lọc** và **Đặt lại**), bảng 7 cột có nút **Chi tiết** và thanh `Pager` (`20 kết quả · Trang 1/2`, `← Trước`, `Sau →`). Bấm **Chi tiết** mở modal **`Chi tiết sự kiện kiểm toán`** (`Thời gian`, `Hành động`, `Kết quả`, `Tác nhân`, `Đối tượng`, `Correlation ID`). | Chỉ đọc (`append-only`, CSDL chặn `UPDATE/DELETE`); `AUDITOR` thuần bị chặn `403` khi gọi danh mục khám (`RG-03`). |
+| **`SCR-23`** | Nhật ký kiểm toán (`staff/Audit.tsx`) | Chỉ dành cho `AUDITOR`; `.head` có nút **Kiểm chứng toàn vẹn** (`POST /audit-events/verify`), **Chính sách lưu trữ** (mở modal niêm phong lô `audit_archive_batch`), **Xuất CSV** (`GET /audit-events/export` UTF-8 BOM chống formula injection) và **Làm mới**; 4 thẻ KPI bấm lọc nhanh (`Tổng sự kiện`, `Bị từ chối (DENIED)`, `Phân quyền & Tài khoản`, `Sửa đổi bệnh án`); thanh chọn nhanh mốc thời gian (`Tất cả \| Hôm nay \| 24 giờ \| 7 ngày \| 30 ngày`) + hộp chọn `Ẩn sự kiện đọc thông thường`; bộ lọc server-side (hành động tiếng Việt/mã chuẩn, nhóm hành động, kết quả, loại tác nhân, ngày Từ–Đến, UUID tác nhân/đối tượng/Correlation ID) + chip lọc đang áp dụng; bảng 7 cột chuẩn hóa hành động tiếng Việt kèm mã chuẩn, rút gọn UUID theo **Cách 1** (`xxxx…xxxxxxxx`, giữ đủ 2 cột Tác nhân kèm nhãn an toàn & Đối tượng kèm ngữ cảnh/`Chính mình`), bấm truy vết nhanh 1 chạm (pivot) và phân trang bằng con trỏ (`cursorCreatedAt`/`cursorId`). | Chỉ đọc (`append-only`, CSDL chặn `UPDATE/DELETE` trên `audit_event` và `audit_archive_batch`); `AUDITOR` thuần bị chặn `403` khi gọi danh mục khám (`RG-03`); phát hiện bất thường chuỗi băm (`TAMPERED`) hiển thị cảnh báo đỏ nêu rõ số thứ tự & lý do. |
 
 ---
 
@@ -84,7 +84,7 @@ Ký hiệu: `●` Toàn quyền theo vai trò · `○` Theo quyền sở hữu /
 | **Modal `SCR-17`** | Modal `Chi tiết thông báo` (`Notifications.tsx`) | `SCR-17` · nút **Chi tiết** trên từng dòng bảng thông báo | Hiển thị `DetailList`: `Mã job`, `Sự kiện`, `Lịch hẹn` (`LH-… (UUID)`), `Trạng thái gửi` (`Pill`), `Số lần thử`, `Đến hạn`, `Lỗi gần nhất`, `Giờ khám`, `Bác sĩ`, `Hình thức`, `Trạng thái lịch` (`StatusPill`); chân modal có nút **Đóng**. |
 | **Modal `SCR-18`** | Modal `Thêm chuyên khoa` / `Cập nhật chuyên khoa` (`Specialties.tsx`) | `SCR-18` · nút **`+`** (`Thêm chuyên khoa`) hoặc nút **Sửa** | Ô `Tên chuyên khoa *`; khi cập nhật có thêm công tắc `.clinic-switch` (`Đang hoạt động` / `Ngừng hoạt động`); chân modal có nút **Hủy** + **Lưu**. |
 | **Modal `SCR-19`** | Modal `Thêm nhân sự` / `Cập nhật nhân sự` (`Permissions.tsx`) | `SCR-19` · nút **`+`** (`Thêm nhân sự`) hoặc nút **Sửa** | **Thêm mới:** `Username *`, `Email *`, `Họ tên *`, `Mật khẩu tạm thời *` (hint `Ít nhất 12 ký tự. Nhân sự phải đổi mật khẩu khi đăng nhập lần đầu.`), `Vai trò nhân sự` (4 checkbox `Bác sĩ`, `Lễ tân`, `Quản trị viên`, `Kiểm toán viên`), `Chuyên khoa` (checkbox khi chọn `Bác sĩ`). **Cập nhật:** `Họ tên *`, `Trạng thái tài khoản` (`Đang hoạt động` / `Vô hiệu hóa`), `Vai trò nhân sự`, công tắc `.clinic-switch` (`Đang nhận lịch mới` / `Tạm ngưng nhận lịch`), `Chuyên khoa`; nút **Hủy** + **Lưu**. |
-| **Modal `SCR-23`** | Modal `Chi tiết sự kiện kiểm toán` (`Audit.tsx`) | `SCR-23` · nút **Chi tiết** trên từng dòng bảng kiểm toán | Hiển thị `DetailList` 6 dòng: `Thời gian` (`HH:mm:ss DD/MM/YYYY`), `Hành động` (`PROFILE_READ`, `APPOINTMENT_CREATED`, …), `Kết quả` (`Pill` `Thành công` / `Bị từ chối` / `Thất bại`), `Tác nhân` (UUID mono hoặc `SYSTEM`), `Đối tượng` (UUID mono), `Correlation ID` (UUID đầy đủ). |
+| **Modal `SCR-23`** | Modal `Chi tiết sự kiện kiểm toán` & Modal `Chính sách lưu trữ & Niêm phong kiểm toán` (`Audit.tsx`) | `SCR-23` · nút **Chi tiết** từng dòng bảng hoặc nút **Chính sách lưu trữ** trên thanh đầu trang | **Chi tiết sự kiện:** hiển thị đủ 36 ký tự UUID cho `Mã sự kiện`, `Tác nhân` (kèm nhãn an toàn & loại), `Đối tượng` (kèm ngữ cảnh/`Chính mình`), `Correlation ID` (mỗi trường có nút **Sao chép** và **Truy vết**), hành động tiếng Việt + mã chuẩn, thời điểm VN & UTC và khối `Chuỗi băm toàn vẹn` (`#chainSeq`, `event_hash`, `prev_hash`). **Lưu trữ & niêm phong:** hiển thị chính sách `365/1.825` ngày (`APPEND_ONLY_NO_APP_DELETE`), form niêm phong lô mới (`POST /audit-events/archive`) và bảng các lô đã niêm phong gần đây. |
 
 ---
 
@@ -176,12 +176,12 @@ Ký hiệu: `●` Toàn quyền theo vai trò · `○` Theo quyền sở hữu /
 
 [Chú thích ngoài khung: Modal SCR-18 (Chuyên khoa), Modal SCR-19 (Nhân sự), Modal SCR-17 & SCR-23 (Chi tiết)]
 ┌─ Modal: Cập nhật nhân sự (SCR-19) ──── [×] ┐ ┌─ Modal: Chi tiết sự kiện kiểm toán (SCR-23) [×] ┐
-│ Họ tên * [Nguyễn Minh An                 ] │ │ Thời gian      15:17:36 22/11/2026              │
-│ Trạng thái tài khoản [Đang hoạt động    ▾] │ │ Hành động      PROFILE_READ                     │
+│ Họ tên * [Nguyễn Minh An                 ] │ │ Thời gian      15:17:36 22/11/2026 (VN + UTC)   │
+│ Trạng thái tài khoản [Đang hoạt động    ▾] │ │ Hành động      Xem hồ sơ cá nhân (PROFILE_READ) │
 │ Vai trò: [☑ Bác sĩ] [☐ Lễ tân] [☐ QT] [☐ KT]│ │ Kết quả        [● Thành công]                   │
-│ [● Đang nhận lịch mới]                     │ │ Tác nhân       00000000-0000-0000-0000-00000006 │
-│ Chuyên khoa: [☑ Da liễu] [☑ Nội tổng quát] │ │ Đối tượng      00000000-0000-0000-0000-00000006 │
-│                              [Hủy]   [Lưu] │ │ Correlation ID 19c3518a-47e3-45cb-9685-e2e1138f │
+│ [● Đang nhận lịch mới]                     │ │ Tác nhân       auditor · 0000…0006 [Sao chép]   │
+│ Chuyên khoa: [☑ Da liễu] [☑ Nội tổng quát] │ │ Đối tượng      [Chính mình] 0000…06 [Truy vết]  │
+│                              [Hủy]   [Lưu] │ │ Chuỗi băm      #42 · HMAC-SHA256 [Sao chép]     │
 └────────────────────────────────────────────┘ └─────────────────────────────────────────────────┘
 
 [Chú thích ngoài khung: SCR-21 · /admin/clinic-hours & SCR-22 · /admin/patient-accounts]

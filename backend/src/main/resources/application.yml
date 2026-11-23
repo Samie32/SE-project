@@ -40,6 +40,10 @@ clinic:
   encryption-key: ${DATA_ENCRYPTION_KEY}
   notifications-enabled: ${NOTIFICATIONS_ENABLED:true}
   contact-otp-required: ${CONTACT_OTP_REQUIRED:true}
+  audit:
+    hot-retention-days: ${AUDIT_HOT_RETENTION_DAYS:365}
+    archive-retention-days: ${AUDIT_ARCHIVE_RETENTION_DAYS:1825}
+    export-max-rows: ${AUDIT_EXPORT_MAX_ROWS:5000}
 management:
   endpoints:
     web:

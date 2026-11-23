@@ -1,11 +1,12 @@
 // Backend giả lập: bám backend thật (Access, CatalogService, ScheduleService, AppointmentService)
 // và hợp đồng thiết kế openapi.yaml cho các phần chưa có. CHỈ dùng cho `npm run dev:mock`.
 import { canSendDelayNotice, dayKey, MIN } from "@/core/datetime";
+import { AUDIT_READ_NOISE_ACTIONS, AUDIT_RESULT_LABEL, auditActionLabel } from "@/core/audit-labels";
 import { NO_SHOW_REASON } from "@/core/labels";
 import { scheduleIntervalError, slotDurationError } from "@/core/schedule-rules";
 import { isValidClinicDay, type ClinicDayHours } from "@/core/clinic-hours";
 import { ACCOUNT_EMAIL, ACCOUNT_PHONE, ACCOUNT_UUID, normalizePhone, PATIENT_ACCOUNT_REASONS } from "@/api/patient-accounts";
-import { getDb, genSlots, mid, mockUsername, persist, type DB, type MAppt, type MNotif, type MTicket, type MUser } from "./db";
+import { getDb, genSlots, mid, MOCK_GENESIS_HASH, mockAuditEventHash, mockDigest64, mockUsername, persist, type DB, type MAppt, type MAudit, type MNotif, type MTicket, type MUser } from "./db";
 
 class P extends Error { constructor(public status: number, public detail: string) { super(detail); } }
 const need = (c: unknown, status: number, detail: string) => { if (!c) throw new P(status, detail); };
@@ -18,8 +19,20 @@ interface Ctx { db: DB; actor: Actor; body: any; query: URLSearchParams; params:
 const ACTIVE = ["CONFIRMED", "CHECKED_IN", "IN_PROGRESS"];
 
 const req = (a: Actor, ...roles: string[]) => need(roles.some((r) => a.roles.includes(r)), 403, "Insufficient permission");
-const audit = (db: DB, actor: string | null, action: string, resource: string, now: number, result = "SUCCESS") =>
-  db.audit.push({ id: mid(), actorId: actor, action, resourceId: resource, createdAt: new Date(now).toISOString(), result, correlationId: mid() });
+const audit = (db: DB, actor: string | null, action: string, resource: string, now: number, result = "SUCCESS") => {
+  const prev = db.audit[db.audit.length - 1];
+  const chainSeq = (prev?.chainSeq ?? 0) + 1;
+  const prevHash = prev?.eventHash ?? MOCK_GENESIS_HASH;
+  const actorType: "USER" | "SYSTEM" = actor ? "USER" : "SYSTEM";
+  const actorLabel = actor ? null : "clinic-background-worker";
+  const id = mid();
+  const createdAt = new Date(now).toISOString();
+  const correlationId = mid();
+  const eventHash = mockAuditEventHash({
+    chainSeq, prevHash, id, createdAt, actorType, actorId: actor, actorLabel, action, resourceId: resource, result, correlationId,
+  });
+  db.audit.push({ id, actorId: actor, actorType, actorLabel, action, resourceId: resource, createdAt, result, correlationId, chainSeq, prevHash, eventHash });
+};
 const isDoctorOf = (db: DB, a: Actor, doctorId: string) => {
   if (a.roles.includes("ADMINISTRATOR")) return true;
   req(a, "DOCTOR");
@@ -791,14 +804,266 @@ on("GET", "/notification-jobs", (c) => {
   req(c.actor, "RECEPTIONIST", "ADMINISTRATOR");
   return [...c.db.notifs].sort((a, b) => b.dueAt.localeCompare(a.dueAt)).slice(0, 100).map(outNotification);
 });
+const MOCK_ACCESS_CONTROL = (action: string) =>
+  ["ROLES_CHANGED", "STAFF_CREATED", "STAFF_UPDATED", "PATIENT_ACCOUNT_LOOKUP"].includes(action) ||
+  action.startsWith("PATIENT_ACCOUNT_LOCKED_") ||
+  action.startsWith("PATIENT_ACCOUNT_UNLOCKED_");
+
+function matchAuditCategory(category: string, action: string): boolean {
+  switch (category) {
+    case "ACCESS_CONTROL": return MOCK_ACCESS_CONTROL(action);
+    case "CLINICAL":
+      return action.startsWith("RECORD_") || action.startsWith("PRESCRIPTION_") ||
+        ["PATIENT_RECORDS_READ", "ENCOUNTER_PRESCRIPTIONS_READ", "PATIENT_PRESCRIPTIONS_READ", "PRESCRIPTION_LIST_READ"].includes(action);
+    case "APPOINTMENT": return action.startsWith("APPOINTMENT_") || action.startsWith("QUEUE_");
+    case "TELEHEALTH": return action.startsWith("TELEHEALTH_");
+    case "CATALOG":
+      return action.startsWith("DOCTOR_") || action.startsWith("SPECIALTY_") || action.startsWith("CLINIC_") ||
+        action.startsWith("AVAILABILITY_") || action.startsWith("TIME_OFF_");
+    case "NOTIFICATION": return action.startsWith("NOTIFICATION_");
+    case "AUDIT": return action.startsWith("AUDIT_");
+    default: throw new P(400, "Invalid audit filter");
+  }
+}
+
+function mockSafeActorLabel(db: DB, e: MAudit): string {
+  const actorType = e.actorType ?? (e.actorId ? "USER" : "SYSTEM");
+  if (actorType === "SYSTEM" || !e.actorId) return e.actorLabel || "clinic-background-worker";
+  if (e.actorLabel && !e.actorLabel.includes("@")) return e.actorLabel;
+  const u = db.users.find((x) => x.id === e.actorId);
+  const uname = u ? mockUsername(u) : null;
+  if (uname && !uname.includes("@")) return uname;
+  return `${u && isStaff(db, u) ? "staff" : "user"}-${e.actorId.slice(-8)}`;
+}
+
+function outAudit(db: DB, e: MAudit) {
+  const actorType = e.actorType ?? (e.actorId ? "USER" : "SYSTEM");
+  return {
+    ...e,
+    actorType,
+    actorLabel: mockSafeActorLabel(db, e),
+  };
+}
+
+function filterAuditRows(db: DB, q: URLSearchParams): MAudit[] {
+  const actorId = q.get("actorId");
+  const resourceId = q.get("resourceId")?.trim() || null;
+  const from = q.get("from");
+  const to = q.get("to");
+  const result = q.get("result")?.trim().toUpperCase() || null;
+  const action = q.get("action")?.trim() || null;
+  const category = q.get("category")?.trim().toUpperCase() || null;
+  const actorType = q.get("actorType")?.trim().toUpperCase() || null;
+  const correlationId = q.get("correlationId");
+  const excludeReadNoise = q.get("excludeReadNoise") === "true";
+
+  need(!actorId || /^[0-9a-f-]{36}$/i.test(actorId), 400, "Invalid request");
+  need(!correlationId || /^[0-9a-f-]{36}$/i.test(correlationId), 400, "Invalid request");
+  need(!from || !to || from < to, 400, "Invalid time range");
+  need(!result || ["SUCCESS", "DENIED", "FAILURE"].includes(result), 400, "Invalid audit filter");
+  need(!actorType || ["USER", "SYSTEM"].includes(actorType), 400, "Invalid audit filter");
+  if (category) matchAuditCategory(category, "AUDIT_SEARCH");
+
+  return db.audit
+    .filter((e) => {
+      const eActorType = e.actorType ?? (e.actorId ? "USER" : "SYSTEM");
+      if (actorId && e.actorId !== actorId) return false;
+      if (resourceId && e.resourceId !== resourceId) return false;
+      if (from && e.createdAt < from) return false;
+      if (to && e.createdAt >= to) return false;
+      if (result && e.result !== result) return false;
+      if (actorType && eActorType !== actorType) return false;
+      if (correlationId && e.correlationId !== correlationId) return false;
+      if (category && !matchAuditCategory(category, e.action)) return false;
+      if (action) {
+        const upper = action.toUpperCase();
+        if (upper.endsWith("*") || upper.endsWith("_")) {
+          const pref = upper.endsWith("*") ? upper.slice(0, -1) : upper;
+          if (!e.action.toUpperCase().startsWith(pref)) return false;
+        } else if (!e.action.toLowerCase().includes(action.toLowerCase())) {
+          return false;
+        }
+      }
+      if (excludeReadNoise && AUDIT_READ_NOISE_ACTIONS.has(e.action)) return false;
+      return true;
+    })
+    .sort((a, b) => b.createdAt.localeCompare(a.createdAt) || b.id.localeCompare(a.id));
+}
+
+function mockCsvCell(raw: unknown): string {
+  let s = raw == null ? "" : String(raw);
+  const trimmed = s.trimStart();
+  if (/^[=+\-@\t\r]/.test(s) || /^[=+\-@]/.test(trimmed)) s = "'" + s;
+  return /[",\r\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+}
+
 on("GET", "/audit-events", (c) => {
   req(c.actor, "AUDITOR");
-  const q = c.query, actorId = q.get("actorId"), resourceId = q.get("resourceId"), from = q.get("from"), to = q.get("to");
-  need(!actorId || /^[0-9a-f-]{36}$/i.test(actorId), 400, "Invalid request");
-  const rows = c.db.audit
-    .filter((e) => (!actorId || e.actorId === actorId) && (!resourceId || e.resourceId === resourceId) && (!from || e.createdAt >= from) && (!to || e.createdAt < to))
-    .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
-  return page(rows, q);
+  const q = c.query;
+  const cursorCreatedAt = q.get("cursorCreatedAt");
+  const cursorId = q.get("cursorId");
+  const offset = Number(q.get("offset") ?? 0);
+  const limit = Number(q.get("limit") ?? 20);
+  need(Number.isInteger(limit) && limit >= 1 && limit <= 100 && offset >= 0, 400, "Invalid pagination");
+  need(Boolean(cursorCreatedAt) === Boolean(cursorId), 400, "Invalid pagination");
+  need(!cursorCreatedAt || offset === 0, 400, "Invalid pagination");
+  let rows = filterAuditRows(c.db, q);
+  if (cursorCreatedAt && cursorId) {
+    rows = rows.filter((e) => e.createdAt < cursorCreatedAt || (e.createdAt === cursorCreatedAt && e.id < cursorId));
+  }
+  const sliced = (cursorCreatedAt ? rows.slice(0, limit) : rows.slice(offset, offset + limit)).map((e) => outAudit(c.db, e));
+  audit(c.db, c.actor.id, "AUDIT_SEARCH", c.actor.id, c.now);
+  return sliced;
+});
+
+on("GET", "/audit-events/summary", (c) => {
+  req(c.actor, "AUDITOR");
+  const rows = filterAuditRows(c.db, c.query);
+  return {
+    totalEvents: rows.length,
+    deniedEvents: rows.filter((e) => e.result === "DENIED").length,
+    failureEvents: rows.filter((e) => e.result === "FAILURE").length,
+    accessControlEvents: rows.filter((e) => MOCK_ACCESS_CONTROL(e.action)).length,
+    recordAmendedEvents: rows.filter((e) => e.action === "RECORD_AMENDED").length,
+    systemEvents: rows.filter((e) => (e.actorType ?? (e.actorId ? "USER" : "SYSTEM")) === "SYSTEM").length,
+    chainedEvents: rows.filter((e) => Boolean(e.eventHash)).length,
+    legacyUnchainedEvents: rows.filter((e) => !e.eventHash).length,
+    latestEventAt: rows[0]?.createdAt ?? null,
+  };
+});
+
+on("GET", "/audit-events/export", (c) => {
+  req(c.actor, "AUDITOR");
+  const maxRows = Number(c.query.get("maxRows") ?? 5000);
+  need(Number.isInteger(maxRows) && maxRows >= 1 && maxRows <= 5000, 400, "Invalid export limit");
+  const all = filterAuditRows(c.db, c.query);
+  const truncated = all.length > maxRows;
+  const rows = all.slice(0, maxRows).map((e) => outAudit(c.db, e));
+  const header = "STT chuỗi,Thời điểm (UTC),Mã hành động,Hành động (tiếng Việt),Kết quả,Loại tác nhân,Nhãn tác nhân,Mã tác nhân (UUID),Mã đối tượng,Correlation ID,Mã băm sự kiện (event_hash),Mã băm liền trước (prev_hash)";
+  const lines = rows.map((r) => [
+    r.chainSeq ?? "", r.createdAt, r.action, auditActionLabel(r.action, r.result),
+    AUDIT_RESULT_LABEL[r.result] ?? r.result, r.actorType, r.actorLabel, r.actorId ?? "",
+    r.resourceId, r.correlationId, r.eventHash ?? "", r.prevHash ?? "",
+  ].map(mockCsvCell).join(","));
+  const csv = "\uFEFF" + [header, ...lines].join("\r\n") + "\r\n";
+  const sha = mockDigest64(csv);
+  const nowIso = new Date(c.now).toISOString();
+  audit(c.db, c.actor.id, "AUDIT_EXPORT", `export:${rows.length}:${sha.slice(0, 12)}`, c.now);
+  return {
+    filename: `cliniccare-audit-${nowIso.slice(0, 10).replace(/-/g, "")}.csv`,
+    contentType: "text/csv;charset=utf-8",
+    exportedAt: nowIso,
+    rowCount: rows.length,
+    maxRows,
+    truncated,
+    contentSha256: sha,
+    csv,
+  };
+});
+
+on("POST", "/audit-events/verify", (c) => {
+  req(c.actor, "AUDITOR");
+  const chained = c.db.audit.filter((e) => e.chainSeq != null).sort((a, b) => (a.chainSeq ?? 0) - (b.chainSeq ?? 0));
+  const legacy = c.db.audit.length - chained.length;
+  let expectedSeq = 1;
+  let expectedPrev = MOCK_GENESIS_HASH;
+  let mismatchReason: string | null = null;
+  let firstBrokenSeq: number | null = null;
+  let firstBrokenEventId: string | null = null;
+  let checked = 0;
+  for (const e of chained) {
+    if (e.chainSeq !== expectedSeq) {
+      mismatchReason = "SEQUENCE_GAP"; firstBrokenSeq = expectedSeq; firstBrokenEventId = e.id; break;
+    }
+    if (e.prevHash !== expectedPrev) {
+      mismatchReason = "PREV_HASH_MISMATCH"; firstBrokenSeq = e.chainSeq; firstBrokenEventId = e.id; break;
+    }
+    const recomputed = mockAuditEventHash({
+      chainSeq: e.chainSeq, prevHash: e.prevHash, id: e.id, createdAt: e.createdAt,
+      actorType: e.actorType ?? (e.actorId ? "USER" : "SYSTEM"),
+      actorId: e.actorId, actorLabel: e.actorLabel ?? null,
+      action: e.action, resourceId: e.resourceId, result: e.result, correlationId: e.correlationId,
+    });
+    if (recomputed !== e.eventHash) {
+      mismatchReason = "HASH_MISMATCH"; firstBrokenSeq = e.chainSeq; firstBrokenEventId = e.id; break;
+    }
+    checked++;
+    expectedPrev = e.eventHash;
+    expectedSeq++;
+  }
+  const head = chained[chained.length - 1];
+  const status = mismatchReason ? "TAMPERED" : chained.length === 0 ? "LEGACY_ONLY" : "VERIFIED";
+  audit(c.db, c.actor.id, "AUDIT_INTEGRITY_VERIFIED", `${status}:${checked}`, c.now);
+  return {
+    status,
+    algorithm: "HMAC-SHA256-CHAIN-V1",
+    verifiedAt: new Date(c.now).toISOString(),
+    checkedCount: checked,
+    totalChainedCount: chained.length,
+    legacyUnchainedCount: legacy,
+    truncated: false,
+    headSeq: head?.chainSeq ?? 0,
+    headHash: head?.eventHash ?? MOCK_GENESIS_HASH,
+    firstBrokenSeq,
+    firstBrokenEventId,
+    mismatchReason,
+  };
+});
+
+on("GET", "/audit-events/retention", (c) => {
+  req(c.actor, "AUDITOR");
+  const hotDays = 365;
+  const cutoff = new Date(c.now - hotDays * 86400000).toISOString();
+  const sorted = [...c.db.audit].sort((a, b) => a.createdAt.localeCompare(b.createdAt));
+  const batches = [...(c.db.auditArchives ?? [])].sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+  const lastTo = batches[0]?.toCreatedAt ?? null;
+  const eligible = sorted.filter((e) => e.createdAt < cutoff && (!lastTo || e.createdAt >= lastTo)).length;
+  return {
+    hotRetentionDays: hotDays,
+    archiveRetentionDays: 1825,
+    exportMaxRows: 5000,
+    deletionPolicy: "APPEND_ONLY_NO_APP_DELETE",
+    totalEvents: sorted.length,
+    oldestEventAt: sorted[0]?.createdAt ?? null,
+    newestEventAt: sorted[sorted.length - 1]?.createdAt ?? null,
+    eligibleForArchiveCount: eligible,
+    archiveCutoffAt: cutoff,
+    archiveBatchCount: batches.length,
+    recentBatches: batches.slice(0, 10),
+  };
+});
+
+on("POST", "/audit-events/archive", (c) => {
+  req(c.actor, "AUDITOR");
+  const before = typeof c.body?.before === "string" && c.body.before ? c.body.before : new Date(c.now - 365 * 86400000).toISOString();
+  const nowIso = new Date(c.now).toISOString();
+  need(before <= nowIso, 400, "Invalid time range");
+  const notes = typeof c.body?.notes === "string" && c.body.notes.trim() ? c.body.notes.trim() : null;
+  need(!notes || notes.length <= 500, 400, "Invalid request");
+  const batches = c.db.auditArchives ?? (c.db.auditArchives = []);
+  const lastTo = batches.reduce<string | null>((acc, b) => (!acc || b.toCreatedAt > acc ? b.toCreatedAt : acc), null);
+  need(!lastTo || lastTo < before, 409, "No unarchived audit events in selected period");
+  const events = c.db.audit
+    .filter((e) => e.createdAt < before && (!lastTo || e.createdAt >= lastTo))
+    .sort((a, b) => a.createdAt.localeCompare(b.createdAt) || a.id.localeCompare(b.id));
+  need(events.length > 0, 409, "No unarchived audit events in selected period");
+  const seqs = events.map((e) => e.chainSeq).filter((n): n is number => typeof n === "number");
+  const batch = {
+    id: mid(),
+    fromCreatedAt: lastTo ?? events[0].createdAt,
+    toCreatedAt: before,
+    eventCount: events.length,
+    firstChainSeq: seqs.length ? seqs[0] : null,
+    lastChainSeq: seqs.length ? seqs[seqs.length - 1] : null,
+    batchHash: mockDigest64(events.map((e) => `${e.id}:${e.eventHash ?? ""}`).join("|")),
+    retentionDays: 1825,
+    createdBy: c.actor.id,
+    createdAt: nowIso,
+    notes,
+  };
+  batches.push(batch);
+  audit(c.db, c.actor.id, "AUDIT_ARCHIVE_CREATED", batch.id, c.now);
+  return batch;
 });
 
 export async function mockFetch(input: string, init: RequestInit): Promise<Response> {

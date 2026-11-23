@@ -195,6 +195,15 @@ export interface SignalMessage {
   createdAt: string;
 }
 
+export type AuditActionCategory =
+  | "ACCESS_CONTROL"
+  | "CLINICAL"
+  | "APPOINTMENT"
+  | "TELEHEALTH"
+  | "CATALOG"
+  | "NOTIFICATION"
+  | "AUDIT";
+
 export interface AuditEvent {
   id: string;
   actorId: string | null;
@@ -205,12 +214,93 @@ export interface AuditEvent {
   actorLabel?: string | null;
   result: string;
   correlationId: string;
+  chainSeq?: number | null;
+  prevHash?: string | null;
+  eventHash?: string | null;
 }
-export interface AuditQuery {
-  limit: number;
-  offset: number;
+
+export interface AuditFilterParams {
   actorId?: string;
   resourceId?: string;
   from?: string;
   to?: string;
+  result?: string;
+  action?: string;
+  category?: AuditActionCategory | "";
+  actorType?: "USER" | "SYSTEM" | "";
+  correlationId?: string;
+  excludeReadNoise?: boolean;
+}
+
+export interface AuditQuery extends AuditFilterParams {
+  limit: number;
+  offset?: number;
+  cursorCreatedAt?: string;
+  cursorId?: string;
+}
+
+export interface AuditSummary {
+  totalEvents: number;
+  deniedEvents: number;
+  failureEvents: number;
+  accessControlEvents: number;
+  recordAmendedEvents: number;
+  systemEvents: number;
+  chainedEvents: number;
+  legacyUnchainedEvents: number;
+  latestEventAt: string | null;
+}
+
+export interface AuditExportResponse {
+  filename: string;
+  contentType: string;
+  exportedAt: string;
+  rowCount: number;
+  maxRows: number;
+  truncated: boolean;
+  contentSha256: string;
+  csv: string;
+}
+
+export interface AuditIntegrityReport {
+  status: "VERIFIED" | "TAMPERED" | "LEGACY_ONLY";
+  algorithm: string;
+  verifiedAt: string;
+  checkedCount: number;
+  totalChainedCount: number;
+  legacyUnchainedCount: number;
+  truncated: boolean;
+  headSeq: number;
+  headHash: string;
+  firstBrokenSeq: number | null;
+  firstBrokenEventId: string | null;
+  mismatchReason: string | null;
+}
+
+export interface AuditArchiveBatch {
+  id: string;
+  fromCreatedAt: string;
+  toCreatedAt: string;
+  eventCount: number;
+  firstChainSeq: number | null;
+  lastChainSeq: number | null;
+  batchHash: string;
+  retentionDays: number;
+  createdBy: string | null;
+  createdAt: string;
+  notes: string | null;
+}
+
+export interface AuditRetentionStatus {
+  hotRetentionDays: number;
+  archiveRetentionDays: number;
+  exportMaxRows: number;
+  deletionPolicy: string;
+  totalEvents: number;
+  oldestEventAt: string | null;
+  newestEventAt: string | null;
+  eligibleForArchiveCount: number;
+  archiveCutoffAt: string;
+  archiveBatchCount: number;
+  recentBatches: AuditArchiveBatch[];
 }

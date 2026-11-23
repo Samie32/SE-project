@@ -286,12 +286,12 @@ Truy vết: US-17, FR-17, TC-17.
 Scenario: Audit - tình huống chính
   Given yêu cầu truy cập hồ sơ hợp lệ
   When yêu cầu được xử lý
-  Then có actor, action, resource, timestamp, result, correlation ID
+  Then có actor, action, resource, timestamp (UTC micro giây), result, correlation ID cùng chain_seq, prev_hash và event_hash nối vào chuỗi băm HMAC-SHA256-CHAIN-V1
 
 Scenario: Audit - ngoại lệ
   Given kho nhật ký kiểm toán không ghi được
   When người dùng hoặc hệ thống thực hiện tác vụ nhật ký kiểm toán
-  Then không trả dữ liệu nhạy cảm; giao dịch ghi bị hoàn tác
+  Then không trả dữ liệu nhạy cảm; giao dịch ghi (kể cả audit_chain_head) bị hoàn tác nguyên tử
 ```
 
 ## AC-18 — Bảo vệ nhật ký kiểm toán
@@ -301,13 +301,23 @@ Truy vết: US-18, FR-18, TC-18.
 ```gherkin
 Scenario: Bảo vệ nhật ký kiểm toán - tình huống chính
   Given kiểm toán viên có quyền đọc nhật ký kiểm toán
-  When lọc khoảng ngày và actor
-  Then trả đúng tập bản ghi có phân trang
+  When lọc theo thời gian, tác nhân, đối tượng, kết quả, hành động, nhóm, loại tác nhân, correlationId hoặc bật ẩn nhiễu đọc và chuyển trang bằng con trỏ
+  Then trả đúng tập bản ghi kèm nhãn tác nhân an toàn (không lộ email/SĐT/PHI) mà không trôi/trùng dòng khi AUDIT_SEARCH ghi thêm
+
+Scenario: Xuất biên bản CSV kiểm toán an toàn
+  Given kiểm toán viên yêu cầu xuất CSV theo bộ lọc hiện hành
+  When gọi GET /api/audit-events/export
+  Then trả biên bản CSV UTF-8 có BOM, tên hành động chuẩn hóa tiếng Việt, trung hòa ký tự công thức (=,+,-,@), giới hạn tối đa 5.000 dòng kèm SHA-256 và tự ghi AUDIT_EXPORT
+
+Scenario: Kiểm chứng toàn vẹn chuỗi băm và niêm phong lưu trữ
+  Given nhật ký kiểm toán đã có các sự kiện nối chuỗi V12
+  When kiểm toán viên chạy POST /api/audit-events/verify hoặc niêm phong lô POST /api/audit-events/archive
+  Then phát hiện chính xác trạng thái VERIFIED hoặc TAMPERED (SEQUENCE_GAP/PREV_HASH_MISMATCH/HASH_MISMATCH/HEAD_MISMATCH), ghi nhận AUDIT_INTEGRITY_VERIFIED / AUDIT_ARCHIVE_CREATED và giữ nguyên bảng audit_event không xóa dữ liệu
 
 Scenario: Bảo vệ nhật ký kiểm toán - ngoại lệ
-  Given tài khoản ứng dụng yêu cầu sửa/xóa nhật ký kiểm toán
+  Given tài khoản ứng dụng yêu cầu sửa/xóa nhật ký kiểm toán hoặc lô lưu trữ audit_archive_batch
   When người dùng hoặc hệ thống thực hiện tác vụ bảo vệ nhật ký kiểm toán
-  Then từ chối ở lớp dữ liệu
+  Then từ chối ở lớp dữ liệu (trigger BEFORE UPDATE/DELETE)
 ```
 
 ## AC-19 — Check-in

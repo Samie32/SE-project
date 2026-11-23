@@ -1,6 +1,6 @@
 // Cơ sở dữ liệu trong bộ nhớ cho chế độ giả lập (chỉ nạp khi VITE_MOCK=true).
 import { addDays, localToIso, todayKey } from "@/core/datetime";
-import type { NoShowReason, NotificationJob, Role } from "@/core/types";
+import type { AuditArchiveBatch, NoShowReason, NotificationJob, Role } from "@/core/types";
 import { DEFAULT_CLINIC_HOURS, type ClinicDayHours } from "@/core/clinic-hours";
 
 export interface MUser { id: string; name: string; email: string; phone?: string; roles: Role[]; active: boolean; username?: string; staff?: boolean; subject?: string }
@@ -21,7 +21,20 @@ export interface MRecord {
 }
 export interface MRx { id: string; encounterId: string; patientId: string; doctorId: string; status: string; version: number; items: unknown[]; issuedAt?: string }
 export interface MSession { id: string; appointmentId: string; status: string; version: number; patientAdmitted: boolean }
-export interface MAudit { id: string; actorId: string | null; action: string; resourceId: string; createdAt: string; result: string; correlationId: string }
+export interface MAudit {
+  id: string;
+  actorId: string | null;
+  actorType?: "USER" | "SYSTEM";
+  actorLabel?: string | null;
+  action: string;
+  resourceId: string;
+  createdAt: string;
+  result: string;
+  correlationId: string;
+  chainSeq?: number | null;
+  prevHash?: string | null;
+  eventHash?: string | null;
+}
 export interface MNotif extends NotificationJob { sendAt: number }
 
 export interface MHoliday { id: string; startDate: string; endDate: string; name: string; closed: boolean; opensAt: string | null; closesAt: string | null }
@@ -31,7 +44,38 @@ export interface DB {
   clinicHolidays: MHoliday[];
   users: MUser[]; doctors: MDoctor[]; specialties: MSpecialty[]; avail: MAvail[]; timeoff: MTimeOff[]; slots: MSlot[];
   appts: MAppt[]; tickets: MTicket[]; records: MRecord[]; rx: MRx[]; sessions: MSession[]; audit: MAudit[]; notifs: MNotif[];
+  auditArchives?: AuditArchiveBatch[];
   idem: Record<string, { hash: string; status: number; body: unknown }>;
+}
+
+export const MOCK_GENESIS_HASH = "0".repeat(64);
+export function mockDigest64(input: string): string {
+  let h1 = 0x811c9dc5;
+  let h2 = 0x9e3779b9;
+  for (let i = 0; i < input.length; i++) {
+    const ch = input.charCodeAt(i);
+    h1 = Math.imul(h1 ^ ch, 0x01000193) >>> 0;
+    h2 = Math.imul(h2 ^ (ch + i), 0x85ebca6b) >>> 0;
+  }
+  const seed = `${h1.toString(16).padStart(8, "0")}${h2.toString(16).padStart(8, "0")}`;
+  return (seed + seed + seed + seed).slice(0, 64);
+}
+export function mockAuditEventHash(e: {
+  chainSeq: number;
+  prevHash: string;
+  id: string;
+  createdAt: string;
+  actorType: string;
+  actorId: string | null;
+  actorLabel: string | null;
+  action: string;
+  resourceId: string;
+  result: string;
+  correlationId: string;
+}): string {
+  return mockDigest64(
+    `v1|${e.chainSeq}|${e.prevHash}|${e.id}|${e.createdAt}|${e.actorType}|${e.actorId ?? ""}|${e.actorLabel ?? ""}|${e.action}|${e.resourceId}|${e.result}|${e.correlationId}`,
+  );
 }
 
 // New demo dataset; preserve the old v2 entry rather than overwriting users' old mock data.
@@ -138,11 +182,36 @@ function seed(): DB {
   const rt = { id: mid(), doctorId: D1, startAt: new Date(Math.round(now / 1800000) * 1800000).toISOString(), endAt: new Date(Math.round(now / 1800000) * 1800000 + 1800000).toISOString(), mode: "REMOTE" };
   db.slots.push({ ...rt, availabilityId: db.avail[0].id });
   mk(U(4), D1, rt.startAt, "REMOTE", "CONFIRMED", { slotId: rt.id, endAt: rt.endAt });
-  db.audit.push(
-    { id: mid(), actorId: U(1), action: "DOCTOR_CREATED", resourceId: D1, createdAt: new Date(now - 86400000).toISOString(), result: "SUCCESS", correlationId: mid() },
-    { id: mid(), actorId: U(3), action: "APPOINTMENT_BOOKED", resourceId: done.id, createdAt: new Date(now - 8 * 86400000).toISOString(), result: "SUCCESS", correlationId: mid() },
-  );
-  db.notifs.push({ id: mid(), appointmentId: done.id, eventType: "BOOKED", status: "SENT", attempts: 1, lastError: null, dueAt: new Date(now - 8 * 86400000).toISOString(), sendAt: 0 });
+  const seededNotifId = mid();
+  const seedAudit = (
+    actorId: string | null,
+    action: string,
+    resourceId: string,
+    createdAt: string,
+    result = "SUCCESS",
+    correlationId = mid(),
+  ) => {
+    const prev = db.audit[db.audit.length - 1];
+    const chainSeq = (prev?.chainSeq ?? 0) + 1;
+    const prevHash = prev?.eventHash ?? MOCK_GENESIS_HASH;
+    const actorType: "USER" | "SYSTEM" = actorId ? "USER" : "SYSTEM";
+    const actorLabel = actorId ? null : "clinic-background-worker";
+    const id = mid();
+    const eventHash = mockAuditEventHash({
+      chainSeq, prevHash, id, createdAt, actorType, actorId, actorLabel, action, resourceId, result, correlationId,
+    });
+    db.audit.push({ id, actorId, actorType, actorLabel, action, resourceId, createdAt, result, correlationId, chainSeq, prevHash, eventHash });
+  };
+  const sharedCorr = mid();
+  seedAudit(U(3), "APPOINTMENT_BOOKED", done.id, new Date(now - 8 * 86400000).toISOString(), "SUCCESS", sharedCorr);
+  seedAudit(null, "NOTIFICATION_SENT", seededNotifId, new Date(now - 8 * 86400000 + 3000).toISOString(), "SUCCESS", sharedCorr);
+  seedAudit(U(1), "DOCTOR_CREATED", D1, new Date(now - 2 * 86400000).toISOString());
+  seedAudit(U(1), "ROLES_CHANGED", U(2), new Date(now - 86400000).toISOString());
+  seedAudit(U(2), "RECORD_AMENDED", db.records[0]?.id ?? mid(), new Date(now - 12 * 3600000).toISOString());
+  seedAudit(U(4), "TELEHEALTH_JOINED", mid(), new Date(now - 4 * 3600000).toISOString(), "DENIED");
+  seedAudit(U(6), "PROFILE_READ", U(6), new Date(now - 600000).toISOString());
+  db.auditArchives = [];
+  db.notifs.push({ id: seededNotifId, appointmentId: done.id, eventType: "BOOKED", status: "SENT", attempts: 1, lastError: null, dueAt: new Date(now - 8 * 86400000).toISOString(), sendAt: 0 });
   return db;
 }
 

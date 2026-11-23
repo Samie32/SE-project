@@ -54,6 +54,16 @@ Tài liệu tổng hợp mô hình toán học, tham số định lượng, mi�
   $$W(k) = \min\!\left(60 \cdot \left\lfloor \frac{k}{5} \right\rfloor,\; 900\right)\text{ giây}$$
   Đặt lại mật khẩu thành công qua luồng **Quên mật khẩu?** sẽ xóa bộ đếm lỗi ngay lập tức.
 
+### 1.7 Chuỗi băm chống sửa đổi kiểm toán (HMAC-SHA256 Chain) & Chính sách lưu trữ (M07)
+- **Nguồn:** `Crypto.auditMac`, `Audit.java`, `AuditHashChain.java`, `AuditService.java`, `V12__audit_hardening.sql`
+- **Tách khóa chuỗi kiểm toán:** dẫn xuất độc lập với cả khóa AES-256-GCM và khóa blind index:
+  $$K_{\text{audit}} = \text{HMAC-SHA256}\!\left(K,\; \text{UTF8}(\text{"cliniccare:audit-chain:v1"})\right)$$
+- **Chuỗi băm nối tiếp (`HMAC-SHA256-CHAIN-V1`):** khóa bản ghi `audit_chain_head (id=1)` bằng `FOR UPDATE` trong cùng giao dịch để cấp số thứ tự liên tục $s_n = s_{n-1} + 1$ không đứt đoạn khi rollback, chuẩn hóa thời điểm $t_n$ về độ chính xác micro giây (`DATETIME(6)`):
+  $$H_0 = 0^{64}, \qquad H_n = \text{Hex}_{\text{lower}}\!\Big(\text{HMAC-SHA256}\big(K_{\text{audit}},\; \text{"v1"} \parallel s_n \parallel H_{n-1} \parallel \text{id}_n \parallel \mu(t_n) \parallel \text{actorType}_n \parallel \text{actorId}_n \parallel \text{actorLabel}_n \parallel \text{action}_n \parallel \text{resourceId}_n \parallel \text{result}_n \parallel \text{corr}_n\big)\Big)$$
+- **Kiểm chứng toàn vẹn (`POST /api/audit-events/verify`):** rà soát theo lô `1.000` bản ghi (tối đa `50.000` bản ghi/lần) và so khớp thời gian hằng (`MessageDigest.isEqual`), phát hiện 4 dạng bất thường: `SEQUENCE_GAP`, `PREV_HASH_MISMATCH`, `HASH_MISMATCH` và `HEAD_MISMATCH`.
+- **Phân trang con trỏ & Xuất CSV an toàn:** phân trang keyset `(created_at < c_t) OR (created_at = c_t AND id < c_id)` tránh trôi/trùng trang khi `AUDIT_SEARCH` ghi thêm bản ghi mới; xuất CSV UTF-8 có BOM (`\uFEFF`) giới hạn tối đa $N_{\text{export}} = 5\,000$ dòng/lần, trung hòa ký tự đầu công thức (`=`, `+`, `-`, `@`, `\t`, `\r`) bằng dấu `'`, đính kèm checksum `SHA-256` và tự ghi sự kiện `AUDIT_EXPORT`.
+- **Vòng đời lưu trữ & Niêm phong lô (`audit_archive_batch`):** lưu trữ nóng $R_{\text{hot}} = 365\text{ ngày}$, mục tiêu lưu trữ dài hạn $R_{\text{archive}} = 1\,825\text{ ngày}$ ($5\text{ năm}$), chính sách `APPEND_ONLY_NO_APP_DELETE` (trigger `BEFORE UPDATE`/`DELETE` trên cả `audit_event` và `audit_archive_batch`); mỗi lô niêm phong gắn mã băm $H_{\text{batch}} = \text{HMAC-SHA256}(K_{\text{audit}}, \text{manifest})$ trên các khoảng nửa mở liên tiếp $[t_{k-1}, t_k)$.
+
 ---
 
 ## 2. M03 — Giờ hoạt động, ngày lễ và sinh khung giờ khám (Slot)

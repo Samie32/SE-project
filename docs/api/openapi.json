@@ -947,7 +947,95 @@
             "in": "query",
             "required": false,
             "schema": {
-              "type": "string"
+              "type": "string",
+              "maxLength": 128
+            }
+          },
+          {
+            "name": "result",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "SUCCESS",
+                "DENIED",
+                "FAILURE"
+              ]
+            }
+          },
+          {
+            "name": "action",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "maxLength": 64
+            }
+          },
+          {
+            "name": "category",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "ACCESS_CONTROL",
+                "CLINICAL",
+                "APPOINTMENT",
+                "TELEHEALTH",
+                "CATALOG",
+                "NOTIFICATION",
+                "AUDIT"
+              ]
+            }
+          },
+          {
+            "name": "actorType",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "USER",
+                "SYSTEM"
+              ]
+            }
+          },
+          {
+            "name": "correlationId",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "excludeReadNoise",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "default": false
+            }
+          },
+          {
+            "name": "cursorCreatedAt",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "date-time"
+            }
+          },
+          {
+            "name": "cursorId",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
             }
           },
           {
@@ -1018,15 +1106,446 @@
           }
         },
         "summary": "listAuditEvents",
-        "description": "Quyền mục tiêu: AUDITOR. Xem integration-contract.md cho cửa sổ thời gian, giao dịch và phân quyền tài nguyên.",
+        "description": "Quyền mục tiêu: AUDITOR. Hỗ trợ lọc server-side (result, action, category, actorType, correlationId, excludeReadNoise), nhãn tác nhân an toàn không lộ PII/PHI và phân trang con trỏ (cursorCreatedAt + cursorId).",
         "x-requirements": [
           "FR-17",
           "FR-18"
         ],
-        "x-access": "AUDITOR",
-        "x-implementation-gaps": [
-          "BE-01"
-        ]
+        "x-access": "AUDITOR"
+      }
+    },
+    "/audit-events/summary": {
+      "get": {
+        "tags": [
+          "M07"
+        ],
+        "operationId": "auditSummary",
+        "parameters": [
+          {
+            "name": "from",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "date-time"
+            }
+          },
+          {
+            "name": "to",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "date-time"
+            }
+          },
+          {
+            "name": "actorId",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "resourceId",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "maxLength": 128
+            }
+          },
+          {
+            "name": "result",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "SUCCESS",
+                "DENIED",
+                "FAILURE"
+              ]
+            }
+          },
+          {
+            "name": "action",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "maxLength": 64
+            }
+          },
+          {
+            "name": "category",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "ACCESS_CONTROL",
+                "CLINICAL",
+                "APPOINTMENT",
+                "TELEHEALTH",
+                "CATALOG",
+                "NOTIFICATION",
+                "AUDIT"
+              ]
+            }
+          },
+          {
+            "name": "actorType",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "USER",
+                "SYSTEM"
+              ]
+            }
+          },
+          {
+            "name": "correlationId",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "excludeReadNoise",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "default": false
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Tóm tắt chỉ số kiểm toán trong phạm vi lọc",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AuditSummary"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "503": {
+            "$ref": "#/components/responses/Unavailable"
+          }
+        },
+        "summary": "Thống kê tóm tắt nhật ký kiểm toán",
+        "x-requirements": [
+          "FR-18"
+        ],
+        "x-access": "AUDITOR"
+      }
+    },
+    "/audit-events/export": {
+      "get": {
+        "tags": [
+          "M07"
+        ],
+        "operationId": "exportAuditEvents",
+        "parameters": [
+          {
+            "name": "from",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "date-time"
+            }
+          },
+          {
+            "name": "to",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "date-time"
+            }
+          },
+          {
+            "name": "actorId",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "resourceId",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "maxLength": 128
+            }
+          },
+          {
+            "name": "result",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "SUCCESS",
+                "DENIED",
+                "FAILURE"
+              ]
+            }
+          },
+          {
+            "name": "action",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "maxLength": 64
+            }
+          },
+          {
+            "name": "category",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "ACCESS_CONTROL",
+                "CLINICAL",
+                "APPOINTMENT",
+                "TELEHEALTH",
+                "CATALOG",
+                "NOTIFICATION",
+                "AUDIT"
+              ]
+            }
+          },
+          {
+            "name": "actorType",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "USER",
+                "SYSTEM"
+              ]
+            }
+          },
+          {
+            "name": "correlationId",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "excludeReadNoise",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "default": false
+            }
+          },
+          {
+            "name": "maxRows",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 5000
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Biên bản CSV UTF-8 (kèm BOM, chống CSV injection và checksum SHA-256)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AuditExportResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "503": {
+            "$ref": "#/components/responses/Unavailable"
+          }
+        },
+        "summary": "Xuất biên bản kiểm toán CSV UTF-8",
+        "x-requirements": [
+          "FR-17",
+          "FR-18"
+        ],
+        "x-access": "AUDITOR"
+      }
+    },
+    "/audit-events/verify": {
+      "post": {
+        "tags": [
+          "M07"
+        ],
+        "operationId": "verifyAuditIntegrity",
+        "parameters": [
+          {
+            "name": "maxEvents",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 50000
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Báo cáo kiểm chứng toàn vẹn chuỗi băm HMAC-SHA256",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AuditIntegrityReport"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "503": {
+            "$ref": "#/components/responses/Unavailable"
+          }
+        },
+        "summary": "Kiểm chứng toàn vẹn chuỗi băm kiểm toán",
+        "x-requirements": [
+          "FR-17",
+          "FR-18"
+        ],
+        "x-access": "AUDITOR"
+      }
+    },
+    "/audit-events/retention": {
+      "get": {
+        "tags": [
+          "M07"
+        ],
+        "operationId": "auditRetentionStatus",
+        "responses": {
+          "200": {
+            "description": "Trạng thái chính sách lưu trữ và các lô đã niêm phong",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AuditRetentionStatus"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "503": {
+            "$ref": "#/components/responses/Unavailable"
+          }
+        },
+        "summary": "Đọc chính sách lưu trữ và trạng thái niêm phong kiểm toán",
+        "x-requirements": [
+          "FR-18"
+        ],
+        "x-access": "AUDITOR"
+      }
+    },
+    "/audit-events/archive": {
+      "post": {
+        "tags": [
+          "M07"
+        ],
+        "operationId": "createAuditArchiveBatch",
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ArchiveAuditRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Đã tạo lô lưu trữ kiểm toán bất biến",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AuditArchiveBatch"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          },
+          "503": {
+            "$ref": "#/components/responses/Unavailable"
+          }
+        },
+        "summary": "Niêm phong lô lưu trữ nhật ký kiểm toán",
+        "x-requirements": [
+          "FR-17",
+          "FR-18"
+        ],
+        "x-access": "AUDITOR"
       }
     },
     "/availability/{id}": {
@@ -5671,6 +6190,25 @@
           "createdAt": {
             "type": "string",
             "format": "date-time"
+          },
+          "chainSeq": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "minimum": 1
+          },
+          "prevHash": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "eventHash": {
+            "type": [
+              "string",
+              "null"
+            ]
           }
         },
         "required": [
@@ -5693,9 +6231,116 @@
           "resourceId": "00000000-0000-4000-8000-000000000002",
           "result": "SUCCESS",
           "correlationId": "00000000-0000-4000-8000-000000000002",
-          "createdAt": "2030-01-08T02:00:00Z"
+          "createdAt": "2030-01-08T02:00:00Z",
+          "chainSeq": 1,
+          "prevHash": "0000000000000000000000000000000000000000000000000000000000000000",
+          "eventHash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
         },
-        "description": "createdAt là tên chuẩn, không có timestamp. DENIED/FAILURE là giá trị mục tiêu; baseline chỉ ghi SUCCESS (BE-01)."
+        "description": "createdAt là tên chuẩn, không có timestamp. chainSeq/prevHash/eventHash bảo vệ toàn vẹn bằng HMAC-SHA256-CHAIN-V1 từ migration V12."
+      },
+      "AuditSummary": {
+        "type": "object",
+        "properties": {
+          "totalEvents": { "type": "integer", "minimum": 0 },
+          "deniedEvents": { "type": "integer", "minimum": 0 },
+          "failureEvents": { "type": "integer", "minimum": 0 },
+          "accessControlEvents": { "type": "integer", "minimum": 0 },
+          "recordAmendedEvents": { "type": "integer", "minimum": 0 },
+          "systemEvents": { "type": "integer", "minimum": 0 },
+          "chainedEvents": { "type": "integer", "minimum": 0 },
+          "legacyUnchainedEvents": { "type": "integer", "minimum": 0 },
+          "latestEventAt": { "type": ["string", "null"], "format": "date-time" }
+        },
+        "required": [
+          "totalEvents", "deniedEvents", "failureEvents", "accessControlEvents",
+          "recordAmendedEvents", "systemEvents", "chainedEvents", "legacyUnchainedEvents", "latestEventAt"
+        ]
+      },
+      "AuditExportResponse": {
+        "type": "object",
+        "properties": {
+          "filename": { "type": "string" },
+          "contentType": { "type": "string" },
+          "exportedAt": { "type": "string", "format": "date-time" },
+          "rowCount": { "type": "integer", "minimum": 0 },
+          "maxRows": { "type": "integer", "minimum": 1 },
+          "truncated": { "type": "boolean" },
+          "contentSha256": { "type": "string", "minLength": 64, "maxLength": 64 },
+          "csv": { "type": "string" }
+        },
+        "required": [
+          "filename", "contentType", "exportedAt", "rowCount", "maxRows", "truncated", "contentSha256", "csv"
+        ]
+      },
+      "AuditIntegrityReport": {
+        "type": "object",
+        "properties": {
+          "status": { "type": "string", "enum": ["VERIFIED", "TAMPERED", "LEGACY_ONLY"] },
+          "algorithm": { "type": "string" },
+          "verifiedAt": { "type": "string", "format": "date-time" },
+          "checkedCount": { "type": "integer", "minimum": 0 },
+          "totalChainedCount": { "type": "integer", "minimum": 0 },
+          "legacyUnchainedCount": { "type": "integer", "minimum": 0 },
+          "truncated": { "type": "boolean" },
+          "headSeq": { "type": "integer", "minimum": 0 },
+          "headHash": { "type": "string", "minLength": 64, "maxLength": 64 },
+          "firstBrokenSeq": { "type": ["integer", "null"] },
+          "firstBrokenEventId": { "type": ["string", "null"] },
+          "mismatchReason": { "type": ["string", "null"] }
+        },
+        "required": [
+          "status", "algorithm", "verifiedAt", "checkedCount", "totalChainedCount",
+          "legacyUnchainedCount", "truncated", "headSeq", "headHash"
+        ]
+      },
+      "ArchiveAuditRequest": {
+        "type": "object",
+        "properties": {
+          "before": { "type": ["string", "null"], "format": "date-time" },
+          "notes": { "type": ["string", "null"], "maxLength": 500 }
+        }
+      },
+      "AuditArchiveBatch": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string", "format": "uuid" },
+          "fromCreatedAt": { "type": "string", "format": "date-time" },
+          "toCreatedAt": { "type": "string", "format": "date-time" },
+          "eventCount": { "type": "integer", "minimum": 1 },
+          "firstChainSeq": { "type": ["integer", "null"] },
+          "lastChainSeq": { "type": ["integer", "null"] },
+          "batchHash": { "type": "string", "minLength": 64, "maxLength": 64 },
+          "retentionDays": { "type": "integer", "minimum": 1 },
+          "createdBy": { "type": ["string", "null"], "format": "uuid" },
+          "createdAt": { "type": "string", "format": "date-time" },
+          "notes": { "type": ["string", "null"] }
+        },
+        "required": [
+          "id", "fromCreatedAt", "toCreatedAt", "eventCount", "batchHash", "retentionDays", "createdAt"
+        ]
+      },
+      "AuditRetentionStatus": {
+        "type": "object",
+        "properties": {
+          "hotRetentionDays": { "type": "integer", "minimum": 1 },
+          "archiveRetentionDays": { "type": "integer", "minimum": 1 },
+          "exportMaxRows": { "type": "integer", "minimum": 1 },
+          "deletionPolicy": { "type": "string" },
+          "totalEvents": { "type": "integer", "minimum": 0 },
+          "oldestEventAt": { "type": ["string", "null"], "format": "date-time" },
+          "newestEventAt": { "type": ["string", "null"], "format": "date-time" },
+          "eligibleForArchiveCount": { "type": "integer", "minimum": 0 },
+          "archiveCutoffAt": { "type": "string", "format": "date-time" },
+          "archiveBatchCount": { "type": "integer", "minimum": 0 },
+          "recentBatches": {
+            "type": "array",
+            "items": { "$ref": "#/components/schemas/AuditArchiveBatch" }
+          }
+        },
+        "required": [
+          "hotRetentionDays", "archiveRetentionDays", "exportMaxRows", "deletionPolicy",
+          "totalEvents", "eligibleForArchiveCount", "archiveCutoffAt", "archiveBatchCount", "recentBatches"
+        ]
       },
       "ProblemDetail": {
         "type": "object",

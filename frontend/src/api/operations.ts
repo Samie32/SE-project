@@ -1,5 +1,23 @@
 import { api, apiFetch, ApiError, qs, requireBackend } from "@/core/client";
-import type { AuditEvent, AuditQuery, JoinToken, MedicalRecord, NotificationJob, Prescription, PrescriptionItem, QueueStatus, QueueTicket, TelehealthSession, SignalMessage } from "@/core/types";
+import type {
+  AuditArchiveBatch,
+  AuditEvent,
+  AuditExportResponse,
+  AuditFilterParams,
+  AuditIntegrityReport,
+  AuditQuery,
+  AuditRetentionStatus,
+  AuditSummary,
+  JoinToken,
+  MedicalRecord,
+  NotificationJob,
+  Prescription,
+  PrescriptionItem,
+  QueueStatus,
+  QueueTicket,
+  SignalMessage,
+  TelehealthSession,
+} from "@/core/types";
 
 export const listNotificationJobs = () => api.get<NotificationJob[]>("/notification-jobs");
 
@@ -113,7 +131,36 @@ export function sendSignal(id:string, token:string, kind:SignalMessage["kind"], 
   requireBackend("telehealth");
   return apiFetch<{accepted:true}>(`/telehealth-sessions/${id}/signals`, {method:"POST",headers:{"X-Room-Token":token},body:JSON.stringify({kind,payload}),signal});
 }
-export function listAuditEvents(q:AuditQuery) {
+export function listAuditEvents(q: AuditQuery) {
   requireBackend("audit");
-  return api.get<AuditEvent[]>(`/audit-events${qs({...q})}`);
+  const { excludeReadNoise, ...rest } = q;
+  return api.get<AuditEvent[]>(
+    `/audit-events${qs({ ...rest, excludeReadNoise: excludeReadNoise ? true : undefined })}`,
+  );
+}
+export function getAuditSummary(q: AuditFilterParams = {}) {
+  requireBackend("audit");
+  const { excludeReadNoise, ...rest } = q;
+  return api.get<AuditSummary>(
+    `/audit-events/summary${qs({ ...rest, excludeReadNoise: excludeReadNoise ? true : undefined })}`,
+  );
+}
+export function exportAuditEvents(q: AuditFilterParams & { maxRows?: number } = {}) {
+  requireBackend("audit");
+  const { excludeReadNoise, ...rest } = q;
+  return api.get<AuditExportResponse>(
+    `/audit-events/export${qs({ ...rest, excludeReadNoise: excludeReadNoise ? true : undefined })}`,
+  );
+}
+export function verifyAuditIntegrity(maxEvents?: number) {
+  requireBackend("audit");
+  return api.post<AuditIntegrityReport>(`/audit-events/verify${qs({ maxEvents })}`);
+}
+export function getAuditRetention() {
+  requireBackend("audit");
+  return api.get<AuditRetentionStatus>("/audit-events/retention");
+}
+export function createAuditArchiveBatch(body: { before?: string; notes?: string } = {}) {
+  requireBackend("audit");
+  return api.post<AuditArchiveBatch>("/audit-events/archive", body);
 }

@@ -115,9 +115,14 @@ Patient chỉ đọc FINAL/ISSUED của mình. DOCTOR phụ trách đọc draft 
 
 ## 7. Audit và thông báo
 
-- GET `/audit-events` chỉ AUDITOR; filter `from` inclusive, `to` exclusive, `actorId`, `resourceId`, limit/offset. Lọc đến hết một ngày dùng `to` bằng 00:00 ngày kế tiếp theo giờ Việt Nam rồi đổi UTC; không dùng 23:59 làm mất dữ liệu cuối ngày.
-- Audit dùng **createdAt**; `actorType=SYSTEM` có `actorId=null`, `actorLabel` chỉ dịch vụ. Không có PHI/token trong audit.
-- Ghi audit nghiệp vụ cùng transaction; đọc dữ liệu nhạy cảm chỉ trả khi audit lưu được. Theo AC-23, backend ghi sự kiện DENIED khi người ngoài bị chặn vào phòng. Audit này được lưu qua giao dịch riêng.
+- GET `/audit-events` chỉ `AUDITOR`; hỗ trợ lọc server-side theo `from` (inclusive), `to` (exclusive), `actorId`, `resourceId`, `result` (`SUCCESS`/`DENIED`/`FAILURE`), `action` (mã chuẩn, tiền tố kết thúc bằng `_`/`*` hoặc từ khóa), `category` (`ACCESS_CONTROL`/`CLINICAL`/`APPOINTMENT`/`TELEHEALTH`/`CATALOG`/`NOTIFICATION`/`AUDIT`), `actorType` (`USER`/`SYSTEM`), `correlationId`, `excludeReadNoise` (ẩn các sự kiện đọc thông thường như `PROFILE_READ`/`AUDIT_SEARCH`, vẫn giữ đọc bệnh án & đơn thuốc) và phân trang theo con trỏ (`cursorCreatedAt` + `cursorId`) để không trôi/trùng dòng khi `AUDIT_SEARCH` ghi thêm bản ghi (giữ tương thích `limit`/`offset`). Lọc đến hết một ngày dùng `to` bằng 00:00 ngày kế tiếp theo giờ Việt Nam rồi đổi UTC; không dùng 23:59 làm mất dữ liệu cuối ngày.
+- Audit dùng **createdAt**; `actorType=SYSTEM` có `actorId=null`, `actorLabel` chỉ dịch vụ (`clinic-background-worker`); với `USER`, `actorLabel` trả nhãn an toàn (username sạch hoặc bí danh `staff-…`/`user-…`, tuyệt đối không lộ email/SĐT/PHI). Không có PHI/token trong audit.
+- Các endpoint mở rộng cho `AUDITOR` (migration `V12__audit_hardening.sql`):
+  - `GET /audit-events/summary`: thống kê tổng sự kiện, `DENIED`, `FAILURE`, nhóm phân quyền/tài khoản, `RECORD_AMENDED`, `SYSTEM` và số bản ghi đã nối chuỗi băm trong phạm vi lọc.
+  - `GET /audit-events/export`: xuất biên bản CSV UTF-8 (kèm BOM `\uFEFF`, cột hành động chuẩn hóa tiếng Việt, trung hòa CSV formula injection, giới hạn an toàn tối đa `5.000` dòng, kèm `contentSha256`) và tự ghi sự kiện `AUDIT_EXPORT`.
+  - `POST /audit-events/verify`: kiểm chứng toàn vẹn chuỗi băm mật mã `HMAC-SHA256-CHAIN-V1` (`chain_seq`, `prev_hash`, `event_hash`, đối chiếu đỉnh `audit_chain_head`) và ghi `AUDIT_INTEGRITY_VERIFIED`.
+  - `GET /audit-events/retention` & `POST /audit-events/archive`: theo dõi chính sách lưu trữ (`365` ngày trực tuyến / `1.825` ngày dài hạn, `APPEND_ONLY_NO_APP_DELETE`) và niêm phong lô bất biến vào `audit_archive_batch` kèm `batch_hash` + sự kiện `AUDIT_ARCHIVE_CREATED`.
+- Ghi audit nghiệp vụ cùng transaction (cùng cập nhật `audit_chain_head` để không đứt số thứ tự chuỗi khi rollback); đọc dữ liệu nhạy cảm chỉ trả khi audit lưu được. Theo AC-23, backend ghi sự kiện `DENIED` khi người ngoài bị chặn vào phòng qua giao dịch riêng (`REQUIRES_NEW`).
 - Notification-jobs cho lễ tân/quản trị, status `PENDING/PROCESSING/SENT/SKIPPED/FAILED`; eventType `BOOKED/RESCHEDULED/CANCELLED/REMINDER/DELAY_NOTICE/NO_SHOW_REBOOKING`. `attempts` là số lần gửi thất bại, không phải tổng lượt gửi. SENT là SMTP chấp nhận, không xác nhận người nhận đã đọc.
 - Nhắc trước 30 phút; lịch đặt dưới 30 phút chỉ có xác nhận; retry thêm 1/5/15 phút, bỏ tác vụ sai version/trạng thái. Email local dùng Mailpit.
 

@@ -46,7 +46,14 @@ export const FEATURE_ENDPOINTS: Record<BackendFeature, string[]> = {
     "POST /api/telehealth-sessions/{id}/start",
     "POST /api/telehealth-sessions/{id}/end",
   ],
-  audit: ["GET /api/audit-events?limit&offset&actorId&resourceId&from&to"],
+  audit: [
+    "GET /api/audit-events?limit&offset&cursorCreatedAt&cursorId&actorId&resourceId&result&action&category&actorType&correlationId&excludeReadNoise&from&to",
+    "GET /api/audit-events/summary",
+    "GET /api/audit-events/export",
+    "POST /api/audit-events/verify",
+    "GET /api/audit-events/retention",
+    "POST /api/audit-events/archive",
+  ],
 };
 
 export const FEATURE_LABEL: Record<BackendFeature, string> = {

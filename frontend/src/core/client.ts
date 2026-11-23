@@ -120,6 +120,10 @@ const DETAIL_MESSAGES: Record<string, string> = {
   "Resource not found": "Không tìm thấy dữ liệu (mã không tồn tại hoặc không có quyền truy cập).",
   "Invalid request": "Thông tin gửi lên chưa hợp lệ. Vui lòng kiểm tra lại.",
   "Invalid pagination": "Tham số phân trang không hợp lệ.",
+  "Invalid time range": "Khoảng thời gian không hợp lệ (ngày bắt đầu phải trước ngày kết thúc và không vượt quá hiện tại).",
+  "Invalid audit filter": "Bộ lọc kiểm toán chưa hợp lệ. Vui lòng kiểm tra lại.",
+  "Invalid export limit": "Giới hạn số dòng xuất CSV không hợp lệ.",
+  "No unarchived audit events in selected period": "Không có sự kiện kiểm toán mới nào chưa niêm phong trong giai đoạn đã chọn.",
   "Concurrent modification; retry request": "Dữ liệu vừa được người khác thay đổi. Vui lòng tải lại rồi thử lại.",
   "Storage or audit temporarily unavailable":
     "Dịch vụ lưu trữ/kiểm toán tạm thời không khả dụng. Vui lòng thử lại sau.",
@@ -224,7 +228,7 @@ export function errorMessage(e: unknown): string {
 }
 
 /** Gắn query string, bỏ giá trị rỗng. */
-export function qs(params: Record<string, string | number | undefined | null>): string {
+export function qs(params: Record<string, string | number | boolean | undefined | null>): string {
   const q = new URLSearchParams();
   for (const [k, v] of Object.entries(params))
     if (v !== undefined && v !== null && v !== "") q.set(k, String(v));
