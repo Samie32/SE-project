@@ -1,9 +1,9 @@
 import { useEffect, useState } from "react";
 import { Link, Outlet, useMatch, useNavigate } from "react-router-dom";
-import { dayKey, formatDate, formatTime, inJoinWindow } from "@/core/datetime";
+import { dayKey, formatDate, formatTime, inJoinWindow, todayKey } from "@/core/datetime";
 import { APPOINTMENT_STATUS, apptCode, patientCode } from "@/core/labels";
 import type { Appointment } from "@/core/types";
-import { Empty, PageHead, Panel, StatusPill } from "@/ui";
+import { Empty, Notice, PageHead, Panel, StatusPill } from "@/ui";
 import { TelehealthRoom } from "../shared/TelehealthRoom";
 import { useDoctor } from "./DoctorContext";
 
@@ -31,6 +31,7 @@ export function DoctorCallLayout() {
     ? (appointmentId ? remote.find(a => a.id === appointmentId) : remote.find(a => a.id === lastRoom) ?? pickDefaultRemote(remote))
     : remote.find(a => a.id === lastRoom && (!recordRoute?.params.appointmentId || a.id === recordRoute.params.appointmentId));
   useEffect(() => { setLastRoom(selected?.id); }, [selected?.id]);
+  const isStaleInProgress = Boolean(selected && selected.status === "IN_PROGRESS" && dayKey(selected.startAt) < todayKey());
   return (
     <>
       <div hidden={!roomRoute}>
@@ -45,6 +46,13 @@ export function DoctorCallLayout() {
             {selected && <StatusPill status={selected.status} />}
             {selected?.status === "IN_PROGRESS" && <Link className="btn primary" to={`/doctor/consultation/${selected.id}`}>Mở hồ sơ khám</Link>}
           </div>
+          {isStaleInProgress && selected && (
+            <Notice tone="warn">
+              <span>
+                Ca khám ngày <b>{formatDate(selected.startAt)}</b> vẫn ở trạng thái <b>Đang khám</b> do chưa hoàn tất hồ sơ bệnh án. Hãy bấm <b>Mở hồ sơ khám</b> để chốt hồ sơ và hoàn tất ca khám.
+              </span>
+            </Notice>
+          )}
           {selected ? (
             <TelehealthRoom key={selected.id} role="DOCTOR" appointment={selected} counterpartName={"Bệnh nhân " + patientCode(selected.patientId)} onSessionChange={() => void reload()} />
           ) : <Panel><Empty title="Không tìm thấy lịch này" /></Panel>}
