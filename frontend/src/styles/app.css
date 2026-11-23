@@ -328,11 +328,14 @@ textarea.field { width: 100%; min-height: 110px; resize: vertical; }
 .audit-suggest-item small { font-size: 12px; color: var(--muted); }
 .audit-tools-wrap { position: relative; }
 .audit-tools-menu {
-  position: absolute; top: calc(100% + 6px); right: 0; z-index: 28;
+  position: absolute; top: calc(100% + 6px); left: 0; z-index: 28;
   width: min(300px, calc(100vw - 32px)); background: #fff;
   border: 1px solid var(--line-2); border-radius: 12px; box-shadow: var(--shadow-md);
   padding: 6px; display: grid; gap: 4px;
 }
+.audit-tools-menu.align-right { left: auto; right: 0; }
+.audit-tools-menu.align-left { left: 0; right: auto; }
+.audit-subbar { margin-bottom: 10px; }
 .audit-tools-item {
   width: 100%; text-align: left; border: 0; background: transparent; border-radius: 8px;
   padding: 9px 10px; display: flex; align-items: flex-start; gap: 10px; color: var(--ink); cursor: pointer;
@@ -343,9 +346,6 @@ textarea.field { width: 100%; min-height: 110px; resize: vertical; }
 .audit-tools-item span { display: grid; gap: 2px; }
 .audit-tools-item b { font-size: 13.5px; font-weight: 700; line-height: 1.25; }
 .audit-tools-item small { font-size: 12px; color: var(--muted); line-height: 1.35; }
-@media (max-width: 640px) {
-  .audit-tools-menu { left: 0; right: auto; }
-}
 .audit-id-filters {
   display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px;
 }

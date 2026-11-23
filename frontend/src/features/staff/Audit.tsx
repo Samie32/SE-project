@@ -145,9 +145,22 @@ export function AuditPage() {
   const [errs, setErrs] = useState<{ actorId?: string; correlationId?: string; range?: string }>({});
   const [showIdFilters, setShowIdFilters] = useState(false);
   const [toolsOpen, setToolsOpen] = useState(false);
+  const [toolsAlignLeft, setToolsAlignLeft] = useState(true);
   const [actionSuggestOpen, setActionSuggestOpen] = useState(false);
   const toolsRef = useRef<HTMLDivElement>(null);
   const actionComboRef = useRef<HTMLDivElement>(null);
+
+  const toggleTools = () => {
+    setToolsOpen((prev) => {
+      const next = !prev;
+      if (next && toolsRef.current) {
+        const rect = toolsRef.current.getBoundingClientRect();
+        // Mở sang phải (left: 0) nếu gần mép trái/sidebar, mở sang trái (right: 0) nếu sát mép phải.
+        setToolsAlignLeft(rect.left + 300 <= window.innerWidth - 16 || rect.left < 320);
+      }
+      return next;
+    });
+  };
 
   useEffect(() => {
     if (!toolsOpen && !actionSuggestOpen) return;
@@ -497,60 +510,7 @@ export function AuditPage() {
 
   return (
     <>
-      <PageHead
-        eyebrow="Kiểm toán"
-        title="Nhật ký kiểm toán"
-        text="Chỉ đọc (append-only), bảo vệ chuỗi băm HMAC-SHA256. Không chứa token, mật khẩu hay nội dung bệnh án."
-        actions={
-          <div className="audit-tools-wrap" ref={toolsRef}>
-            <button
-              type="button"
-              className={"btn sm" + (toolsOpen ? " soft" : "")}
-              aria-expanded={toolsOpen}
-              aria-haspopup="menu"
-              onClick={() => setToolsOpen((v) => !v)}
-              disabled={!config.backend.audit}
-            >
-              <ShieldCheck size={15} aria-hidden /> Tiện ích kiểm toán <ChevronDown size={14} aria-hidden />
-            </button>
-            {toolsOpen && (
-              <div className="audit-tools-menu" role="menu" aria-label="Tiện ích kiểm toán">
-                <button
-                  type="button"
-                  role="menuitem"
-                  className="audit-tools-item"
-                  disabled={verifying}
-                  onClick={() => {
-                    setToolsOpen(false);
-                    void handleVerify();
-                  }}
-                >
-                  <ShieldCheck size={16} aria-hidden />
-                  <span>
-                    <b>{verifying ? "Đang kiểm chứng…" : "Kiểm chứng toàn vẹn"}</b>
-                    <small>Đối chiếu chuỗi băm HMAC-SHA256 chống sửa đổi</small>
-                  </span>
-                </button>
-                <button
-                  type="button"
-                  role="menuitem"
-                  className="audit-tools-item"
-                  onClick={() => {
-                    setToolsOpen(false);
-                    setRetentionOpen(true);
-                  }}
-                >
-                  <Archive size={16} aria-hidden />
-                  <span>
-                    <b>Chính sách lưu trữ</b>
-                    <small>Chu kỳ 365/1.825 ngày &amp; niêm phong lô bất biến</small>
-                  </span>
-                </button>
-              </div>
-            )}
-          </div>
-        }
-      />
+      <PageHead title="Nhật ký kiểm toán" />
       <PendingBackend feature="audit" />
 
       {config.backend.audit && (
@@ -698,31 +658,7 @@ export function AuditPage() {
         </div>
       )}
 
-      <Panel
-        className="audit-panel"
-        title="Sự kiện kiểm toán (mới nhất trước)"
-        subtitle="Bấm vào dòng để xem đủ UUID và mã băm; bấm vào Tác nhân, Đối tượng hoặc Correlation để truy vết nhanh."
-        actions={
-          <div className="row" style={{ gap: 8 }}>
-            <button
-              type="button"
-              className="btn sm"
-              onClick={() => void handleExport()}
-              disabled={!config.backend.audit || exporting}
-            >
-              <Download size={14} aria-hidden /> {exporting ? "Đang xuất…" : "Xuất CSV"}
-            </button>
-            <button
-              type="button"
-              className="btn sm"
-              onClick={handleRefresh}
-              disabled={!config.backend.audit || listQuery.loading}
-            >
-              <RefreshCw size={14} aria-hidden /> Làm mới
-            </button>
-          </div>
-        }
-      >
+      <Panel className="audit-panel">
         <div className="audit-toolbar">
           <div className="seg" role="group" aria-label="Chọn nhanh mốc thời gian">
             {(
@@ -747,6 +683,78 @@ export function AuditPage() {
             ))}
           </div>
 
+          <div className="row" style={{ gap: 8 }}>
+            <div className="audit-tools-wrap" ref={toolsRef}>
+              <button
+                type="button"
+                className={"btn sm" + (toolsOpen ? " soft" : "")}
+                aria-expanded={toolsOpen}
+                aria-haspopup="menu"
+                onClick={toggleTools}
+                disabled={!config.backend.audit}
+              >
+                <ShieldCheck size={14} aria-hidden /> Tiện ích kiểm toán <ChevronDown size={14} aria-hidden />
+              </button>
+              {toolsOpen && (
+                <div
+                  className={"audit-tools-menu" + (toolsAlignLeft ? " align-left" : " align-right")}
+                  role="menu"
+                  aria-label="Tiện ích kiểm toán"
+                >
+                  <button
+                    type="button"
+                    role="menuitem"
+                    className="audit-tools-item"
+                    disabled={verifying}
+                    onClick={() => {
+                      setToolsOpen(false);
+                      void handleVerify();
+                    }}
+                  >
+                    <ShieldCheck size={16} aria-hidden />
+                    <span>
+                      <b>{verifying ? "Đang kiểm chứng…" : "Kiểm chứng toàn vẹn"}</b>
+                      <small>Đối chiếu chuỗi băm HMAC-SHA256 chống sửa đổi</small>
+                    </span>
+                  </button>
+                  <button
+                    type="button"
+                    role="menuitem"
+                    className="audit-tools-item"
+                    onClick={() => {
+                      setToolsOpen(false);
+                      setRetentionOpen(true);
+                    }}
+                  >
+                    <Archive size={16} aria-hidden />
+                    <span>
+                      <b>Chính sách lưu trữ</b>
+                      <small>Chu kỳ 365/1.825 ngày &amp; niêm phong lô bất biến</small>
+                    </span>
+                  </button>
+                </div>
+              )}
+            </div>
+            <button
+              type="button"
+              className="btn sm"
+              onClick={() => void handleExport()}
+              disabled={!config.backend.audit || exporting}
+            >
+              <Download size={14} aria-hidden /> {exporting ? "Đang xuất…" : "Xuất CSV"}
+            </button>
+            <button
+              type="button"
+              className="btn sm"
+              onClick={handleRefresh}
+              disabled={!config.backend.audit || listQuery.loading}
+            >
+              <RefreshCw size={14} aria-hidden /> Làm mới
+            </button>
+          </div>
+        </div>
+
+        <div className="audit-subbar">
           <label className="audit-noise-toggle">
             <input
               type="checkbox"
