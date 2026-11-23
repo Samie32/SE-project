@@ -157,11 +157,17 @@ export type ModeFilter = "ALL" | AppointmentMode;
 
 export function ScheduleManager({doctorId,shiftFilter="ALL",modeFilter="ALL"}:{doctorId:string;shiftFilter?:ShiftFilter;modeFilter?:ModeFilter}) {
   const settings=useAsync(async()=>{
+    const loadHolidays=async()=>{
+      try {
+        const fn=clinicHoursApi.listClinicHolidays;
+        return typeof fn==="function" ? await fn() : [];
+      } catch {
+        return [];
+      }
+    };
     const [weekly,holidays]=await Promise.all([
       clinicHoursApi.getClinicHours(),
-      typeof clinicHoursApi.listClinicHolidays==="function"
-        ? clinicHoursApi.listClinicHolidays().catch(()=>[])
-        : Promise.resolve([]),
+      loadHolidays(),
     ]);
     return {days:weekly.days,holidays};
   });
