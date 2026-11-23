@@ -127,8 +127,9 @@ class AuditIntegrationTest {
     long seqStart = ((Number) headStart.get("lastSeq")).longValue();
     String hashStart = headStart.get("lastHash").toString();
 
-    // Exercise fractional microseconds, sub-microsecond truncation, zero/half-second edges,
-    // SYSTEM actor, DENIED result, and a live UTC wall-clock instant.
+    // Exercise fractional microseconds, sub-microsecond truncation (including .999999999 rollover
+    // edge so MySQL DATETIME(6) never rounds up to the next second), zero/half-second edges,
+    // SYSTEM actor, and DENIED result.
     recordAt(
         Instant.parse("2026-11-23T08:00:00.123456789Z"),
         auditor.id(),
@@ -150,7 +151,7 @@ class AuditIntegrationTest {
         "TELEHEALTH_JOINED",
         "chain-res-4");
     recordAt(
-        Clock.systemUTC().instant(),
+        Instant.parse("2026-11-23T08:00:03.999999999Z"),
         auditor.id(),
         "PRESCRIPTION_ISSUED",
         "chain-res-5");
@@ -266,37 +267,112 @@ class AuditIntegrationTest {
     // 4. Concurrent audit.record writes alongside REPEATABLE_READ verify must not deadlock or
     // corrupt the chain.
     currentNow.set(Instant.parse("2026-11-23T08:02:00.222333Z"));
+    String concurrentPrefix = "concurrent-" + Db.id().substring(0, 8) + "-";
     CountDownLatch startGate = new CountDownLatch(1);
-    ExecutorService pool = Executors.newFixedThreadPool(2);
+    ExecutorService pool = Executors.newFixedThreadPool(4);
     try {
-      Future<String> verifyFuture =
-          pool.submit(
-              () -> {
-                startGate.await(5, TimeUnit.SECONDS);
-                return mvc.perform(post("/api/audit-events/verify").with(auditor.token()))
-                    .andExpect(status().isOk())
-                    .andReturn()
-                    .getResponse()
-                    .getContentAsString(StandardCharsets.UTF_8);
-              });
-      Future<Void> writerFuture =
-          pool.submit(
-              () -> {
-                startGate.await(5, TimeUnit.SECONDS);
-                for (int i = 0; i < 3; i++) {
-                  final int idx = i;
-                  tx.executeWithoutResult(
-                      s -> audit.record(admin.id(), "SPECIALTY_UPDATED", "concurrent-" + idx));
-                }
-                return null;
-              });
+      List<Future<String>> verifyFutures = new ArrayList<>();
+      for (int v = 0; v < 2; v++) {
+        verifyFutures.add(
+            pool.submit(
+                () -> {
+                  startGate.await(5, TimeUnit.SECONDS);
+                  return mvc.perform(post("/api/audit-events/verify").with(auditor.token()))
+                      .andExpect(status().isOk())
+                      .andReturn()
+                      .getResponse()
+                      .getContentAsString(StandardCharsets.UTF_8);
+                }));
+      }
+      List<Future<Void>> writerFutures = new ArrayList<>();
+      for (int w = 0; w < 2; w++) {
+        final int worker = w;
+        writerFutures.add(
+            pool.submit(
+                () -> {
+                  startGate.await(5, TimeUnit.SECONDS);
+                  for (int i = 0; i < 5; i++) {
+                    final int idx = i;
+                    tx.executeWithoutResult(
+                        s ->
+                            audit.record(
+                                admin.id(),
+                                "SPECIALTY_UPDATED",
+                                concurrentPrefix + worker + "-" + idx));
+                  }
+                  return null;
+                }));
+      }
       startGate.countDown();
-      JsonNode concurrentReport = json.readTree(verifyFuture.get(15, TimeUnit.SECONDS));
-      assertEquals("VERIFIED", concurrentReport.get("status").asText());
-      writerFuture.get(15, TimeUnit.SECONDS);
+      for (var vf : verifyFutures) {
+        JsonNode concurrentReport = json.readTree(vf.get(15, TimeUnit.SECONDS));
+        assertEquals("VERIFIED", concurrentReport.get("status").asText());
+      }
+      for (var wf : writerFutures) {
+        wf.get(15, TimeUnit.SECONDS);
+      }
     } finally {
       pool.shutdownNow();
     }
+    assertEquals(
+        10L,
+        db.count(
+            "SELECT COUNT(*) FROM audit_event WHERE action='SPECIALTY_UPDATED'"
+                + " AND resource_id LIKE ?",
+            concurrentPrefix + "%"));
+
+    // 5. Rolled-back audit_chain_head must return 200 TAMPERED / HEAD_MISMATCH (both full and
+    // truncated scans) without hitting uq_audit_chain_seq 409 or mutating audit_event.
+    var savedHead = db.one("SELECT last_seq,last_hash,updated_at FROM audit_chain_head WHERE id=1");
+    long savedSeq = ((Number) savedHead.get("lastSeq")).longValue();
+    String savedHash = savedHead.get("lastHash").toString();
+    Instant savedUpdatedAt = Instant.parse(savedHead.get("updatedAt").toString());
+    long totalAuditBeforeTamper = db.count("SELECT COUNT(*) FROM audit_event");
+    try {
+      db.update("UPDATE audit_chain_head SET last_seq=? WHERE id=1", savedSeq - 1);
+      currentNow.set(Instant.parse("2026-11-23T08:02:05.000000Z"));
+      mvc.perform(post("/api/audit-events/verify").with(auditor.token()))
+          .andExpect(status().isOk())
+          .andExpect(jsonPath("$.status").value("TAMPERED"))
+          .andExpect(jsonPath("$.mismatchReason").value("HEAD_MISMATCH"))
+          .andExpect(jsonPath("$.firstBrokenSeq").value(savedSeq - 1))
+          .andExpect(jsonPath("$.truncated").value(false));
+      mvc.perform(post("/api/audit-events/verify").param("maxEvents", "2").with(auditor.token()))
+          .andExpect(status().isOk())
+          .andExpect(jsonPath("$.status").value("TAMPERED"))
+          .andExpect(jsonPath("$.mismatchReason").value("HEAD_MISMATCH"))
+          .andExpect(jsonPath("$.firstBrokenSeq").value(savedSeq - 1))
+          .andExpect(jsonPath("$.truncated").value(false));
+      assertEquals(totalAuditBeforeTamper, db.count("SELECT COUNT(*) FROM audit_event"));
+    } finally {
+      db.update(
+          "UPDATE audit_chain_head SET last_seq=?,last_hash=?,updated_at=? WHERE id=1",
+          savedSeq,
+          savedHash,
+          savedUpdatedAt);
+    }
+
+    // 6. Direct JDBC UPDATE/DELETE on audit_event must be rejected by MySQL append-only triggers.
+    String sampleEventId = newRows.getFirst().get("id").toString();
+    DataAccessException auditUpdateEx =
+        assertThrows(
+            DataAccessException.class,
+            () ->
+                db.jdbc.update(
+                    "UPDATE audit_event SET action='TAMPERED' WHERE id=?", sampleEventId));
+    SQLException auditUpdateSql = findSqlException(auditUpdateEx);
+    assertNotNull(auditUpdateSql);
+    assertEquals("45000", auditUpdateSql.getSQLState());
+    assertTrue(auditUpdateSql.getMessage().contains("Audit is append-only"));
+
+    DataAccessException auditDeleteEx =
+        assertThrows(
+            DataAccessException.class,
+            () -> db.jdbc.update("DELETE FROM audit_event WHERE id=?", sampleEventId));
+    SQLException auditDeleteSql = findSqlException(auditDeleteEx);
+    assertNotNull(auditDeleteSql);
+    assertEquals("45000", auditDeleteSql.getSQLState());
+    assertTrue(auditDeleteSql.getMessage().contains("Audit is append-only"));
 
     currentNow.set(Instant.parse("2026-11-23T08:02:10.000000Z"));
     mvc.perform(post("/api/audit-events/verify").with(auditor.token()))
@@ -412,6 +488,11 @@ class AuditIntegrationTest {
     deniedAt(Instant.parse("2028-06-01T10:00:05Z"), emailPatient.id(), "TELEHEALTH_JOINED", "vn-tele-1");
     recordAt(Instant.parse("2028-06-01T10:00:06Z"), null, "NOTIFICATION_SENT", "vn-noti-1");
     recordAt(Instant.parse("2028-06-01T10:00:07Z"), auditor.id(), "PROFILE_READ", "vn-prof-1");
+    recordAt(
+        Instant.parse("2028-06-01T10:00:08Z"),
+        admin.id(),
+        "PATIENT_ACCOUNT_LOCKED_SECURITY_REVIEW",
+        "vn-lock-1");
 
     currentNow.set(Instant.parse("2028-06-01T10:05:00Z"));
 
@@ -549,6 +630,99 @@ class AuditIntegrationTest {
     assertEquals(1, profileRow.size());
     assertEquals("auditor_main", profileRow.get(0).get("actorLabel").asText());
 
+    // Prefix action search ("RECORD_") exercises LIKE ? ESCAPE '!' on MySQL 8.4
+    JsonNode prefixRows =
+        json.readTree(
+            mvc.perform(
+                    get("/api/audit-events")
+                        .with(auditor.token())
+                        .param("from", "2028-06-01T10:00:00Z")
+                        .param("to", "2028-06-01T10:01:00Z")
+                        .param("action", "RECORD_"))
+                .andExpect(status().isOk())
+                .andReturn()
+                .getResponse()
+                .getContentAsString(StandardCharsets.UTF_8));
+    assertEquals(Set.of("RECORD_AMENDED", "RECORD_FINAL"), extractField(prefixRows, "action"));
+
+    // Unmatched action substring exercises pure LOCATE(?, LOWER(a.action)) > 0 fallback on MySQL 8.4
+    JsonNode unknownSubstr =
+        json.readTree(
+            mvc.perform(
+                    get("/api/audit-events")
+                        .with(auditor.token())
+                        .param("from", "2028-06-01T10:00:00Z")
+                        .param("to", "2028-06-01T10:01:00Z")
+                        .param("action", "zzz_no_match_token"))
+                .andExpect(status().isOk())
+                .andReturn()
+                .getResponse()
+                .getContentAsString(StandardCharsets.UTF_8));
+    assertEquals(0, unknownSubstr.size());
+
+    // category=ACCESS_CONTROL matches PATIENT_ACCOUNT_LOCKED_% on MySQL 8.4
+    var accessControlResult =
+        mvc.perform(
+                get("/api/audit-events")
+                    .with(auditor.token())
+                    .param("from", "2028-06-01T10:00:00Z")
+                    .param("to", "2028-06-01T10:01:00Z")
+                    .param("category", "ACCESS_CONTROL"))
+            .andExpect(status().isOk())
+            .andReturn();
+    JsonNode accessControl =
+        json.readTree(accessControlResult.getResponse().getContentAsString(StandardCharsets.UTF_8));
+    assertEquals(1, accessControl.size());
+    assertEquals("PATIENT_ACCOUNT_LOCKED_SECURITY_REVIEW", accessControl.get(0).get("action").asText());
+    String requestCorrelationId = accessControlResult.getResponse().getHeader("X-Request-Id");
+    assertNotNull(requestCorrelationId);
+
+    // actorId, resourceId, correlationId, and offset pagination filters on MySQL 8.4
+    JsonNode byActorAndResource =
+        json.readTree(
+            mvc.perform(
+                    get("/api/audit-events")
+                        .with(auditor.token())
+                        .param("from", "2028-06-01T10:00:00Z")
+                        .param("to", "2028-06-01T10:01:00Z")
+                        .param("actorId", admin.id())
+                        .param("resourceId", "vn-lock-1"))
+                .andExpect(status().isOk())
+                .andReturn()
+                .getResponse()
+                .getContentAsString(StandardCharsets.UTF_8));
+    assertEquals(1, byActorAndResource.size());
+    assertEquals("vn-lock-1", byActorAndResource.get(0).get("resourceId").asText());
+
+    JsonNode byCorrelation =
+        json.readTree(
+            mvc.perform(
+                    get("/api/audit-events")
+                        .with(auditor.token())
+                        .param("correlationId", requestCorrelationId))
+                .andExpect(status().isOk())
+                .andReturn()
+                .getResponse()
+                .getContentAsString(StandardCharsets.UTF_8));
+    assertEquals(1, byCorrelation.size());
+    assertEquals("AUDIT_SEARCH", byCorrelation.get(0).get("action").asText());
+
+    JsonNode offsetPage =
+        json.readTree(
+            mvc.perform(
+                    get("/api/audit-events")
+                        .with(auditor.token())
+                        .param("from", "2028-06-01T10:00:00Z")
+                        .param("to", "2028-06-01T10:01:00Z")
+                        .param("limit", "2")
+                        .param("offset", "1"))
+                .andExpect(status().isOk())
+                .andReturn()
+                .getResponse()
+                .getContentAsString(StandardCharsets.UTF_8));
+    assertEquals(2, offsetPage.size());
+    assertEquals("vn-prof-1", offsetPage.get(0).get("resourceId").asText());
+
     // excludeReadNoise=true over a range that includes both PROFILE_READ and prior AUDIT_SEARCH rows
     JsonNode noNoise =
         json.readTree(
@@ -562,7 +736,7 @@ class AuditIntegrationTest {
                 .andReturn()
                 .getResponse()
                 .getContentAsString(StandardCharsets.UTF_8));
-    assertEquals(6, noNoise.size());
+    assertEquals(7, noNoise.size());
     Set<String> noNoiseActions = extractField(noNoise, "action");
     for (String noise : AuditActionCatalog.READ_NOISE_ACTIONS) {
       assertFalse(noNoiseActions.contains(noise), "Unexpected read noise action: " + noise);
@@ -731,11 +905,28 @@ class AuditIntegrationTest {
 
   @Test
   void retentionAndArchiveSealImmutableBatchAndEnforceTriggers() throws Exception {
-    // Seed 2 old events in 2020 (strictly older than 365-day hot retention cutoff).
+    // Seed 8 chained events in the exact same microsecond (proving firstChainSeq/lastChainSeq use
+    // min/max rather than random UUID order), 1 chained event the next day, and 1 legacy unchained
+    // event right on the 2020-06-01 boundary (for Batch 2 tiling + NULL chain_seq round-trip).
     Instant ev1At = Instant.parse("2020-01-15T06:00:00.123456Z");
     Instant ev2At = Instant.parse("2020-01-16T07:30:00.654321Z");
-    recordAt(ev1At, admin.id(), "APPOINTMENT_BOOKED", "arch-2020-1");
+    Instant boundaryAt = Instant.parse("2020-06-01T00:00:00.000000Z");
+    for (int i = 0; i < 8; i++) {
+      recordAt(ev1At, admin.id(), "APPOINTMENT_BOOKED", "arch-2020-same-" + i);
+    }
     recordAt(ev2At, admin.id(), "RECORD_FINAL", "arch-2020-2");
+    db.update(
+        "INSERT INTO audit_event(id,actor_id,actor_type,action,resource_id,result,correlation_id,"
+            + "created_at,actor_label) VALUES(?,?,?,?,?,?,?,?,?)",
+        Db.id(),
+        null,
+        "SYSTEM",
+        "NOTIFICATION_SENT",
+        "arch-2020-boundary-legacy",
+        "SUCCESS",
+        Db.id(),
+        boundaryAt,
+        "clinic-background-worker");
 
     Instant now = Instant.parse("2026-11-23T12:00:00Z");
     currentNow.set(now);
@@ -746,12 +937,12 @@ class AuditIntegrationTest {
         .andExpect(jsonPath("$.archiveRetentionDays").value(1825))
         .andExpect(jsonPath("$.exportMaxRows").value(5000))
         .andExpect(jsonPath("$.deletionPolicy").value(AuditService.DELETION_POLICY))
-        .andExpect(jsonPath("$.eligibleForArchiveCount").value(2))
+        .andExpect(jsonPath("$.eligibleForArchiveCount").value(10))
         .andExpect(jsonPath("$.archiveBatchCount").value(0))
         .andExpect(jsonPath("$.oldestEventAt").value("2020-01-15T06:00:00.123456Z"))
         .andExpect(jsonPath("$.recentBatches.length()").value(0));
 
-    Instant beforeCutoff = Instant.parse("2020-06-01T00:00:00Z");
+    Instant beforeCutoff = boundaryAt;
     String archiveBody =
         mvc.perform(
                 post("/api/audit-events/archive")
@@ -765,7 +956,7 @@ class AuditIntegrationTest {
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.fromCreatedAt").value("2020-01-15T06:00:00.123456Z"))
             .andExpect(jsonPath("$.toCreatedAt").value("2020-06-01T00:00:00Z"))
-            .andExpect(jsonPath("$.eventCount").value(2))
+            .andExpect(jsonPath("$.eventCount").value(9))
             .andExpect(jsonPath("$.retentionDays").value(1825))
             .andExpect(jsonPath("$.createdBy").value(auditor.id()))
             .andExpect(jsonPath("$.notes").value("Lưu trữ kiểm toán 2020"))
@@ -777,8 +968,16 @@ class AuditIntegrationTest {
     String batchId = batch.get("id").asText();
     String reportedBatchHash = batch.get("batchHash").asText();
     assertEquals(64, reportedBatchHash.length());
-    assertTrue(batch.get("firstChainSeq").asLong() > 0);
-    assertEquals(batch.get("firstChainSeq").asLong() + 1, batch.get("lastChainSeq").asLong());
+    var seqBounds =
+        db.one(
+            "SELECT MIN(chain_seq) AS min_seq, MAX(chain_seq) AS max_seq"
+                + " FROM audit_event WHERE created_at<?",
+            beforeCutoff);
+    assertEquals(
+        ((Number) seqBounds.get("minSeq")).longValue(), batch.get("firstChainSeq").asLong());
+    assertEquals(
+        ((Number) seqBounds.get("maxSeq")).longValue(), batch.get("lastChainSeq").asLong());
+    assertEquals(batch.get("firstChainSeq").asLong() + 8, batch.get("lastChainSeq").asLong());
 
     // Recompute batchHash directly from the archived rows in MySQL.
     var archivedEvents =
@@ -786,7 +985,7 @@ class AuditIntegrationTest {
             "SELECT id,chain_seq,event_hash,created_at,action,result FROM audit_event"
                 + " WHERE created_at<? ORDER BY created_at ASC,id ASC",
             beforeCutoff);
-    assertEquals(2, archivedEvents.size());
+    assertEquals(9, archivedEvents.size());
     String expectedBatchHash =
         AuditHashChain.computeBatchHash(crypto, ev1At, beforeCutoff, archivedEvents);
     assertEquals(expectedBatchHash, reportedBatchHash);
@@ -800,27 +999,51 @@ class AuditIntegrationTest {
             auditor.id(),
             batchId));
 
-    // Subsequent retention call exercises MAX(to_created_at) -> Instant.parse round-trip.
+    // Subsequent retention call exercises MAX(to_created_at) -> Instant.parse and
+    // WHERE created_at>=? AND created_at<? (1 boundary legacy event still eligible).
     mvc.perform(get("/api/audit-events/retention").with(auditor.token()))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.archiveBatchCount").value(1))
-        .andExpect(jsonPath("$.eligibleForArchiveCount").value(0))
+        .andExpect(jsonPath("$.eligibleForArchiveCount").value(1))
         .andExpect(jsonPath("$.recentBatches.length()").value(1))
         .andExpect(jsonPath("$.recentBatches[0].id").value(batchId))
         .andExpect(jsonPath("$.recentBatches[0].batchHash").value(reportedBatchHash));
 
-    // Overlapping re-archive and empty subsequent window both rejected with 409.
+    // Overlapping re-archive rejected with 409.
     mvc.perform(
             post("/api/audit-events/archive")
                 .with(auditor.token())
                 .contentType("application/json")
                 .content("{\"before\":\"2020-06-01T00:00:00Z\",\"notes\":\"overlap\"}"))
         .andExpect(status().isConflict());
+
+    // Batch 2 with omitted `before` uses default 365-day hot cutoff, tiles cleanly from
+    // prevBoundary (2020-06-01T00:00:00Z), and seals legacy NULL chain_seq bounds cleanly.
+    currentNow.set(Instant.parse("2026-11-23T12:00:05Z"));
     mvc.perform(
             post("/api/audit-events/archive")
                 .with(auditor.token())
                 .contentType("application/json")
-                .content("{\"before\":\"2020-07-01T00:00:00Z\",\"notes\":\"empty\"}"))
+                .content("{}"))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.fromCreatedAt").value("2020-06-01T00:00:00Z"))
+        .andExpect(jsonPath("$.toCreatedAt").value("2025-11-23T12:00:05Z"))
+        .andExpect(jsonPath("$.eventCount").value(1))
+        .andExpect(jsonPath("$.firstChainSeq").value(org.hamcrest.Matchers.nullValue()))
+        .andExpect(jsonPath("$.lastChainSeq").value(org.hamcrest.Matchers.nullValue()));
+
+    mvc.perform(get("/api/audit-events/retention").with(auditor.token()))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.archiveBatchCount").value(2))
+        .andExpect(jsonPath("$.eligibleForArchiveCount").value(0))
+        .andExpect(jsonPath("$.recentBatches.length()").value(2));
+
+    // Empty subsequent window rejected with 409.
+    mvc.perform(
+            post("/api/audit-events/archive")
+                .with(auditor.token())
+                .contentType("application/json")
+                .content("{\"before\":\"2025-12-01T00:00:00Z\",\"notes\":\"empty\"}"))
         .andExpect(status().isConflict());
 
     // Future before timestamp rejected with 400.

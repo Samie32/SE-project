@@ -597,7 +597,7 @@ class AuditHardeningUnitTest {
 
     // 5. HEAD_MISMATCH (tail truncation)
     when(db.one(startsWith("SELECT COALESCE(SUM(CASE WHEN chain_seq")))
-        .thenReturn(Map.of("chained", 1L, "legacy", 0L));
+        .thenReturn(Map.of("chained", 1L, "legacy", 0L, "maxSeq", 1L));
     when(db.one("SELECT last_seq,last_hash FROM audit_chain_head WHERE id=1"))
         .thenReturn(Map.of("lastSeq", 2L, "lastHash", h2));
     when(db.list(contains("FROM audit_event WHERE chain_seq IS NOT NULL ORDER BY"), anyInt()))
@@ -605,6 +605,22 @@ class AuditHardeningUnitTest {
     var headMismatch = service.verifyIntegrity(AUDITOR, 1000);
     assertEquals("TAMPERED", headMismatch.status());
     assertEquals("HEAD_MISMATCH", headMismatch.mismatchReason());
+
+    // 5b. HEAD_MISMATCH (chain head rolled back below maxSeq, even on truncated scan):
+    // must report TAMPERED without invoking audit.record (which would hit uq_audit_chain_seq)
+    clearInvocations(audit);
+    when(db.one(startsWith("SELECT COALESCE(SUM(CASE WHEN chain_seq")))
+        .thenReturn(Map.of("chained", 2L, "legacy", 0L, "maxSeq", 2L));
+    when(db.one("SELECT last_seq,last_hash FROM audit_chain_head WHERE id=1"))
+        .thenReturn(Map.of("lastSeq", 1L, "lastHash", h1));
+    when(db.list(contains("FROM audit_event WHERE chain_seq IS NOT NULL ORDER BY"), eq(1)))
+        .thenReturn(List.of(ev1));
+    var headRollback = service.verifyIntegrity(AUDITOR, 1);
+    assertEquals("TAMPERED", headRollback.status());
+    assertEquals("HEAD_MISMATCH", headRollback.mismatchReason());
+    assertEquals(1L, headRollback.firstBrokenSeq());
+    assertFalse(headRollback.truncated());
+    verify(audit, never()).record(any(), any(), any());
 
     // 6. LEGACY_ONLY
     when(db.one(startsWith("SELECT COALESCE(SUM(CASE WHEN chain_seq")))
@@ -730,15 +746,22 @@ class AuditHardeningUnitTest {
     assertEquals("2026-10-01T00:00:01Z", split.toCreatedAt());
 
     // Overflow when all rows share the exact same microsecond -> fallback to +1µs
+    // Also verify firstChainSeq/lastChainSeq use min/max even when UUID order reverses chain_seq
     Map<String, Object> s1 = new LinkedHashMap<>(e1);
+    s1.put("id", "00000000-0000-0000-0000-000000000001");
+    s1.put("chainSeq", 11L);
     Map<String, Object> s2 = new LinkedHashMap<>(e1);
-    s2.put("id", "ev-s2");
+    s2.put("id", "ffffffff-ffff-ffff-ffff-ffffffffffff");
+    s2.put("chainSeq", 10L);
     Map<String, Object> s3 = new LinkedHashMap<>(e1);
-    s3.put("id", "ev-s3");
+    s3.put("id", "ffffffff-ffff-ffff-ffff-fffffffffffe");
+    s3.put("chainSeq", 12L);
     when(db.list(startsWith("SELECT id,chain_seq,event_hash"), any(), eq(3)))
         .thenReturn(List.of(s1, s2, s3));
     var sameTs = smallBatch.archiveBatch(AUDITOR, Instant.parse("2026-11-01T00:00:00Z"), null);
     assertEquals(2, sameTs.eventCount());
+    assertEquals(10L, sameTs.firstChainSeq());
+    assertEquals(11L, sameTs.lastChainSeq());
     assertEquals("2026-10-01T00:00:00.000001Z", sameTs.toCreatedAt());
   }
 

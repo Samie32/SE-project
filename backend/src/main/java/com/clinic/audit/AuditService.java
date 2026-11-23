@@ -290,10 +290,12 @@ public class AuditService {
     var counts =
         db.one(
             "SELECT COALESCE(SUM(CASE WHEN chain_seq IS NOT NULL THEN 1 ELSE 0 END),0) AS chained,"
-                + " COALESCE(SUM(CASE WHEN chain_seq IS NULL THEN 1 ELSE 0 END),0) AS legacy"
+                + " COALESCE(SUM(CASE WHEN chain_seq IS NULL THEN 1 ELSE 0 END),0) AS legacy,"
+                + " COALESCE(MAX(chain_seq),0) AS max_seq"
                 + " FROM audit_event");
     long totalChained = asLong(counts.get("chained"));
     long legacyUnchained = asLong(counts.get("legacy"));
+    long maxChainSeq = asLong(counts.get("maxSeq"));
 
     var head = db.one("SELECT last_seq,last_hash FROM audit_chain_head WHERE id=1");
     long headSeq = asLong(head.get("lastSeq"));
@@ -374,6 +376,10 @@ public class AuditService {
       if (batch.size() < batchSize) break;
     }
 
+    if (mismatchReason == null && (maxChainSeq > headSeq || totalChained > headSeq)) {
+      firstBrokenSeq = headSeq;
+      mismatchReason = "HEAD_MISMATCH";
+    }
     boolean truncated = mismatchReason == null && checked == maxEvents && totalChained > checked;
     if (mismatchReason == null && !truncated) {
       if (lastCheckedSeq != headSeq
@@ -388,7 +394,9 @@ public class AuditService {
             ? "TAMPERED"
             : (totalChained == 0 && headSeq == 0 ? "LEGACY_ONLY" : "VERIFIED");
     Instant verifiedAt = AuditHashChain.normalizeTimestamp(clock.instant());
-    audit.record(actor.id(), "AUDIT_INTEGRITY_VERIFIED", status + ":" + checked);
+    if (!("TAMPERED".equals(status) && headSeq < maxChainSeq)) {
+      audit.record(actor.id(), "AUDIT_INTEGRITY_VERIFIED", status + ":" + checked);
+    }
 
     return new AuditIntegrityReport(
         status,
@@ -523,8 +531,8 @@ public class AuditService {
     for (var ev : events) {
       if (ev.get("chainSeq") instanceof Number n) {
         long seq = n.longValue();
-        if (firstSeq == null) firstSeq = seq;
-        lastSeq = seq;
+        if (firstSeq == null || seq < firstSeq) firstSeq = seq;
+        if (lastSeq == null || seq > lastSeq) lastSeq = seq;
       }
     }
 
