@@ -142,6 +142,7 @@ export interface MedicalRecord {
   // Tùy chọn nếu backend trả thêm:
   appointmentId?: string;
   doctorId?: string;
+  startAt?: string;
   createdAt?: string;
   updatedAt?: string;
   supersedesId?: string | null;

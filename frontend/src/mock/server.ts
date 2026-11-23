@@ -87,9 +87,15 @@ on("POST", "/clinic/holidays", (c) => {
   req(c.actor, "ADMINISTRATOR");
   const { startDate, endDate, name, closed, opensAt, closesAt } = c.body ?? {};
   need(typeof startDate === "string" && typeof endDate === "string" && startDate <= endDate && typeof name === "string" && name.trim().length > 0, 422, "Invalid clinic holiday");
+  const validHours = Boolean(closed) || (typeof opensAt === "string" && typeof closesAt === "string" && opensAt < closesAt);
+  need(validHours, 422, "Invalid clinic hours");
   const list = c.db.clinicHolidays ?? (c.db.clinicHolidays = []);
   need(!list.some(h => h.startDate <= endDate && startDate <= h.endDate), 409, "Clinic holiday overlaps an existing holiday");
   const item = { id: mid(), startDate, endDate, name: name.trim(), closed: Boolean(closed), opensAt: closed ? null : opensAt, closesAt: closed ? null : closesAt };
+  need(!c.db.avail.some(shift => Date.parse(shift.endAt) > c.now
+    && dayKey(shift.startAt) >= startDate && dayKey(shift.startAt) <= endDate
+    && scheduleIntervalError(shift.startAt, shift.endAt, -Infinity, c.db.clinicHours, [item])),
+  409, "Clinic holiday conflicts with an existing shift");
   list.push(item);
   audit(c.db, c.actor.id, "CLINIC_HOLIDAY_CREATED", item.id, c.now);
   return item;
@@ -99,6 +105,14 @@ on("DELETE", "/clinic/holidays/:id", (c) => {
   const list = c.db.clinicHolidays ?? [];
   const idx = list.findIndex(h => h.id === c.params[0]);
   need(idx >= 0, 404, "Resource not found");
+  const candidate = list[idx];
+  const remaining = list.filter((_, i) => i !== idx);
+  if (!candidate.closed) {
+    need(!c.db.avail.some(shift => Date.parse(shift.endAt) > c.now
+      && dayKey(shift.startAt) >= candidate.startDate && dayKey(shift.startAt) <= candidate.endDate
+      && scheduleIntervalError(shift.startAt, shift.endAt, -Infinity, c.db.clinicHours, remaining)),
+    409, "Clinic hours conflict with an existing shift");
+  }
   const [removed] = list.splice(idx, 1);
   audit(c.db, c.actor.id, "CLINIC_HOLIDAY_REMOVED", removed.id, c.now);
   return res(204);
@@ -336,7 +350,7 @@ on("PUT", "/doctors/:id", (c) => {
     need(account?.active && account.roles.includes("DOCTOR"), 409, "Doctor account must be active and have the doctor role");
   }
   if (!active)
-    need(!c.db.appts.some((a) => a.doctorId === d.id && Date.parse(a.endAt) > c.now && ACTIVE.includes(a.status)), 409, "Doctor has active appointments");
+    need(!c.db.appts.some((a) => a.doctorId === d.id && (["CHECKED_IN", "IN_PROGRESS"].includes(a.status) || (a.status === "CONFIRMED" && Date.parse(a.endAt) > c.now))), 409, "Doctor has active appointments");
   d.active = active;
   d.specialtyIds = [...new Set<string>(specialtyIds)];
   const u = user(c.db, d.userId); if (u) u.name = String(displayName).trim();
@@ -346,11 +360,17 @@ on("PUT", "/doctors/:id", (c) => {
 
 // ---------- lịch làm việc & slot ----------
 const doctorGuard = (c: Ctx, id: string) => {
-  find(c.db.doctors, id);
+  const doc = find(c.db.doctors, id);
   need(isDoctorOf(c.db, c.actor, id), 403, "Doctor assignment required");
+  return doc;
+};
+const activeDoctorGuard = (c: Ctx, id: string) => {
+  const doc = doctorGuard(c, id);
+  need(doc.active, 409, "Doctor inactive");
+  return doc;
 };
 on("DELETE", "/availability/:id", c=>{
-  const shift=find(c.db.avail,c.params[0]);doctorGuard(c,shift.doctorId);
+  const shift=find(c.db.avail,c.params[0]);activeDoctorGuard(c,shift.doctorId);
   need(Date.parse(shift.startAt)>c.now,409,"Past schedules are retained");
   const slots=new Set(c.db.slots.filter(s=>s.availabilityId===shift.id).map(s=>s.id));
   need(!c.db.appts.some(a=>slots.has(a.slotId)),409,"Availability with appointment history cannot be deleted");
@@ -362,7 +382,7 @@ on("DELETE", "/availability/:id", c=>{
   return res(204);
 });
 on("DELETE", "/time-off/:id", c=>{
-  const timeOff=find(c.db.timeoff,c.params[0]);doctorGuard(c,timeOff.doctorId);
+  const timeOff=find(c.db.timeoff,c.params[0]);activeDoctorGuard(c,timeOff.doctorId);
   need(Date.parse(timeOff.startAt)>c.now,409,"Past schedules are retained");
   c.db.timeoff=c.db.timeoff.filter(t=>t.id!==timeOff.id);
   audit(c.db,c.actor.id,"TIME_OFF_REMOVED",timeOff.id,c.now);
@@ -371,7 +391,7 @@ on("DELETE", "/time-off/:id", c=>{
 on("GET", "/doctors/:id/availability", (c) => { doctorGuard(c, c.params[0]); return c.db.avail.filter((a) => a.doctorId === c.params[0]).sort((a, b) => a.startAt.localeCompare(b.startAt)); });
 on("GET", "/doctors/:id/time-off", (c) => { doctorGuard(c, c.params[0]); return c.db.timeoff.filter((a) => a.doctorId === c.params[0]).sort((a, b) => a.startAt.localeCompare(b.startAt)); });
 on("POST", "/doctors/:id/availability", (c) => {
-  doctorGuard(c, c.params[0]);
+  activeDoctorGuard(c, c.params[0]);
   const { startAt, endAt, slotMinutes, mode } = c.body ?? {};
   need(startAt && endAt && Date.parse(startAt) < Date.parse(endAt) && Number.isInteger(slotMinutes) && slotMinutes >= 1 && slotMinutes <= 540 && ["IN_PERSON", "REMOTE"].includes(mode), 400, "Invalid request");
   need(Date.parse(startAt) > c.now, 422, "Availability must be in the future");
@@ -385,7 +405,7 @@ on("POST", "/doctors/:id/availability", (c) => {
   return res(201, a);
 });
 on("POST", "/doctors/:id/time-off", (c) => {
-  doctorGuard(c, c.params[0]);
+  activeDoctorGuard(c, c.params[0]);
   const { startAt, endAt } = c.body ?? {};
   need(startAt && endAt && Date.parse(startAt) < Date.parse(endAt), 400, "Invalid request");
   const issue=scheduleIntervalError(startAt,endAt,c.now,c.db.clinicHours,c.db.clinicHolidays);
@@ -433,10 +453,19 @@ on("POST", "/appointments", (c) => {
   const pid = patientOnly(c);
   return idem(c, "book", () => {
     const slot = find(c.db.slots, String(c.body?.slotId));
-    need(Date.parse(slot.startAt) > c.now, 409, "Constraint conflict");
-    need(c.db.doctors.find((d) => d.id === slot.doctorId)?.active, 409, "Constraint conflict");
-    need(slotFree(c.db, slot), 409, "Constraint conflict");
-    need(!c.db.appts.some((a) => a.patientId === pid && ACTIVE.includes(a.status) && overlap(a.startAt, a.endAt, slot.startAt, slot.endAt)), 409, "Constraint conflict");
+    need(Date.parse(slot.startAt) > c.now, 409, "Slot is no longer in the future");
+    need(c.db.doctors.find((d) => d.id === slot.doctorId)?.active, 409, "Doctor inactive");
+    need(
+      !c.db.timeoff.some((t) => t.doctorId === slot.doctorId && overlap(t.startAt, t.endAt, slot.startAt, slot.endAt)),
+      409,
+      "Doctor is unavailable",
+    );
+    need(
+      !c.db.appts.some((a) => a.doctorId === slot.doctorId && ACTIVE.includes(a.status) && overlap(a.startAt, a.endAt, slot.startAt, slot.endAt)) &&
+      !c.db.appts.some((a) => a.patientId === pid && ACTIVE.includes(a.status) && overlap(a.startAt, a.endAt, slot.startAt, slot.endAt)),
+      409,
+      "Doctor or patient already booked",
+    );
     const a: MAppt = { id: mid(), patientId: pid, doctorId: slot.doctorId, slotId: slot.id, startAt: slot.startAt, endAt: slot.endAt, mode: slot.mode, status: "CONFIRMED", version: 0, cancellationReason: null, encounterId: null };
     c.db.appts.push(a);
     notify(c, a, "BOOKED");
@@ -446,14 +475,27 @@ on("POST", "/appointments", (c) => {
 });
 const own = (c: Ctx, id: string) => { const pid = patientOnly(c); const a = find(c.db.appts, id); need(a.patientId === pid, 404, "Resource not found"); return a; };
 const editable = (c: Ctx, a: MAppt) => {
-  need(c.body?.version === a.version, 409, "Concurrent modification; retry request");
-  need(a.status === "CONFIRMED" && Date.parse(a.startAt) - c.now >= 120 * MIN, 409, "Constraint conflict");
+  need(a.status === "CONFIRMED", 409, "Appointment is not CONFIRMED");
+  need(c.body?.version === a.version, 409, "Stale appointment version");
+  need(Date.parse(a.startAt) - c.now >= 120 * MIN, 409, "Changes require at least two hours notice");
 };
 on("POST", "/appointments/:id/reschedule", (c) => idem(c, "reschedule", () => {
   const a = own(c, c.params[0]); editable(c, a);
   const s = find(c.db.slots, String(c.body?.slotId));
-  need(s.doctorId === a.doctorId && s.mode === a.mode && Date.parse(s.startAt) > c.now && slotFree(c.db, s, a.id), 409, "Constraint conflict");
-  need(!c.db.appts.some((x) => x.id !== a.id && x.patientId === a.patientId && ACTIVE.includes(x.status) && overlap(x.startAt, x.endAt, s.startAt, s.endAt)), 409, "Constraint conflict");
+  need(s.id !== a.slotId, 409, "Appointment already uses this slot");
+  need(Date.parse(s.startAt) > c.now, 409, "Slot is no longer in the future");
+  need(s.doctorId === a.doctorId && s.mode === a.mode, 409, "Slot is outside availability");
+  need(
+    !c.db.timeoff.some((t) => t.doctorId === s.doctorId && overlap(t.startAt, t.endAt, s.startAt, s.endAt)),
+    409,
+    "Doctor is unavailable",
+  );
+  need(
+    !c.db.appts.some((x) => x.id !== a.id && x.doctorId === s.doctorId && ACTIVE.includes(x.status) && overlap(x.startAt, x.endAt, s.startAt, s.endAt)) &&
+    !c.db.appts.some((x) => x.id !== a.id && x.patientId === a.patientId && ACTIVE.includes(x.status) && overlap(x.startAt, x.endAt, s.startAt, s.endAt)),
+    409,
+    "Doctor or patient already booked",
+  );
   Object.assign(a, { slotId: s.id, startAt: s.startAt, endAt: s.endAt, version: a.version + 1 });
   notify(c, a, "RESCHEDULED"); audit(c.db, a.patientId, "APPOINTMENT_RESCHEDULED", a.id, c.now);
   return strip(a);
@@ -461,7 +503,7 @@ on("POST", "/appointments/:id/reschedule", (c) => idem(c, "reschedule", () => {
 on("POST", "/appointments/:id/cancel", (c) => idem(c, "cancel", () => {
   const a = own(c, c.params[0]); editable(c, a);
   const reason = String(c.body?.reason ?? "").trim();
-  need(reason && reason.length <= 1000, 400, "Invalid request");
+  need(reason && reason.length <= 1000, 422, "Cancellation reason required");
   Object.assign(a, { status: "CANCELLED", cancellationReason: reason, version: a.version + 1 });
   notify(c, a, "CANCELLED"); audit(c.db, a.patientId, "APPOINTMENT_CANCELLED", a.id, c.now);
   return strip(a);
@@ -559,6 +601,7 @@ on("POST", "/appointments/:id/progress", (c) => idem(c, "progress", () => {
     need(isDoctorOf(c.db, c.actor, a.doctorId), 403, "Doctor assignment required");
     if (targetStatus === "IN_PROGRESS") {
       need(a.mode === "IN_PERSON" && a.status === "CHECKED_IN", 409, "Constraint conflict");
+      need(!c.db.sessions.some((s) => ["ACTIVE", "RECONNECTING"].includes(s.status) && c.db.appts.find((x) => x.id === s.appointmentId)?.doctorId === a.doctorId), 409, "Finish the active remote session first");
       const t = c.db.tickets.find((x) => x.appointmentId === a.id);
       need(t?.status === "CALLED", 409, "Constraint conflict");
       t!.status = "IN_SERVICE";
@@ -592,10 +635,14 @@ on("GET", "/patients/:id/records", (c) => {
     rows = rows.filter((r) => r.status === "FINAL");
   }
   audit(c.db, c.actor.id, "RECORD_LIST_READ", pid, c.now);
-  return page(rows.sort((a, b) => b.updatedAt.localeCompare(a.updatedAt)), c.query, 100).map(outRecord);
+  return page(rows.sort((a, b) => b.updatedAt.localeCompare(a.updatedAt)), c.query, 100).map((r) => {
+    const a = c.db.appts.find((x) => x.encounterId === r.encounterId || x.id === r.appointmentId);
+    return { ...outRecord(r), ...(a ? { startAt: a.startAt } : {}) };
+  });
 });
 on("PUT", "/encounters/:id/record", (c) => {
   const a = doctorOfEncounter(c, c.params[0]);
+  need(a.status === "IN_PROGRESS", 409, "Encounter is complete");
   const { version, content, status } = c.body ?? {};
   need(typeof content === "string" && content.length > 0 && ["DRAFT", "FINAL"].includes(status) && Number.isInteger(version), 400, "Invalid request");
   const cur = c.db.records.filter((r) => r.encounterId === c.params[0]).sort((x, y) => y.version - x.version)[0];
@@ -624,6 +671,7 @@ on("POST", "/records/:id/amendments", (c) => {
 const validItem = (i: any) => ["medicineName", "doseText", "route", "frequency", "durationText"].every((k) => typeof i?.[k] === "string" && i[k].trim());
 on("POST", "/encounters/:id/prescriptions", (c) => {
   const a = doctorOfEncounter(c, c.params[0]);
+  need(a.status === "IN_PROGRESS", 409, "Encounter is complete");
   const items = c.body?.items;
   need(Array.isArray(items) && items.every((i: unknown) => typeof i === "object"), 400, "Invalid request");
   let rx = c.db.rx.find((r) => r.encounterId === c.params[0] && r.status === "DRAFT");
@@ -635,7 +683,8 @@ on("POST", "/encounters/:id/prescriptions", (c) => {
 });
 on("POST", "/prescriptions/:id/issue", (c) => idem(c, "issue", () => {
   const rx = find(c.db.rx, c.params[0]);
-  doctorOfEncounter(c, rx.encounterId);
+  const a = doctorOfEncounter(c, rx.encounterId);
+  need(a.status === "IN_PROGRESS", 409, "Encounter is complete");
   if (rx.status === "ISSUED") return rx;
   need(c.body?.version === rx.version, 409, "Concurrent modification; retry request");
   need(rx.items.length > 0 && rx.items.every(validItem), 422, "Prescription items incomplete");
@@ -693,7 +742,9 @@ on("POST", "/telehealth-sessions/:id/start", (c) => {
   need(isDoctorOf(c.db, c.actor, a.doctorId), 403, "Doctor assignment required");
   need(c.body?.version === s.version, 409, "Concurrent modification; retry request");
   const start = Date.parse(a.startAt);
-  need(s.status === "WAITING" && s.patientAdmitted && c.now >= start && c.now < start + 15 * MIN, 409, "Constraint conflict");
+  need(s.status === "WAITING" && s.patientAdmitted && a.status === "CONFIRMED" && c.now >= start && c.now < start + 15 * MIN, 409, "Constraint conflict");
+  need(!c.db.sessions.some((x) => ["ACTIVE", "RECONNECTING"].includes(x.status) && c.db.appts.find((ap) => ap.id === x.appointmentId)?.doctorId === a.doctorId), 409, "Finish the active remote session first");
+  need(!c.db.tickets.some((t) => t.doctorId === a.doctorId && t.status === "IN_SERVICE"), 409, "Finish the active in-person consultation first");
   s.status = "ACTIVE"; s.version++;
   a.status = "IN_PROGRESS"; a.version++; a.encounterId = a.encounterId ?? mid();
   audit(c.db, c.actor.id, "TELEHEALTH_STARTED", s.id, c.now);

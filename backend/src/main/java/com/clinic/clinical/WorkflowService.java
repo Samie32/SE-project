@@ -201,6 +201,15 @@ public class WorkflowService {
         Problem.require(!remote, 409, "Start remote appointments through the session endpoint");
         Problem.require("CHECKED_IN".equals(a.get("status")), 409, "Check-in required");
         Problem.require(
+            db.list(
+                    "SELECT ts.id FROM telehealth_session ts JOIN appointment a ON"
+                        + " a.id=ts.appointment_id WHERE a.doctor_id=? AND ts.status IN"
+                        + " ('ACTIVE','RECONNECTING') LIMIT 1 FOR SHARE",
+                    a.get("doctorId"))
+                .isEmpty(),
+            409,
+            "Finish the active remote session first");
+        Problem.require(
             db.update(
                     "UPDATE queue_ticket SET status='IN_SERVICE',version=version+1 WHERE"
                         + " appointment_id=? AND status='CALLED'",

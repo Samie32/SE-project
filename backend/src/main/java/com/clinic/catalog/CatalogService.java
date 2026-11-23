@@ -82,8 +82,9 @@ public class CatalogService {
     if (!active)
       Problem.require(
           db.list(
-                  "SELECT id FROM appointment WHERE doctor_id=? AND end_at>? AND status IN"
-                      + " ('CONFIRMED','CHECKED_IN','IN_PROGRESS') LIMIT 1 FOR SHARE",
+                  "SELECT id FROM appointment WHERE doctor_id=? AND (status IN"
+                      + " ('CHECKED_IN','IN_PROGRESS') OR (status='CONFIRMED' AND end_at>?)) LIMIT"
+                      + " 1 FOR SHARE",
                   id,
                   clock.instant())
               .isEmpty(),

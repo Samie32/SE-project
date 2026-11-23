@@ -745,3 +745,55 @@ dl.detail dd { margin: 0; overflow-wrap: anywhere; }
   justify-content: flex-end;
   margin-top: 16px;
 }
+
+/* ---------- Tối ưu UI/UX Cổng Bệnh nhân ---------- */
+.step.clickable { border: 0; font-weight: 650; cursor: pointer; transition: filter 0.15s; }
+.step.clickable:hover:not(:disabled) { filter: brightness(0.96); }
+.step.clickable:disabled { cursor: not-allowed; opacity: 0.65; }
+
+.date-strip { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 14px; }
+.date-chip {
+  border: 1px solid var(--line-2); background: #fff; color: var(--ink-2); border-radius: 9px;
+  padding: 6px 11px; font-size: 13.5px; font-weight: 600; min-height: 36px;
+}
+.date-chip:hover { border-color: #93c5fd; background: var(--blue-50); }
+.date-chip.on { background: var(--blue); border-color: var(--blue); color: #fff; }
+
+.slot.conflict {
+  background: #f8fafc; border-style: dashed; border-color: #cbd5e1; color: #64748b;
+  flex-direction: column; gap: 2px; padding: 6px 12px; opacity: 0.85;
+}
+.slot-tag { font-size: 12px; font-weight: 700; color: var(--amber); line-height: 1.1; }
+
+.reason-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+.reason-chip {
+  border: 1px solid var(--line-2); background: #f8fafd; color: var(--ink-2); border-radius: 999px;
+  padding: 5px 11px; font-size: 13px; font-weight: 600;
+}
+.reason-chip:hover { border-color: #93c5fd; background: var(--blue-50); color: #1d4fc4; }
+.reason-chip.on { background: var(--blue-50); border-color: var(--blue); color: #1d4fc4; }
+
+.next-appt { display: grid; gap: 10px; }
+.next-appt-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
+.next-appt-meta { display: grid; gap: 4px; font-size: 14.5px; color: var(--ink-2); }
+.next-appt-countdown {
+  display: inline-flex; align-items: center; gap: 6px; width: fit-content;
+  background: var(--blue-50); color: #1d4fc4; border: 1px solid var(--blue-100);
+  border-radius: 8px; padding: 4px 10px; font-size: 13px; font-weight: 700;
+}
+
+.record-tags { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 4px; }
+.mini-tag {
+  display: inline-block; padding: 1px 7px; border-radius: 999px; font-size: 12px; font-weight: 700;
+  background: #eef2f7; color: #334155;
+}
+.mini-tag.ok { background: var(--green-bg); color: #047857; }
+.mini-tag.warn { background: var(--amber-bg); color: #b45309; }
+
+@media print {
+  .side, .top, .no-print, .split > section:first-child { display: none !important; }
+  .main { margin-left: 0 !important; height: auto !important; overflow: visible !important; }
+  .main-scroll { padding-top: 0 !important; overflow: visible !important; }
+  .split { grid-template-columns: 1fr !important; }
+  .panel { box-shadow: none !important; border-color: #cbd5e1 !important; break-inside: avoid; }
+}

@@ -77,6 +77,25 @@ const DETAIL_MESSAGES: Record<string, string> = {
   "Availability with appointment history cannot be deleted":
     "Không thể xóa ca đã từng có lịch hẹn (kể cả lịch đã hủy).",
   "Doctor inactive": "Bác sĩ hiện đang tạm ngừng nhận lịch.",
+  "Slot is no longer in the future": "Khung giờ này đã qua. Vui lòng chọn khung giờ khác.",
+  "Slot is outside availability": "Khung giờ không còn thuộc ca làm việc của bác sĩ.",
+  "Doctor is unavailable": "Bác sĩ có lịch nghỉ trong khung giờ này. Vui lòng chọn giờ khác.",
+  "Appointment is not CONFIRMED": "Lịch hẹn không còn ở trạng thái Đã xác nhận nên không thể thay đổi.",
+  "Cancellation reason required": "Vui lòng nhập lý do hủy lịch.",
+  "Appointment already uses this slot":
+    "Lịch hẹn hiện đã ở đúng khung giờ này. Hãy chọn khung giờ khác để đổi lịch.",
+  "Finish the active remote session first":
+    "Bạn đang có phiên khám từ xa hoạt động. Hãy kết thúc phiên hiện tại trước khi bắt đầu ca khác.",
+  "Finish the active in-person consultation first":
+    "Bạn đang có ca khám trực tiếp đang phục vụ. Hãy hoàn tất ca trực tiếp trước khi bắt đầu phiên từ xa.",
+  "Finish or skip the current ticket first":
+    "Cần hoàn tất hoặc bỏ lượt bệnh nhân đang gọi/đang khám trước khi gọi người tiếp theo.",
+  "End the remote session first": "Cần kết thúc phiên khám từ xa trước khi hoàn tất ca khám.",
+  "Finalize the medical record first": "Cần hoàn tất hồ sơ bệnh án (FINAL) trước khi hoàn tất ca khám.",
+  "Stale appointment version": "Lịch hẹn vừa thay đổi. Vui lòng tải lại rồi thử lại.",
+  "Changes require at least two hours notice": "Chỉ được đổi hoặc hủy lịch trước giờ hẹn ít nhất 2 giờ.",
+  "Doctor or patient already booked": "Khung giờ đã có người đặt hoặc trùng với lịch hẹn khác của bạn.",
+  "Encounter is complete": "Ca khám đã hoàn tất, không thể chỉnh sửa thêm.",
   "Self role changes are not allowed": "Không thể tự thay đổi vai trò của chính mình.",
   "Cannot disable your own account": "Không thể vô hiệu hóa tài khoản của chính mình.",
   "Patient account cannot be enrolled as staff": "Tài khoản này đã thuộc cổng bệnh nhân. Hãy dùng tài khoản nhân sự do phòng khám cấp.",

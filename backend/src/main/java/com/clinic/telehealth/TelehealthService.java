@@ -152,6 +152,23 @@ public class TelehealthService {
             && "CONFIRMED".equals(a.get("status")),
         409,
         "Admitted patient and waiting session required");
+    Problem.require(
+        db.list(
+                "SELECT ts.id FROM telehealth_session ts JOIN appointment a ON"
+                    + " a.id=ts.appointment_id WHERE a.doctor_id=? AND ts.status IN"
+                    + " ('ACTIVE','RECONNECTING') LIMIT 1 FOR SHARE",
+                a.get("doctorId"))
+            .isEmpty(),
+        409,
+        "Finish the active remote session first");
+    Problem.require(
+        db.list(
+                "SELECT id FROM queue_ticket WHERE doctor_id=? AND status='IN_SERVICE' LIMIT 1"
+                    + " FOR SHARE",
+                a.get("doctorId"))
+            .isEmpty(),
+        409,
+        "Finish the active in-person consultation first");
     db.update("UPDATE telehealth_session SET status='ACTIVE',version=version+1 WHERE id=?", id);
     db.update(
         "UPDATE appointment SET status='IN_PROGRESS',version=version+1 WHERE id=?", a.get("id"));

@@ -61,6 +61,10 @@ public class AppointmentService {
     lock(List.of(original.get("doctorId").toString(), slot.get("doctorId").toString()), patient);
     var appointment = owned(id, patient);
     editable(appointment, version);
+    Problem.require(
+        !slotId.equals(appointment.get("slotId").toString()),
+        409,
+        "Appointment already uses this slot");
     validateSlot(slot, patient, id);
     db.update(
         "UPDATE appointment SET doctor_id=?,slot_id=?,start_at=?,end_at=?,mode=?,version=version+1"

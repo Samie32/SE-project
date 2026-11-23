@@ -106,6 +106,7 @@ public class ClinicHours {
 
     String fromDate = input.startDate().toString();
     String toDate = input.endDate().toString();
+    db.list("SELECT day_of_week FROM clinic_hours ORDER BY day_of_week FOR UPDATE");
     var overlaps = db.list(
         "SELECT id FROM clinic_holiday WHERE start_date<=? AND end_date>=? FOR UPDATE", toDate, fromDate);
     Problem.require(overlaps.isEmpty(), 409, "Clinic holiday overlaps an existing holiday");
