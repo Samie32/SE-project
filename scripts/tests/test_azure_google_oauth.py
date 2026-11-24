@@ -145,3 +145,60 @@ class AzureGoogleOAuthTests(unittest.TestCase):
         self.assertEqual(payload["maxFailureWaitSeconds"], 900)
         self.assertEqual(payload["maxDeltaTimeSeconds"], 900)
         self.assertFalse(payload["resetPasswordAllowed"])
+
+    def test_ensure_profile_claim_mappers_adds_missing_mappers(self):
+        opener = MagicMock()
+        list_response = MagicMock()
+        list_response.__enter__.return_value = list_response
+        list_response.read.return_value = json.dumps([{
+            "id": "client-uuid",
+            "clientId": "clinic-web",
+            "attributes": {},
+            "protocolMappers": [{"name": "api-audience"}],
+        }]).encode("utf-8")
+        post_response = MagicMock()
+        post_response.__enter__.return_value = post_response
+        opener.open.side_effect = [
+            list_response,
+            post_response,
+            post_response,
+            post_response,
+            post_response,
+        ]
+
+        kc_reg.ensure_profile_claim_mappers(opener, "http://keycloak:8080", "tok")
+
+        self.assertEqual(opener.open.call_count, 5)
+        created_names = set()
+        for call in opener.open.call_args_list[1:]:
+            req = call.args[0]
+            self.assertEqual(req.get_method(), "POST")
+            self.assertTrue(req.full_url.endswith("/clients/client-uuid/protocol-mappers/models"))
+            created_names.add(json.loads(req.data.decode("utf-8"))["name"])
+        self.assertEqual(
+            created_names,
+            {
+                "profile-phone-number",
+                "profile-birth-date",
+                "profile-hometown",
+                "profile-permanent-address",
+            },
+        )
+
+    def test_ensure_profile_claim_mappers_skips_when_already_present(self):
+        opener = MagicMock()
+        list_response = MagicMock()
+        list_response.__enter__.return_value = list_response
+        list_response.read.return_value = json.dumps([{
+            "id": "client-uuid",
+            "clientId": "clinic-web",
+            "attributes": {},
+            "protocolMappers": [
+                {"name": name} for name, _ in kc_reg.PROFILE_ATTRIBUTE_MAPPERS
+            ],
+        }]).encode("utf-8")
+        opener.open.side_effect = [list_response]
+
+        kc_reg.ensure_profile_claim_mappers(opener, "http://keycloak:8080", "tok")
+
+        self.assertEqual(opener.open.call_count, 1)

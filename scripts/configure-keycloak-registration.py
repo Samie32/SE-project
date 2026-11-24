@@ -60,6 +60,71 @@ def build_realm_payload(smtp_server):
     return payload
 
 
+PROFILE_ATTRIBUTE_MAPPERS = [
+    ("profile-phone-number", "phoneNumber"),
+    ("profile-birth-date", "birthDate"),
+    ("profile-hometown", "hometown"),
+    ("profile-permanent-address", "permanentAddress"),
+]
+
+
+def ensure_profile_claim_mappers(opener, base, token, app_host=None):
+    """Ensure clinic-web exposes registration profile claims and matches APP_HOST redirects."""
+    clients_request = Request(
+        base + "/admin/realms/clinic/clients?clientId=clinic-web",
+        headers={"Authorization": "Bearer " + token},
+    )
+    with opener.open(clients_request, timeout=10) as response:
+        clients = json.load(response)
+    if len(clients) != 1:
+        return
+    client = clients[0]
+    mappers = list(client.get("protocolMappers") or [])
+    existing_names = {m.get("name") for m in mappers}
+    headers = {
+        "Authorization": "Bearer " + token,
+        "Content-Type": "application/json",
+    }
+
+    if app_host:
+        origin = "https://" + app_host
+        client["redirectUris"] = [origin + "/callback"]
+        client["webOrigins"] = [origin]
+        client.setdefault("attributes", {})["post.logout.redirect.uris"] = origin + "/login?loggedout=1"
+        update_request = Request(
+            base + "/admin/realms/clinic/clients/" + client["id"],
+            data=json.dumps(client).encode(),
+            headers=headers,
+            method="PUT",
+        )
+        with opener.open(update_request, timeout=10):
+            pass
+
+    mappers_url = base + "/admin/realms/clinic/clients/" + client["id"] + "/protocol-mappers/models"
+    for mapper_name, attr_name in PROFILE_ATTRIBUTE_MAPPERS:
+        if mapper_name in existing_names:
+            continue
+        mapper_payload = json.dumps({
+            "name": mapper_name,
+            "protocol": "openid-connect",
+            "protocolMapper": "oidc-usermodel-attribute-mapper",
+            "config": {
+                "user.attribute": attr_name,
+                "claim.name": attr_name,
+                "jsonType.label": "String",
+                "id.token.claim": "true",
+                "access.token.claim": "true",
+                "userinfo.token.claim": "true",
+            },
+        }).encode()
+        try:
+            with opener.open(Request(mappers_url, data=mapper_payload, headers=headers, method="POST"), timeout=10):
+                pass
+        except HTTPError as error:
+            if error.code != 409:
+                raise
+
+
 def configure_google_idp(opener, base, token, client_id, client_secret):
     """Create or update the Google OIDC identity provider in the clinic realm."""
     instance_url = base + "/admin/realms/clinic/identity-provider/instances/google"
@@ -159,30 +224,7 @@ def main():
                 with opener.open(profile_request, timeout=10):
                     pass
 
-            if app_host:
-                origin = "https://" + app_host
-                clients_request = Request(
-                    base + "/admin/realms/clinic/clients?clientId=clinic-web",
-                    headers={"Authorization": "Bearer " + token},
-                )
-                with opener.open(clients_request, timeout=10) as response:
-                    clients = json.load(response)
-                if len(clients) == 1:
-                    client = clients[0]
-                    client["redirectUris"] = [origin + "/callback"]
-                    client["webOrigins"] = [origin]
-                    client["attributes"]["post.logout.redirect.uris"] = origin + "/login?loggedout=1"
-                    update_request = Request(
-                        base + "/admin/realms/clinic/clients/" + client["id"],
-                        data=json.dumps(client).encode(),
-                        headers={
-                            "Authorization": "Bearer " + token,
-                            "Content-Type": "application/json",
-                        },
-                        method="PUT",
-                    )
-                    with opener.open(update_request, timeout=10):
-                        pass
+            ensure_profile_claim_mappers(opener, base, token, app_host=app_host)
 
             google_client_id = os.environ.get("GOOGLE_CLIENT_ID", "").strip()
             google_client_secret = os.environ.get("GOOGLE_CLIENT_SECRET", "").strip()

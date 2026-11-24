@@ -1,4 +1,4 @@
-import { cleanup, render, screen } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { MemoryRouter, Route, Routes, useLocation } from "react-router-dom";
 import { afterEach, expect, it, vi } from "vitest";
 import { Guard } from "@/auth/Guard";
@@ -54,4 +54,35 @@ it("vẫn trả 403 — Không đủ quyền khi người dùng đang đăng nh�
   expect(screen.getByText("403 — Không đủ quyền")).toBeTruthy();
   const link = screen.getByRole("link", { name: "Về trang của tôi" }) as HTMLAnchorElement;
   expect(link.getAttribute("href")).toBe("/staff");
+});
+
+it("hiển thị nút đăng xuất bên cạnh nút thử lại khi phiên gặp lỗi tài khoản bị khóa", () => {
+  const logout = vi.fn();
+  const retry = vi.fn();
+  render(
+    <MemoryRouter initialEntries={["/patient"]}>
+      <SessionContext.Provider
+        value={{
+          status: "error",
+          error: "Tài khoản đã bị vô hiệu hóa.",
+          identity: null,
+          roles: [],
+          displayName: "Patient",
+          can: () => false,
+          login: vi.fn(),
+          logout,
+          retry,
+        }}
+      >
+        <Guard>
+          <div>Hidden</div>
+        </Guard>
+      </SessionContext.Provider>
+    </MemoryRouter>,
+  );
+  expect(screen.getByText("Tài khoản đã bị vô hiệu hóa.")).toBeTruthy();
+  fireEvent.click(screen.getByRole("button", { name: "Thử lại" }));
+  fireEvent.click(screen.getByRole("button", { name: "Đăng xuất / Đổi tài khoản" }));
+  expect(retry).toHaveBeenCalledTimes(1);
+  expect(logout).toHaveBeenCalledTimes(1);
 });

@@ -47,7 +47,7 @@ def main():
     opener = build_opener(HTTPCookieProcessor(cookies), StopAtCallback())
     with opener.open('http://localhost:8180/realms/clinic/protocol/openid-connect/auth?' + query, timeout=15) as res:
         page = res.read().decode()
-    assert 'Nhập thông tin để tiếp tục đến cổng bệnh nhân.' in page, 'Branded login not rendered'
+    assert 'Đăng nhập bằng tài khoản bệnh nhân hoặc tài khoản nhân sự phòng khám.' in page, 'Branded login not rendered'
     assert 'name="username"' in page and 'name="password"' in page, 'Credentials form missing'
     assert 'Đăng nhập an toàn' not in page, 'Intermediate login copy still present'
     assert 'rememberMe' in page, 'Remember-me option missing'

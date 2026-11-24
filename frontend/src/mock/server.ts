@@ -132,9 +132,10 @@ on("DELETE", "/clinic/holidays/:id", (c) => {
 });
 
 
-on("GET", "/me", (c) => ({ id: c.actor.id, roles: c.actor.roles }));
-on("GET", "/me/profile", c => {
-  const u = user(c.db, c.actor.id);
+const PERSONAL_INFO_COOLDOWN_MS = 90 * 24 * 60 * 60 * 1000;
+const buildProfileResponse = (c: Ctx, u: MUser | undefined) => {
+  const updatedAt = u?.personalInfoUpdatedAt ?? null;
+  const nextEditMs = updatedAt ? Date.parse(updatedAt) + PERSONAL_INFO_COOLDOWN_MS : 0;
   return {
     id: c.actor.id,
     username: u ? mockUsername(u) : null,
@@ -142,10 +143,50 @@ on("GET", "/me/profile", c => {
     displayName: u?.name ?? "",
     email: u?.email ?? null,
     phone: u?.phone ?? null,
+    birthDate: u?.birthDate ?? null,
+    hometown: u?.hometown ?? null,
+    permanentAddress: u?.permanentAddress ?? null,
+    personalInfoUpdatedAt: updatedAt,
+    personalInfoNextEditAt: updatedAt && nextEditMs > c.now ? new Date(nextEditMs).toISOString() : null,
     active: true,
     patientId: c.actor.roles.includes("PATIENT") ? c.actor.id : null,
     doctorId: c.db.doctors.find(d => d.userId === c.actor.id)?.id ?? null,
   };
+};
+
+on("GET", "/me", (c) => ({ id: c.actor.id, roles: c.actor.roles }));
+on("GET", "/me/profile", c => buildProfileResponse(c, user(c.db, c.actor.id)));
+on("PUT", "/me/profile", (c) => {
+  const u = user(c.db, c.actor.id);
+  need(u, 404, "Resource not found");
+  const rawBirth = typeof c.body?.birthDate === "string" ? c.body.birthDate.trim() : "";
+  if (rawBirth) {
+    need(/^\d{4}-(0[1-9]|1[0-2])-(0[1-9]|[12][0-9]|3[01])$/.test(rawBirth) && rawBirth >= "1900-01-01" && rawBirth <= dayKey(new Date(c.now)), 400, "Invalid birth date");
+  }
+  const rawHometown = typeof c.body?.hometown === "string" ? c.body.hometown.trim() : "";
+  const rawPermanent = typeof c.body?.permanentAddress === "string" ? c.body.permanentAddress.trim() : "";
+  need(rawHometown.length <= 255 && rawPermanent.length <= 255, 400, "Invalid request");
+  const nextBirth = rawBirth || null;
+  const nextHometown = rawHometown || null;
+  const nextPermanent = rawPermanent || null;
+  const curBirth = u!.birthDate ?? null;
+  const curHometown = u!.hometown ?? null;
+  const curPermanent = u!.permanentAddress ?? null;
+  const anyChange = nextBirth !== curBirth || nextHometown !== curHometown || nextPermanent !== curPermanent;
+  if (!anyChange) return buildProfileResponse(c, u);
+  const changingExisting =
+    (curBirth !== null && nextBirth !== curBirth) ||
+    (curHometown !== null && nextHometown !== curHometown) ||
+    (curPermanent !== null && nextPermanent !== curPermanent);
+  if (changingExisting && u!.personalInfoUpdatedAt) {
+    need(c.now >= Date.parse(u!.personalInfoUpdatedAt) + PERSONAL_INFO_COOLDOWN_MS, 409, "Personal profile can only be changed once every 90 days");
+  }
+  u!.birthDate = nextBirth;
+  u!.hometown = nextHometown;
+  u!.permanentAddress = nextPermanent;
+  if (changingExisting) u!.personalInfoUpdatedAt = new Date(c.now).toISOString();
+  audit(c.db, c.actor.id, "PROFILE_UPDATED", c.actor.id, c.now);
+  return buildProfileResponse(c, u);
 });
 on("GET", "/appointments/:id", c => {
   const a=find(c.db.appts,c.params[0]);

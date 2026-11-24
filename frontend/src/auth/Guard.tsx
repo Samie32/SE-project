@@ -21,7 +21,15 @@ export function Guard({ permission, children }: { permission?: Permission; child
   if (status === "anonymous")
     return <FullPageMessage text={error} error action={{ label: "Đăng nhập lại", onClick: () => login(location.pathname) }} />;
   if (status === "error")
-    return <FullPageMessage text={error || "Không tải được thông tin tài khoản."} error action={{ label: "Thử lại", onClick: retry }} />;
+    return (
+      <FullPageMessage
+        title="Không thể truy cập tài khoản"
+        text={error || "Không tải được thông tin tài khoản."}
+        error
+        action={{ label: "Thử lại", onClick: retry }}
+        secondaryAction={{ label: "Đăng xuất / Đổi tài khoản", onClick: logout }}
+      />
+    );
   if (roles.length === 0)
     return (
       <FullPageMessage

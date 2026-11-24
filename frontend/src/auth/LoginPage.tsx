@@ -19,24 +19,29 @@ export function LoginPage() {
 
   if (status === "ready") return <Navigate to="/" replace />;
   if (status === "loading") return <FullPageMessage text="Đang xác thực…" busy />;
+  if (loggedOut && !error) {
+    return (
+      <FullPageMessage
+        title="Bạn đã đăng xuất"
+        text="Phiên làm việc trên thiết bị này đã kết thúc an toàn. Bạn có thể đăng nhập lại bằng tài khoản bệnh nhân hoặc nhân sự phòng khám."
+        action={{ label: "Đăng nhập lại", onClick: () => login("/") }}
+      />
+    );
+  }
   return (
     <FullPageMessage
-      text={error || (loggedOut ? "Bạn đã đăng xuất khỏi ClinicCare." : "Đang mở trang đăng nhập…")}
+      title={error ? "Đăng nhập chưa hoàn tất" : undefined}
+      text={error || "Đang mở trang đăng nhập…"}
       error={!!error}
-      busy={!error && !loggedOut}
+      busy={!error}
       action={{ label: "Đăng nhập", onClick: () => login("/") }}
-    >
-      {status === "error" && (
-        <button className="btn block" onClick={retry}>
-          Thử lại
-        </button>
-      )}
-    </FullPageMessage>
+      secondaryAction={status === "error" ? { label: "Thử lại", onClick: retry } : undefined}
+    />
   );
 }
 
 export function CallbackPage() {
-  const { status, error, login, retry } = useSession();
+  const { status, error, login, retry, logout } = useSession();
 
   if (status === "ready") return <Navigate to="/" replace />;
   if (status === "loading" && !error) {
@@ -45,9 +50,11 @@ export function CallbackPage() {
   if (status === "error") {
     return (
       <FullPageMessage
+        title="Không thể hoàn tất đăng nhập"
         text={error || "Không tải được thông tin tài khoản."}
         error
         action={{ label: "Thử lại", onClick: retry }}
+        secondaryAction={{ label: "Đăng xuất / Đổi tài khoản", onClick: logout }}
       />
     );
   }

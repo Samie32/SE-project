@@ -15,6 +15,11 @@ export interface Identity {
   displayName?: string;
   email?: string | null;
   phone?: string | null;
+  birthDate?: string | null;
+  hometown?: string | null;
+  permanentAddress?: string | null;
+  personalInfoUpdatedAt?: string | null;
+  personalInfoNextEditAt?: string | null;
   active?: boolean | number;
   attributes?: Record<string, unknown> | null;
   [extra: string]: unknown;

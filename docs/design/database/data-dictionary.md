@@ -1,12 +1,12 @@
-# Mô hình dữ liệu logic & Từ điển dữ liệu (MySQL 8.4 — V1..V12)
+# Mô hình dữ liệu logic & Từ điển dữ liệu (MySQL 8.4 — V1..V13)
 
-Mô hình dữ liệu thực tế gồm **26 bảng InnoDB** được quản lý tuần tự qua Flyway `V1` đến `V12`. Sơ đồ xem tại [erd.png](erd.png) và 3 góc nhìn [đặt lịch](erd-scheduling.png), [lâm sàng](erd-clinical.png), [hạ tầng](erd-infrastructure.png).
+Mô hình dữ liệu thực tế gồm **26 bảng InnoDB** được quản lý tuần tự qua Flyway `V1` đến `V13`. Sơ đồ xem tại [erd.png](erd.png) và 3 góc nhìn [đặt lịch](erd-scheduling.png), [lâm sàng](erd-clinical.png), [hạ tầng](erd-infrastructure.png).
 
 ## Danh mục 26 thực thể và ràng buộc
 
-| Bảng (`V1..V12`) | Khóa và thuộc tính chính | Ràng buộc và phân hệ quản lý |
+| Bảng (`V1..V13`) | Khóa và thuộc tính chính | Ràng buộc và phân hệ quản lý |
 |---|---|---|
-| `user_account` (`V1,V4,V5,V8`) | `id` CHAR(36) PK, `issuer`, `subject`, `username`, `display_name`, `active`, `staff`, `email_encrypted`, `email_hash`, `phone_encrypted`, `phone_hash` | `UNIQUE(issuer, subject)`; `INDEX(email_hash)`, `INDEX(phone_hash)` (HMAC-SHA256 dẫn xuất riêng cho tra cứu chính xác); không lưu mật khẩu; `M01` |
+| `user_account` (`V1,V4,V5,V8,V13`) | `id` CHAR(36) PK, `issuer`, `subject`, `username`, `display_name`, `active`, `staff`, `email_encrypted`, `email_hash`, `phone_encrypted`, `phone_hash`, `birth_date`, `hometown_encrypted`, `permanent_address_encrypted`, `personal_info_updated_at` | `UNIQUE(issuer, subject)`; `INDEX(email_hash)`, `INDEX(phone_hash)` (HMAC-SHA256 dẫn xuất riêng cho tra cứu chính xác); `hometown_encrypted` & `permanent_address_encrypted` mã hóa AES-256-GCM; `personal_info_updated_at` kiểm soát giới hạn đổi thông tin cá nhân 90 ngày/lần; không lưu mật khẩu; `M01` |
 | `user_role` (`V1`) | `user_id` CHAR(36) PK/FK, `role` PK | `CHECK(role IN ('PATIENT','DOCTOR','RECEPTIONIST','ADMINISTRATOR','AUDITOR'))`; `M01` |
 | `contact_otp` (`V9`) | `actor_id` CHAR(36) PK/FK, `email_hash`, `otp_hash`, `expires_at`, `sent_at`, `attempts` | Mã OTP 6 số đổi email (TTL 300s, tối đa 5 lần sai), xóa ngay khi xác thực thành công hoặc hết hạn; `INDEX(expires_at)`, `INDEX(email_hash, sent_at)`; `M01` |
 | `contact_otp_send_log` (`V9`) | `id` CHAR(36) PK, `email_hash`, `sent_at` | Theo dõi cooldown 30s và ngưỡng tối đa 5 lượt/3600s theo email đích; `INDEX(email_hash, sent_at)`; `M01` |

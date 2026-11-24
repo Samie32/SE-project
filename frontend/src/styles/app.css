@@ -472,12 +472,24 @@ dl.detail dt { color: var(--muted); }
 dl.detail dd { margin: 0; overflow-wrap: anywhere; }
 
 /* ---------- Trang đăng nhập / trạng thái toàn trang ---------- */
-.fullpage { min-height: 100vh; display: grid; place-items: center; padding: 20px; }
-.loginbox { width: min(460px, 100%); background: #fff; border: 1px solid var(--line); border-radius: 18px; padding: 30px; box-shadow: var(--shadow); }
-.loginbox .brand { color: #0f2c3f; padding: 0 0 22px; }
-.loginbox .brand em { color: #00797b; }
-.loginbox h1 { font-size: 24px; margin: 0 0 8px; }
-.loginbox .btn { margin-top: 14px; }
+.fullpage {
+  min-height: 100vh;
+  display: grid;
+  place-items: center;
+  padding: 24px 16px;
+  background: radial-gradient(circle at top right, rgba(37, 99, 235, 0.06), transparent 45%), var(--bg);
+}
+.loginbox {
+  width: min(460px, 100%);
+  background: #fff;
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  padding: 32px 28px;
+  box-shadow: var(--shadow-md);
+}
+.loginbox .brand { color: #0f2c3f; padding: 0 0 18px; }
+.loginbox .brand em { color: #0f766e; }
+.loginbox h1 { font-size: 23px; font-weight: 800; letter-spacing: -0.4px; margin: 0 0 12px; color: var(--ink); }
 
 /* ---------- Thẻ lịch hẹn ---------- */
 .appt { display: grid; grid-template-columns: 62px minmax(0, 1fr) auto auto; gap: 16px; align-items: center; padding: 14px 4px; border-bottom: 1px solid #edf1f6; }

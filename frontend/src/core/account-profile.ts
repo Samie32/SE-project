@@ -32,14 +32,19 @@ const SYSTEM_IDENTITY_KEYS = new Set([
   "subject",
   "createdAt",
   "updatedAt",
+  "personalInfoUpdatedAt",
+  "personalInfoNextEditAt",
   "attributes",
 ]);
 
 const FIELD_META: Record<string, { label: string; shortLabel: string; important?: boolean }> = {
   email: { label: "Email nhận thông báo", shortLabel: "email", important: true },
   phone: { label: "Số điện thoại", shortLabel: "số điện thoại" },
+  birthDate: { label: "Ngày sinh", shortLabel: "ngày sinh" },
   dateOfBirth: { label: "Ngày sinh", shortLabel: "ngày sinh" },
   dob: { label: "Ngày sinh", shortLabel: "ngày sinh" },
+  hometown: { label: "Quê quán", shortLabel: "quê quán" },
+  permanentAddress: { label: "Địa chỉ thường trú", shortLabel: "địa chỉ thường trú" },
   gender: { label: "Giới tính", shortLabel: "giới tính" },
   address: { label: "Địa chỉ", shortLabel: "địa chỉ" },
   nationalId: { label: "CCCD / CMND", shortLabel: "CCCD/CMND" },
@@ -68,7 +73,12 @@ function describeField(key: string) {
   return { label, shortLabel: label.toLowerCase(), important: false };
 }
 
-function formatFieldValue(value: unknown): string | null {
+function formatDateDisplay(value: string): string {
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value.trim());
+  return match ? `${match[3]}/${match[2]}/${match[1]}` : value;
+}
+
+function formatFieldValue(value: unknown, key?: string): string | null {
   if (value === null || value === undefined) return null;
   if (Array.isArray(value)) {
     const items = value
@@ -81,12 +91,16 @@ function formatFieldValue(value: unknown): string | null {
     return Object.keys(value as Record<string, unknown>).length > 0 ? JSON.stringify(value) : null;
   }
   const text = String(value).trim();
-  return text.length > 0 ? text : null;
+  if (!text) return null;
+  if (key === "birthDate" || key === "dateOfBirth" || key === "dob") {
+    return formatDateDisplay(text);
+  }
+  return text;
 }
 
 function buildField(key: string, value: unknown, isExtra: boolean): ProfileFieldInfo {
   const meta = describeField(key);
-  const displayValue = formatFieldValue(value);
+  const displayValue = formatFieldValue(value, key);
   return {
     key,
     label: meta.label,

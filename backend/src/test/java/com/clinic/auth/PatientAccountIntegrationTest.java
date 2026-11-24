@@ -161,6 +161,8 @@ class PatientAccountIntegrationTest {
     // Reject partial/name queries and non-matching values.
     mvc.perform(get(PATH + "lookup").param("q", "Test Patient").with(admin.token()))
         .andExpect(status().isBadRequest());
+    mvc.perform(get(PATH + "lookup").param("q", "+14155551234").with(admin.token()))
+        .andExpect(status().isBadRequest());
     mvc.perform(get(PATH + "lookup").param("q", "0901234568").with(admin.token()))
         .andExpect(status().isNotFound());
     mvc.perform(get(PATH + "lookup").param("q", "other@example.test").with(admin.token()))
@@ -239,6 +241,12 @@ class PatientAccountIntegrationTest {
     mvc.perform(get("/api/me/profile").with(patient.token()))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.phone").value("0988776655"));
+
+    // Non-Vietnam phone numbers are rejected.
+    mvc.perform(put("/api/me/contact").with(patient.token())
+        .contentType("application/json")
+        .content("{\"email\":\"verified@example.test\",\"phone\":\"+14155551234\"}"))
+        .andExpect(status().isBadRequest());
 
     // Shared family phone across two patient accounts returns 409 on lookup.
     String otherOtp = requestAndCaptureOtp(otherPatient.token(), "family.member@example.test");
@@ -322,6 +330,67 @@ class PatientAccountIntegrationTest {
         .record(admin.id(), "PATIENT_ACCOUNT_LOCKED_SECURITY_REVIEW", patient.id());
     mvc.perform(change(patient.id(), LOCK)).andExpect(status().isServiceUnavailable());
     mvc.perform(get("/api/me").with(patient.token())).andExpect(status().isOk());
+  }
+
+  @Test
+  void syncsRegistrationClaimsToProfileAndEnforces90DayCooldownOnPersonalChanges() throws Exception {
+    String registeredSubject = Db.id();
+    RequestPostProcessor registeredToken = jwt().jwt(j -> j
+        .issuer(ISSUER)
+        .subject(registeredSubject)
+        .claim("preferred_username", "newpatient@example.test")
+        .claim("name", "Nguyễn Văn An")
+        .claim("email", "newpatient@example.test")
+        .claim("phoneNumber", "+84 912 345 678")
+        .claim("birthDate", "1998-04-20")
+        .claim("hometown", "Nghệ An")
+        .claim("permanentAddress", "Quận 7, TP.HCM"));
+
+    mvc.perform(get("/api/me/profile").with(registeredToken))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.phone").value("0912345678"))
+        .andExpect(jsonPath("$.birthDate").value("1998-04-20"))
+        .andExpect(jsonPath("$.hometown").value("Nghệ An"))
+        .andExpect(jsonPath("$.permanentAddress").value("Quận 7, TP.HCM"))
+        .andExpect(jsonPath("$.personalInfoNextEditAt").isEmpty());
+
+    // First modification of existing personal info succeeds once and starts 90-day cooldown.
+    mvc.perform(put("/api/me/profile").with(registeredToken)
+        .contentType("application/json")
+        .content("""
+            {"birthDate":"1998-04-20","hometown":"Hà Tĩnh","permanentAddress":"Quận 7, TP.HCM"}
+            """))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.hometown").value("Hà Tĩnh"))
+        .andExpect(jsonPath("$.personalInfoUpdatedAt").isNotEmpty())
+        .andExpect(jsonPath("$.personalInfoNextEditAt").isNotEmpty());
+
+    // Second modification within 90 days is rejected with 409 Conflict.
+    mvc.perform(put("/api/me/profile").with(registeredToken)
+        .contentType("application/json")
+        .content("""
+            {"birthDate":"1998-04-20","hometown":"Đà Nẵng","permanentAddress":"Quận 7, TP.HCM"}
+            """))
+        .andExpect(status().isConflict());
+
+    // First-time filling of previously empty personal fields does not lock future edits.
+    mvc.perform(put("/api/me/profile").with(patient.token())
+        .contentType("application/json")
+        .content("""
+            {"birthDate":"2000-01-10"}
+            """))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.birthDate").value("2000-01-10"))
+        .andExpect(jsonPath("$.personalInfoNextEditAt").isEmpty());
+
+    mvc.perform(put("/api/me/profile").with(patient.token())
+        .contentType("application/json")
+        .content("""
+            {"birthDate":"2000-01-10","hometown":"Huế"}
+            """))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.hometown").value("Huế"))
+        .andExpect(jsonPath("$.personalInfoNextEditAt").isEmpty());
   }
 
   private MockHttpServletRequestBuilder change(String id, String body) {

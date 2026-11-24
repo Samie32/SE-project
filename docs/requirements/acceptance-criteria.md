@@ -32,10 +32,15 @@ Scenario: Khóa tạm khi nhập sai mật khẩu 5 lần
   When nhập sai mật khẩu liên tiếp 5 lần trong 15 phút
   Then Keycloak tạm khóa đăng nhập mật khẩu (60–900 giây), giữ mở khóa khẩn cấp qua luồng "Quên mật khẩu?"
 
-Scenario: Đổi email nhận thông báo phải xác thực OTP 6 chữ số
+Scenario: Đổi email nhận thông báo phải xác thực OTP 6 chữ số và chỉ nhận SĐT Việt Nam 10 chữ số
   Given người dùng đã đăng nhập mở chế độ chỉnh sửa tại "Tài khoản của tôi"
-  When đổi sang địa chỉ email mới
-  Then hệ thống yêu cầu gửi OTP 6 chữ số (TTL 300 giây, cooldown 30 giây, tối đa 5 lần sai) tới email mới trước khi lưu; nếu chỉ sửa số điện thoại và giữ nguyên email hiện tại thì lưu trực tiếp không cần OTP
+  When đổi sang địa chỉ email mới hoặc cập nhật số điện thoại
+  Then hệ thống yêu cầu gửi OTP 6 chữ số (TTL 300 giây, cooldown 30 giây, tối đa 5 lần sai) tới email mới trước khi lưu; nếu chỉ sửa số điện thoại (đúng chuẩn di động Việt Nam 10 chữ số 03/05/07/08/09) và giữ nguyên email hiện tại thì lưu trực tiếp không cần OTP
+
+Scenario: Đồng bộ thông tin đăng ký sang Trang Tài khoản và giới hạn sửa thông tin nhân thân 90 ngày/lần
+  Given bệnh nhân vừa đăng ký kèm số điện thoại, ngày sinh, quê quán, địa chỉ thường trú
+  When đăng nhập và truy cập "Tài khoản của tôi" (/account)
+  Then hệ thống tự động đồng bộ và hiển thị đầy đủ các thông tin này; việc bổ sung trường còn trống không bị giới hạn, còn thay đổi thông tin nhân thân đã điền chỉ được thực hiện tối đa 1 lần mỗi 90 ngày (trả 409 Conflict nếu chưa hết hạn)
 ```
 
 ## AC-02 — Phân quyền

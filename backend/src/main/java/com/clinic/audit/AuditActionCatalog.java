@@ -54,6 +54,7 @@ public final class AuditActionCatalog {
           Map.entry("PROFILE_READ", "Xem hồ sơ cá nhân"),
           Map.entry("CONTACT_OTP_SENT", "Gửi mã OTP xác thực email"),
           Map.entry("CONTACT_UPDATED", "Cập nhật thông tin liên hệ"),
+          Map.entry("PROFILE_UPDATED", "Cập nhật thông tin cá nhân"),
           Map.entry("USERS_READ", "Xem danh sách nhân sự"),
           Map.entry("STAFF_CREATED", "Tạo tài khoản nhân sự"),
           Map.entry("STAFF_UPDATED", "Cập nhật tài khoản nhân sự"),

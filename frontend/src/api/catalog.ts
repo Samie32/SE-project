@@ -1,6 +1,6 @@
 import { api, qs } from "@/core/client";
 import { asBool } from "@/core/labels";
-import type { Doctor, DoctorRow, DoctorUpdateInput, Role, Specialty } from "@/core/types";
+import type { Doctor, DoctorRow, DoctorUpdateInput, Identity, Role, Specialty } from "@/core/types";
 
 export async function listSpecialties(includeInactive = false): Promise<Specialty[]> {
   const rows = await api.get<Specialty[]>(`/specialties${includeInactive ? "?includeInactive=true" : ""}`);
@@ -76,3 +76,10 @@ export const updateContact = (email: string, phone?: string, otp?: string) =>
     ...(phone ? { phone } : {}),
     ...(otp ? { otp } : {}),
   });
+
+// PUT /api/me/profile — chủ tài khoản (giới hạn đổi thông tin đã điền 1 lần / 90 ngày).
+export const updatePersonalProfile = (body: {
+  birthDate?: string | null;
+  hometown?: string | null;
+  permanentAddress?: string | null;
+}) => api.put<Identity>("/me/profile", body);

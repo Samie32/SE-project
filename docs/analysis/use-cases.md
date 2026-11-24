@@ -23,7 +23,7 @@ Tài liệu áp dụng mẫu **Fully Dressed Use Case của Alistair Cockburn** 
 **Luồng thay thế**
 
 - **Quên mật khẩu:** Người dùng chọn *Quên mật khẩu?*, nhập tài khoản/email; hệ thống hiển thị thông báo trung tính và gửi liên kết đặt lại mật khẩu một lần qua SMTP nếu tài khoản tồn tại. Đặt lại thành công đồng thời mở khóa nếu tài khoản đang bị khóa tạm.
-- **Cập nhật liên hệ & đổi mật khẩu:** Tại *Tài khoản của tôi*, người dùng mở chế độ chỉnh sửa; khi đổi sang email mới phải xác nhận OTP 6 chữ số gửi tới email mới (cập nhật chỉ SĐT không cần OTP). Có nút *Đổi mật khẩu* gọi luồng Keycloak `UPDATE_PASSWORD`.
+- **Cập nhật liên hệ, hồ sơ cá nhân & đổi mật khẩu:** Tại *Tài khoản của tôi* (`/account`), người dùng mở chỉnh sửa **Thông tin liên hệ** (khi đổi sang email mới phải xác nhận OTP 6 chữ số; sửa chỉ SĐT di động Việt Nam 10 chữ số không cần OTP) hoặc **Thông tin cá nhân** (`birthDate`, `hometown`, `permanentAddress` đồng bộ từ đăng ký; bổ sung trường còn trống tự do, sửa thông tin đã điền giới hạn 1 lần / 90 ngày). Nút *Đổi mật khẩu* mở luồng Keycloak AIA (`UPDATE_PASSWORD`) và quay thẳng về `/account` kèm thông báo thành công.
 
 **Ngoại lệ:** IdP lỗi, nhập sai mật khẩu 5 lần (khóa tạm 60–900 s), sai/hết hạn OTP hoặc tài khoản bị khóa → từ chối cập nhật / không tạo phiên; hiển thị thông báo tiếng Việt để thử lại hoặc khôi phục qua email.
 
@@ -583,7 +583,7 @@ Tài liệu áp dụng mẫu **Fully Dressed Use Case của Alistair Cockburn** 
 
 **Luồng chính**
 
-1. Quản trị viên nhập mã tài khoản (UUID), email hoặc SĐT (`+84`/`84` tự chuẩn hóa về `0`, 7–15 chữ số).
+1. Quản trị viên nhập mã tài khoản (UUID), email hoặc SĐT di động Việt Nam (`+84`/`84` tự chuẩn hóa về `0`, đủ 10 chữ số `03/05/07/08/09`).
 2. Hệ thống từ chối tìm theo tên (`400`); tra cứu theo chỉ mục mù HMAC-SHA256 (`email_hash` / `phone_hash`) hoặc UUID trên tập bệnh nhân (`staff=FALSE`, chỉ vai trò `PATIENT`).
 3. Hệ thống ghi audit `PATIENT_ACCOUNT_LOOKUP` và trả đúng 3 trường tối thiểu `{id, displayName, active}`.
 4. Khi Quản trị viên cập nhật trạng thái kèm lý do (`SECURITY_REVIEW`, `POLICY_REVIEW`, `PATIENT_REQUEST`), hệ thống cập nhật `active`, ghi audit và chặn JWT hiện hành ngay ở request kế tiếp (`403 Account disabled`).

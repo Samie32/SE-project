@@ -1,47 +1,80 @@
+<#ftl output_format="HTML" auto_esc=true>
 <!doctype html>
 <html lang="vi">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Đăng nhập tài khoản — ClinicCare</title>
-  <link rel="stylesheet" href="${url.resourcesPath}/css/cliniccare.css?v=2">
+  <link rel="stylesheet" href="${url.resourcesPath}/css/cliniccare.css?v=3">
+  <script src="${url.resourcesPath}/js/auth.js?v=3" defer></script>
 </head>
 <body>
 <#macro icon kind>
-<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-<#if kind == "logo"><path d="M6 3v5a4 4 0 0 0 8 0V3M4 3h4m4 0h4M10 12v3a5 5 0 0 0 10 0v-2"/><circle cx="20" cy="10" r="2"/>
-<#elseif kind == "user"><circle cx="12" cy="8" r="3"/><path d="M5 21v-3a7 7 0 0 1 14 0v3"/>
+<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+<#if kind == "user"><circle cx="12" cy="8" r="3.2"/><path d="M5 20.5v-2a6.5 6.5 0 0 1 14 0v2"/>
+<#elseif kind == "lock"><rect x="4" y="11" width="16" height="9" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/>
 <#elseif kind == "arrow"><path d="M5 12h14m-6-6 6 6-6 6"/>
-<#elseif kind == "info"><circle cx="12" cy="12" r="9"/><path d="M12 11v6m0-10v.1"/>
+<#elseif kind == "check"><path d="m5 12 4.5 4.5L19 7"/>
 <#else><path d="m12 3 8 4v5c0 5-8 9-8 9s-8-4-8-9V7z"/><path d="m8 12 3 3 5-6"/></#if>
 </svg>
 </#macro>
-<#macro logo><div class="brand"><span><@icon kind="logo" /></span><b>Clinic<em>Care</em></b></div></#macro>
+<#macro logo dark=false>
+  <div class="brand<#if dark> brand--dark</#if>">
+    <span class="brand-logo"><img src="${url.resourcesPath}/img/logo-icon.png" alt="" aria-hidden="true"></span>
+    <span class="brand-name">Clinic<em>Care</em></span>
+  </div>
+</#macro>
 <main class="login">
   <section class="visual">
     <@logo />
-    <div class="intro"><span class="eyebrow">CHĂM SÓC SỨC KHỎE CHỦ ĐỘNG</span><h1>Sức khỏe của bạn,<br>luôn trong tầm tay.</h1><p>Đặt lịch, theo dõi hồ sơ và kết nối với bác sĩ mọi lúc, mọi nơi.</p></div>
-    <small class="privacy"><@icon kind="shield" />Thông tin của bạn được bảo vệ trong hệ thống phòng khám</small>
+    <div class="intro">
+      <span class="eyebrow">HỆ THỐNG PHÒNG KHÁM &amp; KHÁM TỪ XA</span>
+      <h1>Chăm sóc sức khỏe,<br>kết nối đồng bộ.</h1>
+      <p>Nền tảng thống nhất dành cho bệnh nhân, bác sĩ và đội ngũ vận hành phòng khám.</p>
+      <ul class="visual-points">
+        <li><@icon kind="check" /> Đặt lịch trực tiếp &amp; khám từ xa theo thời gian thực</li>
+        <li><@icon kind="check" /> Hồ sơ bệnh án điện tử và đơn thuốc bảo mật</li>
+        <li><@icon kind="check" /> Tiếp đón, hàng đợi và điều phối ca khám minh bạch</li>
+      </ul>
+    </div>
+    <small class="privacy"><@icon kind="shield" />Phiên đăng nhập bảo vệ bằng OIDC PKCE và mã hóa dữ liệu chuẩn y tế</small>
   </section>
   <section class="form-panel">
     <div class="form-wrap">
-      <div class="mobile-brand"><@logo /></div>
-      <span class="eyebrow">CHÀO MỪNG TRỞ LẠI</span>
+      <div class="mobile-brand"><@logo dark=true /></div>
+      <span class="eyebrow">ĐĂNG NHẬP HỆ THỐNG</span>
       <h2>Đăng nhập tài khoản</h2>
-      <p class="subtitle">Nhập thông tin để tiếp tục đến cổng bệnh nhân.</p>
+      <p class="subtitle">Đăng nhập bằng tài khoản bệnh nhân hoặc tài khoản nhân sự phòng khám.</p>
       <#if messagesPerField.existsError('username','password')>
         <div class="alert error" role="alert">${kcSanitize(messagesPerField.getFirstError('username','password'))?no_esc}</div>
       <#elseif message?has_content>
         <div class="alert ${message.type}" role="alert">${kcSanitize(message.summary)?no_esc}</div>
       </#if>
       <#if realm.password>
-      <form id="kc-form-login" action="${url.loginAction}" method="post">
+      <form id="kc-form-login" action="${url.loginAction}" method="post" data-auth-form="1">
         <#if !usernameHidden??>
-        <label for="username">Tài khoản hoặc email</label>
-        <div class="input"><@icon kind="user" /><input id="username" name="username" type="text" value="${(login.username!'')}" autocomplete="username" autofocus required aria-invalid="${messagesPerField.existsError('username','password')?c}"></div>
+        <div class="field-group" style="margin-top:0">
+          <label for="username">Email hoặc tên đăng nhập</label>
+          <div class="input<#if messagesPerField.existsError('username','password')> is-invalid</#if>">
+            <@icon kind="user" />
+            <input id="username" name="username" type="text" value="${(login.username!'')}"
+                   placeholder="ten@example.com hoặc mã nhân sự"
+                   autocomplete="username" autofocus required
+                   aria-invalid="${messagesPerField.existsError('username','password')?c}">
+          </div>
+        </div>
         </#if>
-        <label for="password">Mật khẩu</label>
-        <div class="input"><@icon kind="shield" /><input id="password" name="password" type="password" autocomplete="current-password" required aria-invalid="${messagesPerField.existsError('username','password')?c}"></div>
+        <div class="field-group">
+          <label for="password">Mật khẩu</label>
+          <div class="input<#if messagesPerField.existsError('username','password')> is-invalid</#if>">
+            <@icon kind="lock" />
+            <input id="password" name="password" type="password"
+                   placeholder="Nhập mật khẩu của bạn"
+                   autocomplete="current-password" required
+                   aria-invalid="${messagesPerField.existsError('username','password')?c}">
+            <button type="button" class="pw-toggle" data-target="password" aria-label="Hiện mật khẩu" aria-pressed="false"></button>
+          </div>
+        </div>
         <div class="options">
           <#if realm.rememberMe && !usernameHidden??>
           <label class="remember"><input id="rememberMe" name="rememberMe" type="checkbox" <#if login.rememberMe??>checked</#if>>Ghi nhớ đăng nhập</label>
@@ -53,7 +86,9 @@
           </#if>
         </div>
         <input type="hidden" name="credentialId" <#if auth.selectedCredential?has_content>value="${auth.selectedCredential}"</#if>>
-        <button id="kc-login" name="login" type="submit">Đăng nhập <@icon kind="arrow" /></button>
+        <button id="kc-login" class="btn-primary" name="login" type="submit" data-loading-text="Đang đăng nhập…">
+          Đăng nhập <@icon kind="arrow" />
+        </button>
       </form>
       <#if social?? && social.providers?has_content>
         <div class="social-divider"><span>hoặc</span></div>
@@ -74,8 +109,9 @@
         </div>
       </#if>
       <#if realm.registrationAllowed && !registrationDisabled??>
-        <p class="account-link"><a href="${url.registrationUrl}">Tạo tài khoản</a></p>
+        <p class="account-link">Bạn là bệnh nhân mới? <a href="${url.registrationUrl}">Tạo tài khoản bệnh nhân</a></p>
       </#if>
+      <p class="role-note">Tài khoản bác sĩ và nhân sự do quản trị viên phòng khám cấp.</p>
       </#if>
     </div>
   </section>

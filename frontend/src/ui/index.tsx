@@ -569,30 +569,44 @@ export function useToast(): ToastApi {
 }
 
 export function FullPageMessage({
+  title,
   text,
   busy,
   error,
   action,
+  secondaryAction,
   children,
 }: {
+  title?: string;
   text: string;
   busy?: boolean;
   error?: boolean;
   action?: { label: string; onClick: () => void };
+  secondaryAction?: { label: string; onClick: () => void };
   children?: ReactNode;
 }) {
   return (
     <div className="fullpage">
       <div className="loginbox">
         <Logo dark />
+        {title && <h1>{title}</h1>}
         <div className={"notice" + (error ? " errbox" : "")} role={error ? "alert" : "status"} aria-busy={busy}>
           <div className="grow">{text}</div>
         </div>
         {children}
-        {action && (
-          <button className="btn primary block" onClick={action.onClick}>
-            {action.label}
-          </button>
+        {(action || secondaryAction) && (
+          <div className="stack" style={{ gap: 10, marginTop: 14 }}>
+            {action && (
+              <button className="btn primary block" onClick={action.onClick}>
+                {action.label}
+              </button>
+            )}
+            {secondaryAction && (
+              <button className="btn block" onClick={secondaryAction.onClick}>
+                {secondaryAction.label}
+              </button>
+            )}
+          </div>
         )}
       </div>
     </div>

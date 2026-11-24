@@ -2808,6 +2808,35 @@
           "FR-02"
         ],
         "x-access": "Chủ tài khoản"
+      },
+      "put": {
+        "tags": [
+          "M01"
+        ],
+        "operationId": "updateMyPersonalProfile",
+        "summary": "Cập nhật thông tin cá nhân đồng bộ trên /account",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PersonalProfile"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UserProfile"
+                }
+              }
+            }
+          }
+        }
       }
     },
     "/notification-jobs": {
@@ -5245,6 +5274,13 @@
             "type": "string",
             "format": "uuid"
           },
+          "username": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "maxLength": 255
+          },
           "displayName": {
             "type": "string",
             "minLength": 1,
@@ -5274,6 +5310,56 @@
               "null"
             ],
             "format": "uuid"
+          },
+          "email": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "email",
+            "maxLength": 254
+          },
+          "phone": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "pattern": "^0(3|5|7|8|9)[0-9]{8}$"
+          },
+          "birthDate": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date"
+          },
+          "hometown": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "maxLength": 255
+          },
+          "permanentAddress": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "maxLength": 255
+          },
+          "personalInfoUpdatedAt": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "personalInfoNextEditAt": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
           }
         },
         "required": [
@@ -5283,17 +5369,7 @@
           "roles",
           "patientId",
           "doctorId"
-        ],
-        "example": {
-          "id": "00000000-0000-4000-8000-000000000001",
-          "displayName": "Bệnh nhân mô phỏng",
-          "active": true,
-          "roles": [
-            "PATIENT"
-          ],
-          "patientId": "00000000-0000-4000-8000-000000000001",
-          "doctorId": null
-        }
+        ]
       },
       "UserSummary": {
         "type": "object",
@@ -6241,105 +6317,327 @@
       "AuditSummary": {
         "type": "object",
         "properties": {
-          "totalEvents": { "type": "integer", "minimum": 0 },
-          "deniedEvents": { "type": "integer", "minimum": 0 },
-          "failureEvents": { "type": "integer", "minimum": 0 },
-          "accessControlEvents": { "type": "integer", "minimum": 0 },
-          "recordAmendedEvents": { "type": "integer", "minimum": 0 },
-          "systemEvents": { "type": "integer", "minimum": 0 },
-          "chainedEvents": { "type": "integer", "minimum": 0 },
-          "legacyUnchainedEvents": { "type": "integer", "minimum": 0 },
-          "latestEventAt": { "type": ["string", "null"], "format": "date-time" }
+          "totalEvents": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "deniedEvents": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "failureEvents": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "accessControlEvents": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "recordAmendedEvents": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "systemEvents": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "chainedEvents": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "legacyUnchainedEvents": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "latestEventAt": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          }
         },
         "required": [
-          "totalEvents", "deniedEvents", "failureEvents", "accessControlEvents",
-          "recordAmendedEvents", "systemEvents", "chainedEvents", "legacyUnchainedEvents", "latestEventAt"
+          "totalEvents",
+          "deniedEvents",
+          "failureEvents",
+          "accessControlEvents",
+          "recordAmendedEvents",
+          "systemEvents",
+          "chainedEvents",
+          "legacyUnchainedEvents",
+          "latestEventAt"
         ]
       },
       "AuditExportResponse": {
         "type": "object",
         "properties": {
-          "filename": { "type": "string" },
-          "contentType": { "type": "string" },
-          "exportedAt": { "type": "string", "format": "date-time" },
-          "rowCount": { "type": "integer", "minimum": 0 },
-          "maxRows": { "type": "integer", "minimum": 1 },
-          "truncated": { "type": "boolean" },
-          "contentSha256": { "type": "string", "minLength": 64, "maxLength": 64 },
-          "csv": { "type": "string" }
+          "filename": {
+            "type": "string"
+          },
+          "contentType": {
+            "type": "string"
+          },
+          "exportedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "rowCount": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "maxRows": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "truncated": {
+            "type": "boolean"
+          },
+          "contentSha256": {
+            "type": "string",
+            "minLength": 64,
+            "maxLength": 64
+          },
+          "csv": {
+            "type": "string"
+          }
         },
         "required": [
-          "filename", "contentType", "exportedAt", "rowCount", "maxRows", "truncated", "contentSha256", "csv"
+          "filename",
+          "contentType",
+          "exportedAt",
+          "rowCount",
+          "maxRows",
+          "truncated",
+          "contentSha256",
+          "csv"
         ]
       },
       "AuditIntegrityReport": {
         "type": "object",
         "properties": {
-          "status": { "type": "string", "enum": ["VERIFIED", "TAMPERED", "LEGACY_ONLY"] },
-          "algorithm": { "type": "string" },
-          "verifiedAt": { "type": "string", "format": "date-time" },
-          "checkedCount": { "type": "integer", "minimum": 0 },
-          "totalChainedCount": { "type": "integer", "minimum": 0 },
-          "legacyUnchainedCount": { "type": "integer", "minimum": 0 },
-          "truncated": { "type": "boolean" },
-          "headSeq": { "type": "integer", "minimum": 0 },
-          "headHash": { "type": "string", "minLength": 64, "maxLength": 64 },
-          "firstBrokenSeq": { "type": ["integer", "null"] },
-          "firstBrokenEventId": { "type": ["string", "null"] },
-          "mismatchReason": { "type": ["string", "null"] }
+          "status": {
+            "type": "string",
+            "enum": [
+              "VERIFIED",
+              "TAMPERED",
+              "LEGACY_ONLY"
+            ]
+          },
+          "algorithm": {
+            "type": "string"
+          },
+          "verifiedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "checkedCount": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "totalChainedCount": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "legacyUnchainedCount": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "truncated": {
+            "type": "boolean"
+          },
+          "headSeq": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "headHash": {
+            "type": "string",
+            "minLength": 64,
+            "maxLength": 64
+          },
+          "firstBrokenSeq": {
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "firstBrokenEventId": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "mismatchReason": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
         },
         "required": [
-          "status", "algorithm", "verifiedAt", "checkedCount", "totalChainedCount",
-          "legacyUnchainedCount", "truncated", "headSeq", "headHash"
+          "status",
+          "algorithm",
+          "verifiedAt",
+          "checkedCount",
+          "totalChainedCount",
+          "legacyUnchainedCount",
+          "truncated",
+          "headSeq",
+          "headHash"
         ]
       },
       "ArchiveAuditRequest": {
         "type": "object",
         "properties": {
-          "before": { "type": ["string", "null"], "format": "date-time" },
-          "notes": { "type": ["string", "null"], "maxLength": 500 }
+          "before": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "notes": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "maxLength": 500
+          }
         }
       },
       "AuditArchiveBatch": {
         "type": "object",
         "properties": {
-          "id": { "type": "string", "format": "uuid" },
-          "fromCreatedAt": { "type": "string", "format": "date-time" },
-          "toCreatedAt": { "type": "string", "format": "date-time" },
-          "eventCount": { "type": "integer", "minimum": 1 },
-          "firstChainSeq": { "type": ["integer", "null"] },
-          "lastChainSeq": { "type": ["integer", "null"] },
-          "batchHash": { "type": "string", "minLength": 64, "maxLength": 64 },
-          "retentionDays": { "type": "integer", "minimum": 1 },
-          "createdBy": { "type": ["string", "null"], "format": "uuid" },
-          "createdAt": { "type": "string", "format": "date-time" },
-          "notes": { "type": ["string", "null"] }
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "fromCreatedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "toCreatedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "eventCount": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "firstChainSeq": {
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "lastChainSeq": {
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "batchHash": {
+            "type": "string",
+            "minLength": 64,
+            "maxLength": 64
+          },
+          "retentionDays": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "createdBy": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "notes": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
         },
         "required": [
-          "id", "fromCreatedAt", "toCreatedAt", "eventCount", "batchHash", "retentionDays", "createdAt"
+          "id",
+          "fromCreatedAt",
+          "toCreatedAt",
+          "eventCount",
+          "batchHash",
+          "retentionDays",
+          "createdAt"
         ]
       },
       "AuditRetentionStatus": {
         "type": "object",
         "properties": {
-          "hotRetentionDays": { "type": "integer", "minimum": 1 },
-          "archiveRetentionDays": { "type": "integer", "minimum": 1 },
-          "exportMaxRows": { "type": "integer", "minimum": 1 },
-          "deletionPolicy": { "type": "string" },
-          "totalEvents": { "type": "integer", "minimum": 0 },
-          "oldestEventAt": { "type": ["string", "null"], "format": "date-time" },
-          "newestEventAt": { "type": ["string", "null"], "format": "date-time" },
-          "eligibleForArchiveCount": { "type": "integer", "minimum": 0 },
-          "archiveCutoffAt": { "type": "string", "format": "date-time" },
-          "archiveBatchCount": { "type": "integer", "minimum": 0 },
+          "hotRetentionDays": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "archiveRetentionDays": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "exportMaxRows": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "deletionPolicy": {
+            "type": "string"
+          },
+          "totalEvents": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "oldestEventAt": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "newestEventAt": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "eligibleForArchiveCount": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "archiveCutoffAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "archiveBatchCount": {
+            "type": "integer",
+            "minimum": 0
+          },
           "recentBatches": {
             "type": "array",
-            "items": { "$ref": "#/components/schemas/AuditArchiveBatch" }
+            "items": {
+              "$ref": "#/components/schemas/AuditArchiveBatch"
+            }
           }
         },
         "required": [
-          "hotRetentionDays", "archiveRetentionDays", "exportMaxRows", "deletionPolicy",
-          "totalEvents", "eligibleForArchiveCount", "archiveCutoffAt", "archiveBatchCount", "recentBatches"
+          "hotRetentionDays",
+          "archiveRetentionDays",
+          "exportMaxRows",
+          "deletionPolicy",
+          "totalEvents",
+          "eligibleForArchiveCount",
+          "archiveCutoffAt",
+          "archiveBatchCount",
+          "recentBatches"
         ]
       },
       "ProblemDetail": {
@@ -6968,6 +7266,32 @@
         "required": [
           "version"
         ]
+      },
+      "PersonalProfile": {
+        "type": "object",
+        "properties": {
+          "birthDate": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "pattern": "^$|^[0-9]{4}-(0[1-9]|1[0-2])-(0[1-9]|[12][0-9]|3[01])$"
+          },
+          "hometown": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "maxLength": 255
+          },
+          "permanentAddress": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "maxLength": 255
+          }
+        }
       }
     },
     "securitySchemes": {

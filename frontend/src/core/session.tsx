@@ -60,10 +60,17 @@ export function OidcSessionProvider({ children }: { children: ReactNode }) {
       requestTimeoutInSeconds={20}
       automaticSilentRenew
       onSigninCallback={(user) => {
-        const from = (user as unknown as { state?: { from?: string } } | undefined)?.state?.from;
+        const userState = (user as unknown as { state?: { from?: string; action?: string } } | undefined)?.state;
+        const from = userState?.from;
+        const kcActionStatus = new URLSearchParams(window.location.search).get("kc_action_status");
+        const passwordActionStatus =
+          userState?.action === "update_password" ? (kcActionStatus ?? "success") : undefined;
         navigate(from && from.startsWith("/") && from !== "/login" ? from : "/", {
           replace: true,
-          state: { fromSignin: true },
+          state: {
+            fromSignin: true,
+            ...(passwordActionStatus ? { passwordActionStatus } : {}),
+          },
         });
       }}
     >
@@ -161,7 +168,7 @@ function IdentityLoader({ children }: { children: ReactNode }) {
         void auth
           .signinRedirect({
             extraQueryParams: { kc_action: "UPDATE_PASSWORD" },
-            state: { from: "/account" },
+            state: { from: "/account", action: "update_password" },
           })
           .catch(() => undefined);
       },

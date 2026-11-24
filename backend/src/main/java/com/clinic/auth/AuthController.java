@@ -36,6 +36,17 @@ public class AuthController {
     return access.profile(access.actor(jwt));
   }
 
+  public record PersonalProfile(
+      @Pattern(regexp = "^$|^[0-9]{4}-(0[1-9]|1[0-2])-(0[1-9]|[12][0-9]|3[01])$") String birthDate,
+      @Size(max = 255) String hometown,
+      @Size(max = 255) String permanentAddress) {}
+
+  @PutMapping("/me/profile")
+  public Object updateProfile(@AuthenticationPrincipal Jwt jwt, @Valid @RequestBody PersonalProfile body) {
+    return access.updatePersonalProfile(
+        access.actor(jwt), body.birthDate(), body.hometown(), body.permanentAddress());
+  }
+
   @GetMapping("/users")
   public Object users(
       @AuthenticationPrincipal Jwt jwt,

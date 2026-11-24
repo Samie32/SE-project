@@ -1936,6 +1936,45 @@ paths:
       - FR-01
       - FR-02
       x-access: Chủ tài khoản
+    put:
+      tags:
+      - M01
+      operationId: updateMyPersonalProfile
+      summary: Cập nhật thông tin cá nhân đồng bộ trên /account (giới hạn 1 lần / 90 ngày với dữ liệu đã điền)
+      description: 'Quyền mục tiêu: Chủ tài khoản. Bổ sung trường còn trống không bị khóa; thay đổi thông tin đã có áp dụng giới hạn 90 ngày và ghi audit PROFILE_UPDATED.'
+      x-requirements:
+      - FR-01
+      - FR-17
+      x-access: Chủ tài khoản
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PersonalProfile'
+      responses:
+        '200':
+          description: Thành công, trả hồ sơ tài khoản đã cập nhật
+          headers:
+            X-Request-Id:
+              description: Mã liên kết request/audit; baseline có thể thiếu trên lỗi security filter.
+              schema:
+                type: string
+                format: uuid
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserProfile'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '503':
+          $ref: '#/components/responses/Unavailable'
   /notification-jobs:
     get:
       tags:
@@ -3479,6 +3518,11 @@ components:
         id:
           type: string
           format: uuid
+        username:
+          type:
+          - string
+          - 'null'
+          maxLength: 255
         displayName:
           type: string
           minLength: 1
@@ -3501,6 +3545,42 @@ components:
           - string
           - 'null'
           format: uuid
+        email:
+          type:
+          - string
+          - 'null'
+          format: email
+          maxLength: 254
+        phone:
+          type:
+          - string
+          - 'null'
+          pattern: '^0(3|5|7|8|9)[0-9]{8}$'
+        birthDate:
+          type:
+          - string
+          - 'null'
+          format: date
+        hometown:
+          type:
+          - string
+          - 'null'
+          maxLength: 255
+        permanentAddress:
+          type:
+          - string
+          - 'null'
+          maxLength: 255
+        personalInfoUpdatedAt:
+          type:
+          - string
+          - 'null'
+          format: date-time
+        personalInfoNextEditAt:
+          type:
+          - string
+          - 'null'
+          format: date-time
       required:
       - id
       - displayName
@@ -3510,12 +3590,42 @@ components:
       - doctorId
       example:
         id: 00000000-0000-4000-8000-000000000001
+        username: patient
         displayName: Bệnh nhân mô phỏng
         active: true
         roles:
         - PATIENT
         patientId: 00000000-0000-4000-8000-000000000001
         doctorId: null
+        email: patient@example.test
+        phone: '0901234567'
+        birthDate: '1998-04-20'
+        hometown: Nghệ An
+        permanentAddress: Quận 7, TP.HCM
+        personalInfoUpdatedAt: null
+        personalInfoNextEditAt: null
+    PersonalProfile:
+      type: object
+      properties:
+        birthDate:
+          type:
+          - string
+          - 'null'
+          pattern: '^$|^[0-9]{4}-(0[1-9]|1[0-2])-(0[1-9]|[12][0-9]|3[01])$'
+        hometown:
+          type:
+          - string
+          - 'null'
+          maxLength: 255
+        permanentAddress:
+          type:
+          - string
+          - 'null'
+          maxLength: 255
+      example:
+        birthDate: '1998-04-20'
+        hometown: Nghệ An
+        permanentAddress: Quận 7, TP.HCM
     UserSummary:
       type: object
       properties:

@@ -102,7 +102,13 @@ it("chỉ tra cứu chính xác mã/email/SĐT và yêu cầu lý do trước kh
   await screen.findByText("Đang hoạt động");
   expect(patient.active).toBe(true);
 
-  // Từ chối tên / chuỗi không khớp định dạng UUID, email hoặc SĐT
+  // Từ chối tên, số nước ngoài hoặc chuỗi không khớp định dạng UUID, email hoặc SĐT VN
+  fireEvent.change(input, { target: { value: "+14155551234" } });
+  fireEvent.click(lookup);
+  await screen.findByText(
+    "Nhập chính xác mã tài khoản (UUID), email hoặc số điện thoại hợp lệ.",
+  );
+
   fireEvent.change(input, { target: { value: "Nguyen Van A" } });
   expect(screen.queryByText(patient.name)).toBeNull();
   fireEvent.click(lookup);

@@ -30,9 +30,12 @@ Tài liệu tổng hợp mô hình toán học, tham số định lượng, mi�
 - **Nguồn:** `Access.normalizeEmailOrNull`, `Access.normalizePhoneOrNull`, `frontend/src/api/patient-accounts.ts`
 - **Chuẩn hóa email:**
   $$\text{norm}_{\text{email}}(e) = \begin{cases} \text{lower}(\text{trim}(e)), & \text{nếu } |\text{trim}(e)| \le 254 \land \text{match}(e', \texttt{\^{}[\textbackslash S@]+@[\textbackslash S@]+\textbackslash .[\textbackslash S@]+\$}) \\ \varnothing, & \text{ngược lại (HTTP 400)} \end{cases}$$
-- **Chuẩn hóa số điện thoại:** đặt $p_0 = \text{replaceAll}(\text{trim}(p), \texttt{[\textbackslash s.\textbackslash -()]}, \text{""})$:
-  $$\text{norm}_{\text{phone}}(p) = \begin{cases} \text{"0"} \parallel p_0[3:], & \text{nếu } p_0 \text{ bắt đầu bằng } \text{"+84"} \\ p_0[1:], & \text{nếu } p_0 \text{ bắt đầu bằng } \text{"+"} \text{ (khác +84)} \\ \text{"0"} \parallel p_0[2:], & \text{nếu } p_0 \text{ bắt đầu bằng } \text{"84"} \land |p_0| \ge 11 \\ p_0, & \text{ngược lại} \end{cases}$$
-  Miền hợp lệ: $\text{norm}_{\text{phone}}(p) \in [0\text{--}9]^L$ với $7 \le L \le 15$.
+- **Chuẩn hóa số điện thoại (Việt Nam):** đặt $p_0 = \text{replaceAll}(\text{trim}(p), \texttt{[\textbackslash s.\textbackslash -()]}, \text{""})$:
+  $$\text{norm}_{\text{phone}}(p) = \begin{cases} \text{"0"} \parallel p_0[3:], & \text{nếu } p_0 \text{ bắt đầu bằng } \text{"+84"} \\ \text{"0"} \parallel p_0[2:], & \text{nếu } p_0 \text{ bắt đầu bằng } \text{"84"} \land |p_0| = 11 \\ p_0, & \text{nếu } p_0 \text{ bắt đầu bằng } \text{"0"} \\ \varnothing, & \text{ngược lại} \end{cases}$$
+  Miền hợp lệ: $\text{norm}_{\text{phone}}(p)$ khớp chuẩn di động Việt Nam $\texttt{\^{}0(3|5|7|8|9)[0-9]\{8\}\$}$ (đúng $10$ chữ số; từ chối số nước ngoài hoặc độ dài khác $10$).
+- **Giới hạn cập nhật thông tin nhân thân (`PUT /api/me/profile`):**
+  - Bổ sung lần đầu các trường đang `NULL` (`birthDate`, `hometown`, `permanentAddress`): luôn hợp lệ ($\Delta t$ không áp dụng).
+  - Thay đổi trường đã có giá trị: yêu cầu $t_{\text{now}} \ge t_{\text{updated}} + 90\text{ ngày}$, ngược lại trả `HTTP 409`.
 - **Điều kiện trả kết quả tra cứu (`GET /api/patient-accounts/lookup?q=...`):**
   $$|M(q)| = \begin{cases} 0 & \implies \text{HTTP } 404 \\ 1 & \implies \text{HTTP } 200\ (\text{chỉ trả } \{id, displayName, active\} + \text{audit}) \\ \ge 2 & \implies \text{HTTP } 409\ (\text{trùng SĐT gia đình, yêu cầu nhập UUID}) \end{cases}$$
 

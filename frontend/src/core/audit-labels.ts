@@ -7,6 +7,7 @@ export const AUDIT_ACTION_LABELS: Record<string, string> = {
   PROFILE_READ: "Xem hồ sơ cá nhân",
   CONTACT_OTP_SENT: "Gửi mã OTP xác thực email",
   CONTACT_UPDATED: "Cập nhật thông tin liên hệ",
+  PROFILE_UPDATED: "Cập nhật thông tin cá nhân",
   USERS_READ: "Xem danh sách nhân sự",
   STAFF_CREATED: "Tạo tài khoản nhân sự",
   STAFF_UPDATED: "Cập nhật tài khoản nhân sự",
@@ -192,6 +193,7 @@ export function auditResourceContext(action: string, resourceId: string, actorId
   if (action.startsWith("NOTIFICATION_")) return "Thông báo";
   if (action === "COMMAND_REPLAYED") return "Thao tác lặp";
   if (action === "CONTACT_OTP_SENT" || action === "CONTACT_UPDATED") return "Liên hệ";
+  if (action === "PROFILE_UPDATED") return "Hồ sơ cá nhân";
   if (
     action === "ROLES_CHANGED" ||
     action.startsWith("STAFF_") ||

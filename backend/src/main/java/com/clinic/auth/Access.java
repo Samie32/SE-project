@@ -3,6 +3,11 @@ package com.clinic.auth;
 import com.clinic.audit.Audit;
 import com.clinic.common.*;
 import io.swagger.v3.oas.annotations.media.Schema;
+import java.time.Duration;
+import java.time.Instant;
+import java.time.LocalDate;
+import java.time.ZoneId;
+import java.time.format.DateTimeParseException;
 import java.util.*;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.stereotype.Service;
@@ -51,14 +56,22 @@ public class Access {
         jwt.getClaimAsString("phone_number") != null
             ? jwt.getClaimAsString("phone_number")
             : jwt.getClaimAsString("phoneNumber"));
-    String byIdentity = "SELECT id,active,username,email_hash,phone_hash FROM user_account WHERE issuer=? AND subject=?";
+    LocalDate jwtBirthDate = normalizeBirthDateOrNull(firstNonBlankClaim(jwt, "birthDate", "birthdate"));
+    String jwtHometown = normalizeTextOrNull(jwt.getClaimAsString("hometown"), 255);
+    String jwtPermanentAddress = normalizeTextOrNull(jwt.getClaimAsString("permanentAddress"), 255);
+    String byIdentity =
+        "SELECT id,active,username,email_hash,phone_hash,birth_date,hometown_encrypted,permanent_address_encrypted"
+            + " FROM user_account WHERE issuer=? AND subject=?";
     var rows = db.list(byIdentity, issuer, subject);
     if (!rows.isEmpty()) {
       Map<String, Object> row = rows.getFirst();
       boolean needsUpdate =
           (username != null && !username.equals(row.get("username")))
               || (jwtEmail != null && row.get("emailHash") == null)
-              || (jwtPhone != null && row.get("phoneHash") == null);
+              || (jwtPhone != null && row.get("phoneHash") == null)
+              || (jwtBirthDate != null && row.get("birthDate") == null)
+              || (jwtHometown != null && row.get("hometownEncrypted") == null)
+              || (jwtPermanentAddress != null && row.get("permanentAddressEncrypted") == null);
       if (!needsUpdate) {
         Problem.require(enabled(row.get("active")), 403, "Account disabled");
         String id = row.get("id").toString();
@@ -68,7 +81,19 @@ public class Access {
         return new Actor(id, roles);
       }
     }
-    return tx.execute(status -> provisionOrSyncActor(jwt, issuer, subject, username, jwtEmail, jwtPhone, byIdentity));
+    return tx.execute(
+        status ->
+            provisionOrSyncActor(
+                jwt,
+                issuer,
+                subject,
+                username,
+                jwtEmail,
+                jwtPhone,
+                jwtBirthDate,
+                jwtHometown,
+                jwtPermanentAddress,
+                byIdentity));
   }
 
   private Actor provisionOrSyncActor(
@@ -78,6 +103,9 @@ public class Access {
       String username,
       String jwtEmail,
       String jwtPhone,
+      LocalDate jwtBirthDate,
+      String jwtHometown,
+      String jwtPermanentAddress,
       String byIdentity) {
     var rows = db.list(byIdentity, issuer, subject);
     boolean firstLogin = rows.isEmpty();
@@ -91,7 +119,7 @@ public class Access {
       String displayName = identityLabel(jwt.getClaimAsString("name"));
       int inserted =
           db.update(
-              "INSERT IGNORE INTO user_account(id,issuer,subject,display_name,username,email_encrypted,email_hash,phone_encrypted,phone_hash) VALUES(?,?,?,?,?,?,?,?,?)",
+              "INSERT IGNORE INTO user_account(id,issuer,subject,display_name,username,email_encrypted,email_hash,phone_encrypted,phone_hash,birth_date,hometown_encrypted,permanent_address_encrypted) VALUES(?,?,?,?,?,?,?,?,?,?,?,?)",
               id,
               issuer,
               subject,
@@ -100,7 +128,10 @@ public class Access {
               jwtEmail != null ? crypto.encrypt(jwtEmail) : null,
               jwtEmail != null ? crypto.hash(jwtEmail) : null,
               jwtPhone != null ? crypto.encrypt(jwtPhone) : null,
-              jwtPhone != null ? crypto.hash(jwtPhone) : null);
+              jwtPhone != null ? crypto.hash(jwtPhone) : null,
+              jwtBirthDate != null ? java.sql.Date.valueOf(jwtBirthDate) : null,
+              jwtHometown != null ? crypto.encrypt(jwtHometown) : null,
+              jwtPermanentAddress != null ? crypto.encrypt(jwtPermanentAddress) : null);
       if (inserted == 1) {
         db.update("INSERT INTO user_role VALUES(?,'PATIENT')", id);
         db.update("INSERT INTO patient VALUES(?,?)", id, id);
@@ -130,10 +161,36 @@ public class Access {
           crypto.hash(jwtPhone),
           id);
     }
+    if (jwtBirthDate != null && row.get("birthDate") == null) {
+      db.update(
+          "UPDATE user_account SET birth_date=COALESCE(birth_date,?) WHERE id=?",
+          java.sql.Date.valueOf(jwtBirthDate),
+          id);
+    }
+    if (jwtHometown != null && row.get("hometownEncrypted") == null) {
+      db.update(
+          "UPDATE user_account SET hometown_encrypted=COALESCE(hometown_encrypted,?) WHERE id=?",
+          crypto.encrypt(jwtHometown),
+          id);
+    }
+    if (jwtPermanentAddress != null && row.get("permanentAddressEncrypted") == null) {
+      db.update(
+          "UPDATE user_account SET permanent_address_encrypted=COALESCE(permanent_address_encrypted,?) WHERE id=?",
+          crypto.encrypt(jwtPermanentAddress),
+          id);
+    }
     Set<String> roles = new HashSet<>();
     db.list("SELECT role FROM user_role WHERE user_id=?" + (firstLogin ? " FOR SHARE" : ""), id)
         .forEach(x -> roles.add(x.get("role").toString()));
     return new Actor(id, roles);
+  }
+
+  private static String firstNonBlankClaim(Jwt jwt, String... names) {
+    for (String name : names) {
+      String value = jwt.getClaimAsString(name);
+      if (value != null && !value.isBlank()) return value;
+    }
+    return null;
   }
 
   private static String identityLabel(String value) {
@@ -192,10 +249,12 @@ public class Access {
     PATIENT_REQUEST
   }
 
+  static final Duration PERSONAL_INFO_COOLDOWN = Duration.ofDays(90);
+  private static final ZoneId CLINIC_ZONE = ZoneId.of("Asia/Ho_Chi_Minh");
   private static final java.util.regex.Pattern EMAIL_PATTERN =
       java.util.regex.Pattern.compile("^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$");
-  private static final java.util.regex.Pattern PHONE_DIGITS =
-      java.util.regex.Pattern.compile("^[0-9]{7,15}$");
+  private static final java.util.regex.Pattern VN_MOBILE_PHONE =
+      java.util.regex.Pattern.compile("^0(3|5|7|8|9)[0-9]{8}$");
 
   private static String normalizeEmailOrNull(String value) {
     if (value == null) return null;
@@ -203,13 +262,30 @@ public class Access {
     return normalized.length() <= 254 && EMAIL_PATTERN.matcher(normalized).matches() ? normalized : null;
   }
 
-  private static String normalizePhoneOrNull(String value) {
+  static String normalizePhoneOrNull(String value) {
     if (value == null) return null;
     String cleaned = value.strip().replaceAll("[\\s.\\-()]", "");
     if (cleaned.startsWith("+84")) cleaned = "0" + cleaned.substring(3);
-    else if (cleaned.startsWith("+")) cleaned = cleaned.substring(1);
-    else if (cleaned.startsWith("84") && cleaned.length() >= 11) cleaned = "0" + cleaned.substring(2);
-    return PHONE_DIGITS.matcher(cleaned).matches() ? cleaned : null;
+    else if (cleaned.startsWith("84") && cleaned.length() == 11) cleaned = "0" + cleaned.substring(2);
+    return VN_MOBILE_PHONE.matcher(cleaned).matches() ? cleaned : null;
+  }
+
+  static LocalDate normalizeBirthDateOrNull(String value) {
+    if (value == null || value.isBlank()) return null;
+    try {
+      LocalDate date = LocalDate.parse(value.strip());
+      LocalDate today = LocalDate.now(CLINIC_ZONE);
+      if (date.getYear() < 1900 || date.isAfter(today)) return null;
+      return date;
+    } catch (DateTimeParseException ignored) {
+      return null;
+    }
+  }
+
+  static String normalizeTextOrNull(String value, int maxLen) {
+    if (value == null) return null;
+    String trimmed = value.strip();
+    return trimmed.isEmpty() || trimmed.length() > maxLen ? null : trimmed;
   }
 
   @Transactional
@@ -353,15 +429,91 @@ public class Access {
   }
 
   @Transactional
+  public Map<String, Object> updatePersonalProfile(
+      Actor actor, String rawBirthDate, String rawHometown, String rawPermanentAddress) {
+    LocalDate nextBirthDate = null;
+    if (rawBirthDate != null && !rawBirthDate.isBlank()) {
+      nextBirthDate = normalizeBirthDateOrNull(rawBirthDate);
+      Problem.require(nextBirthDate != null, 400, "Invalid birth date");
+    }
+    if (rawHometown != null && rawHometown.strip().length() > 255) {
+      throw new Problem(400, "Invalid request");
+    }
+    if (rawPermanentAddress != null && rawPermanentAddress.strip().length() > 255) {
+      throw new Problem(400, "Invalid request");
+    }
+    String nextBirthDateStr = nextBirthDate != null ? nextBirthDate.toString() : null;
+    String nextHometown = normalizeTextOrNull(rawHometown, 255);
+    String nextPermanentAddress = normalizeTextOrNull(rawPermanentAddress, 255);
+
+    var row =
+        db.one(
+            "SELECT birth_date,hometown_encrypted,permanent_address_encrypted,personal_info_updated_at"
+                + " FROM user_account WHERE id=? FOR UPDATE",
+            actor.id());
+    String curBirthDate = row.get("birthDate") != null ? row.get("birthDate").toString() : null;
+    String curHometown = crypto.decryptOrNull(row.get("hometownEncrypted"));
+    String curPermanentAddress = crypto.decryptOrNull(row.get("permanentAddressEncrypted"));
+
+    boolean anyChange =
+        !Objects.equals(curBirthDate, nextBirthDateStr)
+            || !Objects.equals(curHometown, nextHometown)
+            || !Objects.equals(curPermanentAddress, nextPermanentAddress);
+    if (!anyChange) {
+      return profile(actor);
+    }
+
+    boolean changingExisting =
+        (curBirthDate != null && !Objects.equals(curBirthDate, nextBirthDateStr))
+            || (curHometown != null && !Objects.equals(curHometown, nextHometown))
+            || (curPermanentAddress != null && !Objects.equals(curPermanentAddress, nextPermanentAddress));
+
+    Object rawUpdatedAt = row.get("personalInfoUpdatedAt");
+    Instant existingUpdatedAt = rawUpdatedAt != null ? Instant.parse(rawUpdatedAt.toString()) : null;
+    Instant now = Instant.now();
+    if (changingExisting && existingUpdatedAt != null) {
+      Problem.require(
+          !now.isBefore(existingUpdatedAt.plus(PERSONAL_INFO_COOLDOWN)),
+          409,
+          "Personal profile can only be changed once every 90 days");
+    }
+
+    Instant nextUpdatedAt = changingExisting ? now : existingUpdatedAt;
+    db.update(
+        "UPDATE user_account SET birth_date=?,hometown_encrypted=?,permanent_address_encrypted=?,personal_info_updated_at=? WHERE id=?",
+        nextBirthDate != null ? java.sql.Date.valueOf(nextBirthDate) : null,
+        nextHometown != null ? crypto.encrypt(nextHometown) : null,
+        nextPermanentAddress != null ? crypto.encrypt(nextPermanentAddress) : null,
+        nextUpdatedAt,
+        actor.id());
+    audit.record(actor.id(), "PROFILE_UPDATED", actor.id());
+    return profile(actor);
+  }
+
+  @Transactional
   public Map<String, Object> profile(Actor actor) {
     var result =
         db.one(
-            "SELECT id,username,display_name,active,email_encrypted,phone_encrypted FROM user_account WHERE id=?",
+            "SELECT id,username,display_name,active,email_encrypted,phone_encrypted,birth_date,hometown_encrypted,permanent_address_encrypted,personal_info_updated_at"
+                + " FROM user_account WHERE id=?",
             actor.id());
     String email = crypto.decryptOrNull(result.remove("emailEncrypted"));
     String phone = crypto.decryptOrNull(result.remove("phoneEncrypted"));
+    String hometown = crypto.decryptOrNull(result.remove("hometownEncrypted"));
+    String permanentAddress = crypto.decryptOrNull(result.remove("permanentAddressEncrypted"));
     result.put("email", email);
     result.put("phone", phone);
+    result.put("hometown", hometown);
+    result.put("permanentAddress", permanentAddress);
+    Object updatedAtObj = result.get("personalInfoUpdatedAt");
+    String nextEditAt = null;
+    if (updatedAtObj != null) {
+      Instant nextEdit = Instant.parse(updatedAtObj.toString()).plus(PERSONAL_INFO_COOLDOWN);
+      if (nextEdit.isAfter(Instant.now())) {
+        nextEditAt = nextEdit.toString();
+      }
+    }
+    result.put("personalInfoNextEditAt", nextEditAt);
     result.put("roles", actor.roles());
     var patients = db.list("SELECT id FROM patient WHERE user_id=?", actor.id());
     var doctors = db.list("SELECT id FROM doctor WHERE user_id=?", actor.id());

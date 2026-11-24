@@ -125,6 +125,10 @@ const DETAIL_MESSAGES: Record<string, string> = {
   "Invalid export limit": "Giới hạn số dòng xuất CSV không hợp lệ.",
   "No unarchived audit events in selected period": "Không có sự kiện kiểm toán mới nào chưa niêm phong trong giai đoạn đã chọn.",
   "Concurrent modification; retry request": "Dữ liệu vừa được người khác thay đổi. Vui lòng tải lại rồi thử lại.",
+  "Invalid phone number": "Số điện thoại Việt Nam không hợp lệ (10 chữ số, đầu số 03, 05, 07, 08 hoặc 09).",
+  "Invalid birth date": "Ngày sinh không hợp lệ (không được vượt quá ngày hiện tại).",
+  "Personal profile can only be changed once every 90 days":
+    "Thông tin cá nhân đã điền chỉ được thay đổi tối đa 1 lần mỗi 90 ngày.",
   "Storage or audit temporarily unavailable":
     "Dịch vụ lưu trữ/kiểm toán tạm thời không khả dụng. Vui lòng thử lại sau.",
 };
