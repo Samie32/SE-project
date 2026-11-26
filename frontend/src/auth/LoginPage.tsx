@@ -1,11 +1,13 @@
 import { useEffect, useRef } from "react";
 import { Navigate, useSearchParams } from "react-router-dom";
+import { useI18n } from "@/core/i18n";
 import { useSession } from "@/core/session";
 import { FullPageMessage } from "@/ui";
 
 // Thông tin đăng nhập chỉ nhập ở trang Keycloak; ứng dụng không bao giờ thấy mật khẩu.
 export function LoginPage() {
   const { status, error, login, retry } = useSession();
+  const { t } = useI18n();
   const [params] = useSearchParams();
   const loggedOut = params.get("loggedout") === "1";
   const started = useRef(false);
@@ -18,51 +20,52 @@ export function LoginPage() {
   }, [status, loggedOut, error, login]);
 
   if (status === "ready") return <Navigate to="/" replace />;
-  if (status === "loading") return <FullPageMessage text="Đang xác thực…" busy />;
+  if (status === "loading") return <FullPageMessage text={t("auth.authenticating")} busy />;
   if (loggedOut && !error) {
     return (
       <FullPageMessage
-        title="Bạn đã đăng xuất"
-        text="Phiên làm việc trên thiết bị này đã kết thúc an toàn. Bạn có thể đăng nhập lại bằng tài khoản bệnh nhân hoặc nhân sự phòng khám."
-        action={{ label: "Đăng nhập lại", onClick: () => login("/") }}
+        title={t("auth.loggedOutTitle")}
+        text={t("auth.loggedOutText")}
+        action={{ label: t("auth.signInAgain"), onClick: () => login("/") }}
       />
     );
   }
   return (
     <FullPageMessage
-      title={error ? "Đăng nhập chưa hoàn tất" : undefined}
-      text={error || "Đang mở trang đăng nhập…"}
+      title={error ? t("auth.signInIncomplete") : undefined}
+      text={error || t("auth.openingLogin")}
       error={!!error}
       busy={!error}
-      action={{ label: "Đăng nhập", onClick: () => login("/") }}
-      secondaryAction={status === "error" ? { label: "Thử lại", onClick: retry } : undefined}
+      action={{ label: t("auth.signIn"), onClick: () => login("/") }}
+      secondaryAction={status === "error" ? { label: t("auth.retry"), onClick: retry } : undefined}
     />
   );
 }
 
 export function CallbackPage() {
   const { status, error, login, retry, logout } = useSession();
+  const { t } = useI18n();
 
   if (status === "ready") return <Navigate to="/" replace />;
   if (status === "loading" && !error) {
-    return <FullPageMessage text="Đang hoàn tất đăng nhập…" busy />;
+    return <FullPageMessage text={t("auth.completingLogin")} busy />;
   }
   if (status === "error") {
     return (
       <FullPageMessage
-        title="Không thể hoàn tất đăng nhập"
-        text={error || "Không tải được thông tin tài khoản."}
+        title={t("auth.cannotCompleteLogin")}
+        text={error || t("auth.cannotLoadProfile")}
         error
-        action={{ label: "Thử lại", onClick: retry }}
-        secondaryAction={{ label: "Đăng xuất / Đổi tài khoản", onClick: logout }}
+        action={{ label: t("auth.retry"), onClick: retry }}
+        secondaryAction={{ label: t("auth.signOutSwitch"), onClick: logout }}
       />
     );
   }
   return (
     <FullPageMessage
-      text={error || "Phiên đăng nhập không còn hợp lệ. Vui lòng đăng nhập lại."}
+      text={error || t("auth.sessionInvalid")}
       error
-      action={{ label: "Đăng nhập lại", onClick: () => login("/") }}
+      action={{ label: t("auth.signInAgain"), onClick: () => login("/") }}
     />
   );
 }

@@ -233,6 +233,7 @@ export function MockBanner() {
   if (!config.mock) return null;
   return (
     <div
+      className="mock-banner"
       role="note"
       style={{
         background: "#fff4df",

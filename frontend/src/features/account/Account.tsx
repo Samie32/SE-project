@@ -14,7 +14,9 @@ import {
   Pencil,
   Phone,
   ShieldCheck,
+  SlidersHorizontal,
   Stethoscope,
+  User,
   UserCheck,
   X,
 } from "lucide-react";
@@ -26,6 +28,7 @@ import { formatDate, todayKey } from "@/core/datetime";
 import { useDirectory } from "@/core/directory";
 import { ROLE_LABEL } from "@/core/labels";
 import { useSession } from "@/core/session";
+import { DisplaySettingsSection } from "@/features/settings/SettingsPage";
 import { Field, Notice, PageHead, Panel, Pill, useToast } from "@/ui";
 
 const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -76,7 +79,21 @@ export function AccountPage() {
   const otherExtraFields = profile.extraFields.filter((f) => !PERSONAL_PROFILE_KEYS.has(f.key));
   const currentEmail = (identity?.email ?? "").trim().toLowerCase();
   const currentPhone = identity?.phone ?? "";
-  const fullName = identity?.displayName ?? displayName;
+  const fullName =
+    (identity?.displayName && identity.displayName !== identity?.username ? identity.displayName : displayName) ||
+    identity?.displayName ||
+    displayName;
+  const activeTab = params.get("tab") === "settings" ? "settings" : "profile";
+  const switchTab = (tab: "profile" | "settings") => {
+    const next = new URLSearchParams(params);
+    if (tab === "settings") {
+      next.set("tab", "settings");
+      next.delete("edit");
+    } else {
+      next.delete("tab");
+    }
+    setParams(next, { replace: true });
+  };
 
   const curBirthDate = identity?.birthDate ?? "";
   const curHometown = identity?.hometown ?? "";
@@ -297,10 +314,35 @@ export function AccountPage() {
       <PageHead
         eyebrow="Hồ sơ cá nhân"
         title="Tài khoản của tôi"
-        text="Quản lý thông tin liên hệ, thông tin cá nhân đồng bộ, bảo mật đăng nhập và mã định danh."
+        text="Quản lý thông tin liên hệ, thông tin cá nhân đồng bộ, bảo mật đăng nhập và tùy chỉnh hiển thị."
       />
 
-      <section className="panel account-hero" aria-label="Tổng quan tài khoản">
+      <div className="tabs" role="tablist" aria-label="Phân mục tài khoản">
+        <button
+          type="button"
+          role="tab"
+          aria-selected={activeTab === "profile"}
+          className={activeTab === "profile" ? "on" : ""}
+          onClick={() => switchTab("profile")}
+        >
+          <User size={15} aria-hidden /> Hồ sơ & bảo mật
+        </button>
+        <button
+          type="button"
+          role="tab"
+          aria-selected={activeTab === "settings"}
+          className={activeTab === "settings" ? "on" : ""}
+          onClick={() => switchTab("settings")}
+        >
+          <SlidersHorizontal size={15} aria-hidden /> Cài đặt giao diện
+        </button>
+      </div>
+
+      {activeTab === "settings" ? (
+        <DisplaySettingsSection />
+      ) : (
+        <>
+          <section className="panel account-hero" aria-label="Tổng quan tài khoản">
         <div className="account-hero-meta">
           <div className="account-avatar" aria-hidden>
             {initials(shownName)}
@@ -346,13 +388,6 @@ export function AccountPage() {
           <Panel
             title="Thông tin liên hệ"
             subtitle="Dùng để nhận xác nhận và nhắc lịch khám"
-            actions={
-              !editing && (
-                <button type="button" className="btn sm" onClick={openEdit}>
-                  <Pencil size={13} aria-hidden /> Cập nhật
-                </button>
-              )
-            }
           >
             <div className="info-list">
               <div className="info-row">
@@ -838,6 +873,8 @@ export function AccountPage() {
           </Panel>
         </div>
       </div>
+        </>
+      )}
     </div>
   );
 }

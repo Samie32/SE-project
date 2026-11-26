@@ -53,6 +53,7 @@ export default function App() {
       >
         <Route index element={<HomeRedirect />} />
         <Route path="account" element={<AccountPage />} />
+        <Route path="settings" element={<Navigate to="/account?tab=settings" replace />} />
 
         {/* Bệnh nhân */}
         <Route path="patient" element={guard("patient.portal", <PatientProvider />)}>

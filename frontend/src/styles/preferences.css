@@ -1,0 +1,277 @@
+/*
+ * Tùy chọn giao diện người dùng (Settings): cỡ chữ + chế độ tối.
+ * - Cỡ chữ: mọi `font-size` trong app.css là `calc(Npx * var(--fs-scale, 1))`; --fs-scale = cỡ chọn / 18px.
+ *   Thuộc tính `data-font-size` trên <html> do SettingsProvider (và public/theme-init.js) đặt.
+ * - Tối: `data-theme="dark"` trên <html>. Phủ toàn bộ Design System và các màn hình V12/V13
+ *   (Audit, Account V13, ClinicHours, PatientAccounts, Booking, Records, Schedule) với độ tương phản WCAG AA.
+ * File này phải nạp SAU app.css.
+ */
+:root { --fs-scale: 1; }
+:root[data-font-size="small"] { --fs-scale: 0.7778; }   /* 14px */
+:root[data-font-size="medium"] { --fs-scale: 0.8889; }  /* 16px */
+:root[data-font-size="large"] { --fs-scale: 1; }        /* 18px (mặc định, khớp giao diện hiện tại) */
+:root[data-font-size="xlarge"] { --fs-scale: 1.1111; }  /* 20px */
+
+/* Nhãn dài trong trang Cài đặt không làm tràn bố cục khi tăng cỡ chữ. */
+.pref-option-text { overflow-wrap: anywhere; }
+
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --ink: #e6edf7;
+  --ink-2: #c5d1e3;
+  --muted: #a3b5cc;
+  --line: #25364d;
+  --line-2: #34465f;
+  --bg: #0b1220;
+  --white: #141b24;
+  --blue-50: #12233f;
+  --blue-100: #1c3763;
+  --green: #34d399;
+  --green-bg: #0e2b23;
+  --amber: #fbbf24;
+  --amber-bg: #2e2410;
+  --red: #f87171;
+  --red-bg: #34161b;
+  --purple: #a78bfa;
+  --purple-bg: #261c45;
+  --shadow: 0 4px 20px -2px rgba(0, 0, 0, 0.45), 0 2px 6px -1px rgba(0, 0, 0, 0.35);
+  --shadow-sm: 0 1px 3px 0 rgba(0, 0, 0, 0.45), 0 1px 2px 0 rgba(0, 0, 0, 0.35);
+  --shadow-md: 0 10px 25px -4px rgba(0, 0, 0, 0.55), 0 4px 10px -2px rgba(0, 0, 0, 0.4);
+  --focus: 0 0 0 3px rgba(96, 165, 250, 0.55);
+}
+
+/* ===== Đảo màu nền/chữ/viền cho toàn bộ lớp trên main@65c48fe ===== */
+:where(:root[data-theme="dark"]) a { color: #84a7e7; }
+:where(:root[data-theme="dark"]) .muted { color: #b0bfd4; }
+:where(:root[data-theme="dark"]) .sub { color: #c0cbd9; }
+:where(:root[data-theme="dark"]) .avatar { background: #192f4b; color: #8fb0e7; }
+:where(:root[data-theme="dark"]) .top { background: #141b24; }
+:where(:root[data-theme="dark"]) .top.scrolled { background: rgba(20, 27, 36, 0.94); border-bottom-color: rgba(52, 70, 95, 0.9); box-shadow: 0 4px 16px rgba(0, 0, 0, 0.45); }
+:where(:root[data-theme="dark"]) .crumb { color: #a5b6ce; }
+:where(:root[data-theme="dark"]) .crumb b { color: #c1d0e4; }
+:where(:root[data-theme="dark"]) .top-title h1 { color: #e6edf7; }
+:where(:root[data-theme="dark"]) .menu-btn { background: #141b24; }
+:where(:root[data-theme="dark"]) .clock { background: #101d30; }
+:where(:root[data-theme="dark"]) .quick { background: #101d30; }
+:where(:root[data-theme="dark"]) .skip { background: #141b24; }
+:where(:root[data-theme="dark"]) .eyebrow { color: #b0bfd4; }
+:where(:root[data-theme="dark"]) .btn { background: #141b24; color: #e2eaf6; border-color: var(--line-2); }
+:where(:root[data-theme="dark"]) .btn:hover { background: #1b2738; border-color: #4b6484; }
+:where(:root[data-theme="dark"]) .btn.soft { color: #86a9e9; background: #12233f; border-color: #25416e; }
+:where(:root[data-theme="dark"]) .btn.danger { border-color: #752733; background: #301015; color: #f87171; }
+:where(:root[data-theme="dark"]) .panel,
+:where(:root[data-theme="dark"]) .metric { background: #141b24; }
+:where(:root[data-theme="dark"]) .panel h2,
+:where(:root[data-theme="dark"]) .panel h3 { color: #e2eaf6; }
+:where(:root[data-theme="dark"]) .metric .label { color: #b0bfd4; }
+:where(:root[data-theme="dark"]) .metric .value { color: #e6edf7; }
+:where(:root[data-theme="dark"]) .metric .hint { color: #99adc8; }
+:where(:root[data-theme="dark"]) .mi { color: #6f98e6; }
+:where(:root[data-theme="dark"]) .pill { background: #1c293b; color: #c0cfe2; }
+:where(:root[data-theme="dark"]) .pill.ok { color: #6ee7b7; background: #0e2b23; }
+:where(:root[data-theme="dark"]) .pill.wait { color: #fbbf24; background: #2e2410; }
+:where(:root[data-theme="dark"]) .pill.info { color: #93c5fd; background: #12233f; }
+:where(:root[data-theme="dark"]) .pill.bad { color: #fca5a5; background: #34161b; }
+:where(:root[data-theme="dark"]) .pill.purple { color: #c4b5fd; background: #261c45; }
+:where(:root[data-theme="dark"]) .field { border: 1.5px solid #475f7b; background: #141b24; color: #e2eaf6; }
+:where(:root[data-theme="dark"]) .field:disabled { background: #172436; color: #8aa1c0; }
+:where(:root[data-theme="dark"]) .formfield label,
+:where(:root[data-theme="dark"]) label.formlabel { color: #ced7e6; }
+:where(:root[data-theme="dark"]) .seg { background: #141b24; }
+:where(:root[data-theme="dark"]) .seg button { color: #a6b7cf; }
+:where(:root[data-theme="dark"]) .seg button.on { color: #84a7e7; background: #12233f; }
+:where(:root[data-theme="dark"]) .tabs button { color: #9fb2cc; }
+:where(:root[data-theme="dark"]) .tabs button.on { color: #84a7e7; }
+
+/* Bảng Audit V12 & Tiện ích kiểm toán */
+:where(:root[data-theme="dark"]) .audit-metrics .metric-btn:hover .metric { border-color: #4b73b8; }
+:where(:root[data-theme="dark"]) .audit-metrics .metric-btn.is-active .metric { background: #111f36; box-shadow: 0 0 0 2px rgba(96, 165, 250, 0.25); }
+:where(:root[data-theme="dark"]) .audit-noise-toggle { color: #ced7e6; }
+:where(:root[data-theme="dark"]) .audit-suggest-list,
+:where(:root[data-theme="dark"]) .audit-tools-menu { background: #141b24; border-color: var(--line-2); }
+:where(:root[data-theme="dark"]) .audit-chip { color: #8db4ff; background: #12233f; }
+:where(:root[data-theme="dark"]) .audit-chip:hover { background: #1c3763; }
+:where(:root[data-theme="dark"]) .audit-row-clickable:hover td { background: #111f36; }
+:where(:root[data-theme="dark"]) .audit-row-warn td { background: #261f0d; }
+:where(:root[data-theme="dark"]) .audit-row-clickable.audit-row-warn:hover td { background: #332910; }
+:where(:root[data-theme="dark"]) .audit-action-trigger:hover { color: #93c5fd; }
+:where(:root[data-theme="dark"]) .audit-action-trigger.is-high { color: #fdba74; }
+:where(:root[data-theme="dark"]) .audit-action-trigger.is-high:hover { color: #fed7aa; }
+:where(:root[data-theme="dark"]) .audit-pivot:hover { background: #12233f; border-color: #2c4e86; }
+:where(:root[data-theme="dark"]) .audit-ctx-tag { background: #1c293b; color: #c5d1e3; }
+:where(:root[data-theme="dark"]) .audit-ctx-tag.is-self { color: #93c5fd; background: #12233f; }
+:where(:root[data-theme="dark"]) .audit-ctx-tag.is-system { background: #261c45; color: #c4b5fd; }
+:where(:root[data-theme="dark"]) .audit-corr-btn { background: #101b2d; color: #c5d1e3; border-color: var(--line); }
+:where(:root[data-theme="dark"]) .audit-corr-btn:hover { color: #93c5fd; }
+:where(:root[data-theme="dark"]) .audit-archive-box { background: #101b2d; border-color: var(--line); }
+
+/* Bảng & danh sách chung */
+:where(:root[data-theme="dark"]) th { color: #b0bfd4; background: #111e32; }
+:where(:root[data-theme="dark"]) td { border-bottom: 1px solid #25364b; color: #ced7e6; }
+:where(:root[data-theme="dark"]) tbody tr:hover td { background: #101c2f; }
+:where(:root[data-theme="dark"]) .miniavatar { background: #15223f; color: #8aa8de; }
+:where(:root[data-theme="dark"]) .person b { color: #e2eaf6; }
+:where(:root[data-theme="dark"]) .person small { color: #b0bfd4; }
+:where(:root[data-theme="dark"]) .empty { color: #9fb2cc; }
+:where(:root[data-theme="dark"]) .notice { border: 1px solid #1f365e; background: #111f33; color: #b8ceef; }
+:where(:root[data-theme="dark"]) .notice.warn { border-color: #6b4e14; background: #2e2410; color: #f8daa5; }
+:where(:root[data-theme="dark"]) .notice.errbox { border-color: #752733; background: #301015; color: #fca5a5; }
+:where(:root[data-theme="dark"]) .notice.okbox { border-color: #236b50; background: #0e2b23; color: #86efac; }
+:where(:root[data-theme="dark"]) .modal { background: #141b24; }
+:where(:root[data-theme="dark"]) .modal-close:hover { background: #182838; }
+:where(:root[data-theme="dark"]) .logout-account { background: #101b2d; }
+:where(:root[data-theme="dark"]) .loginbox { background: #141b24; }
+:where(:root[data-theme="dark"]) .loginbox h1 { color: #e2eaf6; }
+:where(:root[data-theme="dark"]) .loginbox .sub { color: #b0bfd4; }
+:where(:root[data-theme="dark"]) .appt { border-bottom: 1.5px solid #25364b; }
+:where(:root[data-theme="dark"]) .appt .date { color: #84a7e7; }
+:where(:root[data-theme="dark"]) .appt .main-info b { color: #e2eaf6; }
+:where(:root[data-theme="dark"]) .appt .main-info small { color: #b0bfd4; }
+:where(:root[data-theme="dark"]) .appt .time { color: #ced7e6; }
+:where(:root[data-theme="dark"]) .appt .time small { color: #99adc8; }
+:where(:root[data-theme="dark"]) .locked { color: #99adc8; }
+:where(:root[data-theme="dark"]) .step { background: #1c293b; color: #b0bfd4; }
+:where(:root[data-theme="dark"]) .step .n { background: #141b24; }
+:where(:root[data-theme="dark"]) .step.on { color: #84a7e7; }
+:where(:root[data-theme="dark"]) .step.done { color: #6ee7b7; }
+:where(:root[data-theme="dark"]) .choice { background: #141b24; border-color: var(--line-2); }
+:where(:root[data-theme="dark"]) .choice:hover { border-color: #4b73b8; }
+:where(:root[data-theme="dark"]) .choice small { color: #b0bfd4; }
+:where(:root[data-theme="dark"]) .slot { border: 1.5px solid #264573; background: #101d31; color: #93c5fd; }
+:where(:root[data-theme="dark"]) .slot:hover { border-color: #60a5fa; background: #162a48; }
+:where(:root[data-theme="dark"]) .slot.conflict { background: #131c29; border-color: #2c3c52; color: #8ea3be; }
+:where(:root[data-theme="dark"]) .summary h3 { color: #e2eaf6; }
+:where(:root[data-theme="dark"]) .summary dt { color: #b0bfd4; }
+:where(:root[data-theme="dark"]) .summary dd { color: #e6edf7; }
+:where(:root[data-theme="dark"]) .listbtn { background: #141b24; }
+:where(:root[data-theme="dark"]) .listbtn:hover { background: #101e30; border-color: #4b73b8; }
+:where(:root[data-theme="dark"]) .listbtn .d { background: #141b24; }
+:where(:root[data-theme="dark"]) .listbtn .d small { color: #b0bfd4; }
+:where(:root[data-theme="dark"]) .listbtn b { color: #e2eaf6; }
+:where(:root[data-theme="dark"]) .listbtn small { color: #b0bfd4; }
+:where(:root[data-theme="dark"]) .vitals div { background: #111e32; }
+:where(:root[data-theme="dark"]) .rx-item { background: #0f192d; }
+:where(:root[data-theme="dark"]) .qcard { background: #141b24; }
+:where(:root[data-theme="dark"]) .doctor-card { border-bottom: 1px solid #25364b; }
+:where(:root[data-theme="dark"]) .docavatar { background: #15253f; color: #8eafe4; }
+:where(:root[data-theme="dark"]) .log { border-bottom: 1px solid #25364b; }
+:where(:root[data-theme="dark"]) .bar { background: #1d2b3b; }
+:where(:root[data-theme="dark"]) .week .day { background: #141b24; }
+:where(:root[data-theme="dark"]) .block { color: #94b1ea; }
+:where(:root[data-theme="dark"]) .block.remote { color: #a795d5; }
+:where(:root[data-theme="dark"]) .block.off { color: #f8daa5; }
+
+/* Lịch làm việc & Nghỉ */
+:where(:root[data-theme="dark"]) .weekday { background: #141b24; }
+:where(:root[data-theme="dark"]) .weekday.today { background: #111f33; }
+:where(:root[data-theme="dark"]) .weekday.past-day { background: #121c2e; }
+:where(:root[data-theme="dark"]) .weekday.sunday { background: #142230; }
+:where(:root[data-theme="dark"]) .wblock { color: #93c5fd; }
+:where(:root[data-theme="dark"]) .wblock.in-person { background: #14243d; color: #93c5fd; }
+:where(:root[data-theme="dark"]) .wblock.remote { background: #1c1338; color: #c4b5fd; }
+:where(:root[data-theme="dark"]) .wblock.off { background: #371215; color: #fda4af; }
+:where(:root[data-theme="dark"]) .wblock.past { background: #182838; color: #b0bfd4; }
+:where(:root[data-theme="dark"]) .shift-tag.live { background: #1d583a; color: #b4f9e6; }
+:where(:root[data-theme="dark"]) .shift-tag.past { background: #253448; color: #c0cbd9; }
+:where(:root[data-theme="dark"]) .schedule-view-switch { background: #182838; }
+:where(:root[data-theme="dark"]) .schedule-legend { background: #142230; }
+:where(:root[data-theme="dark"]) .legend-dot.past { background: #384b61; }
+:where(:root[data-theme="dark"]) .schedule-policy { background: #141b24; }
+:where(:root[data-theme="dark"]) .schedule-policy span:not(.pill) { color: #a5b6ce; }
+:where(:root[data-theme="dark"]) .schedule-day:disabled { color: #8ca2c1; }
+:where(:root[data-theme="dark"]) .schedule-preset { background: #141b24; color: #becee2; }
+:where(:root[data-theme="dark"]) .schedule-preset[aria-pressed="true"] { background: #132139; color: #8aa9e9; }
+:where(:root[data-theme="dark"]) .schedule-summary { background: #131f32; }
+:where(:root[data-theme="dark"]) .schedule-add-day { background: #141b24; color: #84a7e7; }
+:where(:root[data-theme="dark"]) .schedule-add-day:hover { background: #132139; }
+:where(:root[data-theme="dark"]) .schedule-add-day.off { border-color: #973244; color: #fda4af; }
+:where(:root[data-theme="dark"]) .schedule-add-day.off:hover { background: #371215; }
+:where(:root[data-theme="dark"]) .monthgrid-head { background: #141b24; }
+:where(:root[data-theme="dark"]) .monthgrid-head > div.sunday { color: #fda4af; }
+:where(:root[data-theme="dark"]) .monthday { background: #141b24; }
+:where(:root[data-theme="dark"]) .monthday.today { background: #111f33; }
+:where(:root[data-theme="dark"]) .monthday.outside { background: #142230; }
+:where(:root[data-theme="dark"]) .monthday.past-day { background: #121c2e; }
+:where(:root[data-theme="dark"]) .monthday.sunday { background: #142230; }
+:where(:root[data-theme="dark"]) .md-num:hover:not(:disabled) { color: #7292ec; }
+:where(:root[data-theme="dark"]) .md-quick button { border: 1px solid #475f7b; background: #141b24; color: #84a7e7; }
+:where(:root[data-theme="dark"]) .md-quick button:hover { background: #132139; }
+:where(:root[data-theme="dark"]) .md-quick button.off { color: #fda4af; }
+:where(:root[data-theme="dark"]) .md-quick button.off:hover { background: #371215; }
+:where(:root[data-theme="dark"]) .mchip.in-person { background: #14243d; color: #93c5fd; }
+:where(:root[data-theme="dark"]) .mchip.remote { background: #1c1338; color: #c4b5fd; }
+:where(:root[data-theme="dark"]) .mchip.off { background: #371215; color: #fda4af; }
+:where(:root[data-theme="dark"]) .mchip.past { background: #182838; color: #b0bfd4; }
+:where(:root[data-theme="dark"]) .day-add-form,
+:where(:root[data-theme="dark"]) .day-tl { background: #142230; }
+:where(:root[data-theme="dark"]) .day-tl-track { background: #141b24; }
+:where(:root[data-theme="dark"]) .day-tl-block.in-person { background: #192f4b; color: #93c5fd; }
+:where(:root[data-theme="dark"]) .day-tl-block.remote { background: #1d153f; color: #c4b5fd; border-color: #422e8b; }
+:where(:root[data-theme="dark"]) .day-tl-block.off { background: repeating-linear-gradient(-45deg, #421619, #421619 5px, #581d25 5px, #581d25 10px); color: #fda4af; }
+:where(:root[data-theme="dark"]) .day-tl-block.past { background: #253448; color: #b0bfd4; border-color: #475f7b; }
+:where(:root[data-theme="dark"]) .day-tl-now span { color: #fca5a5; background: #451717; }
+:where(:root[data-theme="dark"]) .shift-break-inline,
+:where(:root[data-theme="dark"]) .shift-break-row { background: #371215; color: #fda4af; border: 1px solid #6f252e; }
+:where(:root[data-theme="dark"]) .shift-break-form { background: #142230; }
+
+/* Giờ phòng khám, Account V13, Đặt lịch, Hồ sơ bệnh án */
+:where(:root[data-theme="dark"]) .clinic-day-card { background: #141b24; border-color: var(--line-2); }
+:where(:root[data-theme="dark"]) .clinic-day-card.closed { background: #101b2d; }
+:where(:root[data-theme="dark"]) .clinic-day-card.invalid { border-color: #8f3542; background: #301015; }
+:where(:root[data-theme="dark"]) .clinic-switch-track { background: #475f7b; }
+:where(:root[data-theme="dark"]) .clinic-switch-track::after { background: #e6edf7; }
+:where(:root[data-theme="dark"]) .clinic-holiday-item { background: #101b2d; border-color: var(--line); }
+:where(:root[data-theme="dark"]) .date-chip { background: #141b24; border-color: var(--line-2); color: #e2eaf6; }
+:where(:root[data-theme="dark"]) .date-chip:hover { border-color: #60a5fa; }
+:where(:root[data-theme="dark"]) .reason-chip { background: #101b2d; border-color: var(--line-2); color: #ced7e6; }
+:where(:root[data-theme="dark"]) .reason-chip:hover,
+:where(:root[data-theme="dark"]) .reason-chip.on { border-color: #60a5fa; color: #93c5fd; background: #12233f; }
+:where(:root[data-theme="dark"]) .next-appt-countdown { color: #93c5fd; }
+:where(:root[data-theme="dark"]) .shortcut-card { background: #141b24; border-color: var(--line-2); }
+:where(:root[data-theme="dark"]) .shortcut-card:hover { border-color: #60a5fa; background: #111f36; }
+:where(:root[data-theme="dark"]) .shortcut-icon { color: #93c5fd; background: #12233f; }
+:where(:root[data-theme="dark"]) .info-row { border-bottom: 1px solid #25364b; }
+:where(:root[data-theme="dark"]) .info-icon { color: #93c5fd; }
+:where(:root[data-theme="dark"]) .account-edit-box { background: #101d31; border: 1px solid #1f365e; }
+:where(:root[data-theme="dark"]) .id-box { background: #101b2d; border-color: var(--line); }
+:where(:root[data-theme="dark"]) .records-filter-chip { background: #141b24; border-color: var(--line-2); color: #ced7e6; }
+:where(:root[data-theme="dark"]) .records-filter-chip:hover,
+:where(:root[data-theme="dark"]) .records-filter-chip.on { border-color: #60a5fa; color: #93c5fd; background: #12233f; }
+:where(:root[data-theme="dark"]) .mini-tag { background: #1c293b; color: #c5d1e3; }
+:where(:root[data-theme="dark"]) .mini-tag.ok { color: #6ee7b7; background: #0e2b23; }
+:where(:root[data-theme="dark"]) .mini-tag.warn { color: #fbbf24; background: #2e2410; }
+
+/* Scrollbar tối */
+:root[data-theme="dark"] * { scrollbar-color: #3a4f6b transparent; }
+:root[data-theme="dark"] *::-webkit-scrollbar-track { background: #0e1624; }
+:root[data-theme="dark"] *::-webkit-scrollbar-thumb { background: #30445e; border: 1px solid #0e1624; }
+:root[data-theme="dark"] *::-webkit-scrollbar-thumb:hover { background: #47648a; }
+
+/* ===== Ghi đè ưu tiên cao cho các trường hợp đặc biệt ===== */
+:root[data-theme="dark"] .panel { border-color: var(--line-2) !important; }
+:root[data-theme="dark"] .btn.primary { background: var(--blue); border-color: var(--blue); color: #fff; }
+:root[data-theme="dark"] .btn.danger.solid { background: #dc2626; border-color: #dc2626; color: #fff; }
+:root[data-theme="dark"] .slot.on,
+:root[data-theme="dark"] .date-chip.on,
+:root[data-theme="dark"] .md-today-pill { color: #fff; }
+:root[data-theme="dark"] .fullpage .brand,
+:root[data-theme="dark"] .loginbox .brand { color: #f4f7fb !important; }
+:root[data-theme="dark"] .loginbox .brand em { color: #80a7ff; }
+:root[data-theme="dark"] .toast { border: 1px solid var(--line-2); }
+:root[data-theme="dark"] .toast.err { border-color: #b3263b; }
+:root[data-theme="dark"] .notice code,
+:root[data-theme="dark"] .endpoint-list code { background: rgba(255, 255, 255, 0.1); }
+:root[data-theme="dark"] .modalback,
+:root[data-theme="dark"] .scrim { background: rgba(2, 6, 14, 0.72); }
+:root[data-theme="dark"] .modal { border: 1px solid var(--line-2); }
+:root[data-theme="dark"] .field::placeholder,
+:root[data-theme="dark"] textarea::placeholder { color: #8398b4; }
+:root[data-theme="dark"] option { background: #141b24; color: #e6edf7; }
+
+/* Trang Cài đặt */
+:root[data-theme="dark"] .mock-banner { background: #2e2410 !important; color: #f8daa5 !important; border-bottom-color: #6b4e14 !important; }
+:root[data-theme="dark"] .settings-card-icon,
+:root[data-theme="dark"] .pref-option-icon { color: #8db4ff; }
+:root[data-theme="dark"] .pref-option.on .pref-option-icon { color: #fff; }
+:root[data-theme="dark"] .pref-option-mark { color: #8db4ff; }
+:root[data-theme="dark"] .pref-option:hover { border-color: #4b73b8; }
